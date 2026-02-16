@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@ensdomains/ensjs": "^4.2.2",
-    "@erc7824/nitrolite": "^0.5.3",
     "@privy-io/node": "^0.8.0",
     "@privy-io/react-auth": "^3.13.1",
     "@radix-ui/react-progress": "^1.1.8",
