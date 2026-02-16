@@ -5,7 +5,6 @@ import { useTradingStore } from '@/game/stores/trading-store'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GridScanBackground } from '@/components/GridScanBackground'
 import { usePrivy } from '@privy-io/react-auth'
-import { getChannelManager } from '@/lib/yellow/channel-manager'
 import { ActionButton } from '@/components/ui/ActionButton'
 import { ClaimUsername } from '@/components/ens/ClaimUsername'
 import { SetLeverage } from '@/components/ens/SetLeverage'
@@ -43,7 +42,6 @@ export function MatchmakingScreen() {
     selectOpponent,
     userLeverage,
   } = useTradingStore()
-  const channelManager = getChannelManager()
 
   const [matchState, setMatchState] = useState<MatchState>('login')
   const [usdcBalance, setUsdcBalance] = useState<string>('0')
@@ -61,6 +59,20 @@ export function MatchmakingScreen() {
 
   // Store actions
   const setUserLeverage = useTradingStore((state) => state.setUserLeverage)
+
+  // Helper function to check USDC balance
+  const checkUsdcBalance = useCallback(async (walletAddress: string) => {
+    const response = await fetch('/api/usdc-balance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress }),
+    })
+    const data = await response.json()
+    return {
+      formatted: data.formatted || '0',
+      hasEnough: parseFloat(data.formatted || '0') >= 10,
+    }
+  }, [])
 
   // Check if user already has a username using getFullName()
   const walletAddress = user?.wallet?.address as `0x${string}` | undefined
@@ -148,7 +160,7 @@ export function MatchmakingScreen() {
         for (let i = 0; i < maxRetries; i++) {
           await new Promise((resolve) => setTimeout(resolve, delayMs))
 
-          const result = await channelManager.checkBalance(user.wallet.address)
+          const result = await checkUsdcBalance(user.wallet.address)
           setUsdcBalance(result.formatted || '0')
 
           if (result.hasEnough) {
@@ -176,7 +188,7 @@ export function MatchmakingScreen() {
 
     setMatchState('checking')
     try {
-      const result = await channelManager.checkBalance(user.wallet.address)
+      const result = await checkUsdcBalance(user.wallet.address)
       setUsdcBalance(result.formatted || '0')
 
       if (result.hasEnough) {
@@ -188,7 +200,7 @@ export function MatchmakingScreen() {
       console.error('Balance check error:', error)
       setMatchState('insufficient')
     }
-  }, [user?.wallet, channelManager])
+  }, [user?.wallet, checkUsdcBalance])
 
   const handleEnter = async () => {
     if (!isConnected || isMatching || !user?.wallet) return
@@ -202,7 +214,7 @@ export function MatchmakingScreen() {
     }
 
     // Final balance check before entering
-    const balanceResult = await channelManager.checkBalance(user.wallet.address)
+    const balanceResult = await checkUsdcBalance(user.wallet.address)
     if (!balanceResult.hasEnough) {
       setUsdcBalance(balanceResult.formatted || '0')
       setMatchState('insufficient')
@@ -244,7 +256,7 @@ export function MatchmakingScreen() {
 
       setMatchState('entering')
 
-      channelManager.checkBalance(user.wallet.address).then((result) => {
+      checkUsdcBalance(user.wallet.address).then((result) => {
         if (!result.hasEnough) {
           setUsdcBalance(result.formatted || '0')
           setMatchState('insufficient')
@@ -253,7 +265,7 @@ export function MatchmakingScreen() {
         selectOpponent(opponentSocketId)
       })
     },
-    [isConnected, isMatching, user?.wallet, selectOpponent, channelManager]
+    [isConnected, isMatching, user?.wallet, selectOpponent, checkUsdcBalance]
   )
 
   if (!ready) {
