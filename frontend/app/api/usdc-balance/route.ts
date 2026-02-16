@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createPublicClient, http } from 'viem'
 import { baseSepolia } from 'viem/chains'
-import { USDC_ADDRESS } from '@/lib/yellow/config'
 
 export const runtime = 'nodejs'
+
+// USDC contract address on Base Sepolia
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as `0x${string}`
 
 // Public client for Base Sepolia
 const client = createPublicClient({
