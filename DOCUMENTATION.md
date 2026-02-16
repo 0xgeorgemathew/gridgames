@@ -174,7 +174,6 @@ When 30 seconds expire OR a player reaches $0:
 
 **If someone has won 2 rounds:**
 - Game over sequence triggers
-- Yellow Network payment channel settles (converts game dollars to USDC)
 - Game Over Modal appears showing complete round history
 - ENS stats updated (games played, win streak)
 - Player can click "PLAY AGAIN" to return to matchmaking
@@ -228,7 +227,6 @@ When 30 seconds expire OR a player reaches $0:
     └─ Final round, winner takes all
 
 15. GAME OVER
-    ├─ Payment channel settles
     ├─ Round history displayed
     ├─ ENS stats updated
     └─ "PLAY AGAIN" button
@@ -515,83 +513,6 @@ New players need money to play. Grid Games uses a **faucet** system:
 - Small amount for testing purposes
 - Mainnet will use different amounts
 
-## Payment Channels (Yellow Network)
-
-### The Challenge: Transaction Fees
-
-**Problem:** Each game update on blockchain = gas fee
-- Settling each round = transaction
-- Updating player balances = transaction
-- Multiple games per session = expensive and slow
-
-**Solution: Payment Channels**
-- Lock funds in a smart contract upfront
-- Update game state off-chain (fast, free)
-- Settle once at the end (single transaction)
-
-### How Payment Channels Work
-
-**Step 1: Channel Creation (Before Game)**
-```
-Two players matched
-        ↓
-Server creates payment channel
-        ↓
-Channel ID: 0xabc...123 (unique)
-        ↓
-Players deposit 10 USDC each
-        ↓
-Total locked: 20 USDC
-        ↓
-Status: ACTIVE
-```
-
-**Step 2: Game State Updates (During Game)**
-```
-Round 1 ends
-        ↓
-Server calculates: Player 1 has $15, Player 2 has $5
-        ↓
-Update channel state:
-  Player 1 allocation: 15 USDC (75%)
-  Player 2 allocation: 5 USDC (25%)
-        ↓
-Round 2 ends
-        ↓
-Update channel state again
-        ↓
-...
-```
-
-**Step 3: Settlement (After Game)**
-```
-Game over
-        ↓
-Final state signed by server
-        ↓
-Submit to Yellow Network contract
-        ↓
-Contract verifies signatures
-        ↓
-Players withdraw final amounts
-        ↓
-Channel closed
-```
-
-### Current Status: MVP Mode
-
-**Important:** The Yellow Network integration is currently in **MVP mode**:
-- Payment channels are created
-- State is tracked in-memory (not on-chain)
-- No actual blockchain settlement yet
-- Returns mock transaction hash
-
-**Why MVP Mode?**
-- Faster development
-- No real money at risk (testnet)
-- Can test gameplay without gas costs
-- Production settlement will be added later
-
 ## The Complete Blockchain Journey
 
 ### First-Time Player Blockchain Journey
@@ -841,20 +762,18 @@ The game includes satisfying audio feedback:
 7. **Play** best-of-three rounds of coin-slicing trading
 8. **Predict** Bitcoin price movements by slicing coins
 9. **Win** by having more dollars when time expires
-10. **Settle** via payment channel (MVP: in-memory)
-11. **Track** stats on ENS (games played, win streak)
-12. **Play again** instantly with one click
+10. **Track** stats on ENS (games played, win streak)
+11. **Play again** instantly with one click
 
 ## Key Innovations
 
 1. **Embedded Wallets (Privy):** No crypto experience needed
 2. **ENS Identity:** Portable, player-owned usernames and stats
-3. **Payment Channels:** Fast gameplay without gas fees
-4. **Deterministic Spawning:** Fair opportunities for both players
-5. **Best-of-Three:** Competitive format with comeback potential
-6. **Leverage System:** Customizable risk/reward
-7. **Real-Time Prices:** Live Bitcoin integration
-8. **Arcade Mechanics:** Coin slicing makes trading fun
+3. **Deterministic Spawning:** Fair opportunities for both players
+4. **Best-of-Three:** Competitive format with comeback potential
+5. **Leverage System:** Customizable risk/reward
+6. **Real-Time Prices:** Live Bitcoin integration
+7. **Arcade Mechanics:** Coin slicing makes trading fun
 
 ## Technology Stack (Non-Technical Summary)
 
@@ -863,7 +782,6 @@ The game includes satisfying audio feedback:
 - **Background:** Three.js (3D animation)
 - **Auth:** Privy (embedded wallets)
 - **Identity:** ENS (usernames, stats, leverage)
-- **Payments:** Yellow Network (payment channels - MVP)
 - **Real-time:** Socket.IO (multiplayer)
 - **Prices:** Binance WebSocket (Bitcoin)
 - **Blockchain:** Base Sepolia testnet (low fees)

@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Grid Games is a monorepo containing a web-based game with real-time multiplayer and blockchain settlement. The project consists of:
 
-- **frontend/**: Next.js web app with Phaser game engine, embedded Socket.IO server, ENS integration, and Yellow/Nitrolite L2 payment channels (port 3000)
+- **frontend/**: Next.js web app with Phaser game engine, embedded Socket.IO server, ENS integration (port 3000)
 - **contracts/**: Foundry smart contracts for USDC faucet (Base Sepolia testnet)
 - ~~backend/**~~: *Removed - Socket.IO server now embedded in frontend*
 
@@ -64,7 +64,6 @@ anvil                # Start local Ethereum node
 │  - Socket.IO server at /api/socket (embedded)               │
 │  - Privy authentication                                     │
 │  - ENS integration (Base Sepolia L2 registry)              │
-│  - Yellow/Nitrolite L2 payment channels                    │
 │  - viem + wagmi for wallet interaction                      │
 │  - TanStack Query for data fetching                         │
 │  - window.phaserEvents bridge (React ↔ Phaser)              │
@@ -75,7 +74,6 @@ anvil                # Start local Ethereum node
 │  Smart Contracts & L2                                       │
 │  - USDCFaucet.sol (Base Sepolia USDC faucet)               │
 │  - ENS L2 Registry (player identity: .grid.eth)            │
-│  - Yellow/Nitrolite channels (instant settlements)          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -118,7 +116,6 @@ See `.claude/rules/game-design.md` for complete mechanics.
 | Frontend  | Next.js 16.1.6, React 19.2.3, Tailwind CSS v4, SHADCN, Phaser 3.90.0, Socket.IO, viem, wagmi, TanStack Query, Framer Motion, Privy auth |
 | Contracts | Foundry, Solidity ^0.8.20, OpenZeppelin v5.5                                      |
 | Identity  | ENS L2 (Base Sepolia), .grid.eth subdomains                                      |
-| Payments  | Yellow Network, Nitrolite 0.5.3, USDC (Base Sepolia)                              |
 
 ## Important File Locations
 
@@ -126,9 +123,8 @@ See `.claude/rules/game-design.md` for complete mechanics.
 - `frontend/components/MatchmakingScreen.tsx` - Lobby mode, ENS username claiming, leverage selection
 - `frontend/components/ens/` - ENS integration components (PlayerName, ClaimUsername, SetLeverage)
 - `frontend/app/api/socket/route.ts` - Socket.IO server for HFT Battle multiplayer
-- `frontend/app/api/socket/game-events.ts` - Server-side game logic (2,155 lines)
+- `frontend/app/api/socket/game-events.ts` - Server-side game logic
 - `frontend/lib/ens.ts` - ENS contract addresses, text record operations, leverage fetching
-- `frontend/lib/yellow/` - Yellow/Nitrolite L2 payment channel client
 - `frontend/hooks/useENS.ts` - React hooks for ENS operations
 - `contracts/src/USDCFaucet.sol` - Base Sepolia USDC faucet for testnet gameplay
 - `ens-code-usage.md` - ENS integration documentation
@@ -184,37 +180,6 @@ Grid Games uses ENS L2 on Base Sepolia for decentralized player identity and per
 3. Set leverage preference (stored in ENS text record)
 4. Join lobby → Server fetches leverage for fair matchmaking
 5. Game ends → Stats updated to ENS (total games, streak)
-
-## Yellow/Nitrolite L2 Payment Channels
-
-Instant game settlements using ERC-7824 Nitrolite payment channels on Base Sepolia.
-
-### Channel Configuration
-- **Network**: Base Sepolia (Chain ID: 84532)
-- **Token**: USDC (`0x036CbD53842c5426634e7929541eC2318f3dCF7e`)
-- **Entry Stake**: 10 USDC per player
-- **Per-Slice Amount**: 0.1 USDC
-- **Challenge Duration**: 24 hours (dispute window)
-
-### State Channel Flow
-1. **Channel Creation**: Both players deposit 10 USDC escrow
-2. **State Updates**: After each round, allocations updated based on game outcome
-3. **Channel Settlement**: Final state signed and submitted to blockchain
-4. **Payout**: Winners receive their share instantly
-
-### Implementation Files
-- `frontend/lib/yellow/config.ts` - Channel configuration constants
-- `frontend/lib/yellow/nitrolite-client.ts` - Nitrolite wrapper functions
-- `frontend/lib/yellow/channel-manager.ts` - Channel state management
-- `frontend/app/api/yellow/` - API routes for channel operations
-
-### API Endpoints
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /api/yellow/create-channel` | Create new payment channel |
-| `POST /api/yellow/deposit` | Deposit USDC into channel |
-| `POST /api/yellow/state-update` | Update channel state after rounds |
-| `POST /api/yellow/settle` | Settle channel on blockchain |
 
 ## Smart Contract Status
 
