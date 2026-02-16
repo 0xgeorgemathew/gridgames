@@ -140,7 +140,6 @@ export type GameOverEvent = {
   player1Wins: number
   player2Wins: number
   rounds: RoundSummary[]
-  yellowSettlement?: { id: string; amount: number } // Yellow channel settlement data
 }
 
 /**
