@@ -2,13 +2,6 @@ import { Server as SocketIOServer } from 'socket.io'
 import { Socket } from 'socket.io'
 import { Player, RoundSummary } from '@/game/types/trading'
 import { DEFAULT_BTC_PRICE } from '@/lib/formatPrice'
-import { ENTRY_STAKE } from '@/lib/yellow/config'
-import {
-  initializeNitrolite,
-  createGameChannel,
-  updateChannelState,
-  settleChannel,
-} from '@/lib/yellow/nitrolite-client'
 import { GAME_CONFIG } from '@/game/constants'
 import { getLeverageForAddress } from '@/lib/ens'
 
@@ -340,9 +333,7 @@ class GameRoom {
   // Cache player leverage from ENS (for whale power-up)
   private playerLeverageCache = new Map<string, number>() // playerId -> leverage
 
-  // Yellow Network state channel
-  channelId: string | null = null
-  channelStatus: 'INITIAL' | 'ACTIVE' | 'FINAL' = 'INITIAL'
+  // Wallet addresses for ENS leverage lookups
   player1Address: `0x${string}` | null = null
   player2Address: `0x${string}` | null = null
   // Track which socket ID corresponds to which wallet address
@@ -441,14 +432,6 @@ class GameRoom {
       return this.player2Address
     }
     return undefined
-  }
-
-  // Get player dollars by wallet address (for Yellow channel settlements)
-  getDollarsByWalletAddress(walletAddress: string): number {
-    const socketId = this.addressToSocketId.get(walletAddress.toLowerCase())
-    if (!socketId) return GAME_CONFIG.STARTING_CASH // fallback to starting amount
-    const player = this.players.get(socketId)
-    return player?.dollars ?? GAME_CONFIG.STARTING_CASH
   }
 
   addPlayer(id: string, name: string, sceneWidth: number, sceneHeight: number, leverage: number = 2): void {
@@ -1123,131 +1106,6 @@ function transferFunds(room: GameRoom, winnerId: string, loserId: string, amount
   return actualTransfer
 }
 
-// =============================================================================
-// Yellow Network State Channel Integration
-// =============================================================================
-
-// Create Yellow state channel for the game using Nitrolite SDK
-async function createYellowChannel(
-  room: GameRoom,
-  name1: string,
-  name2: string,
-  wallet1: string,
-  wallet2: string
-): Promise<void> {
-  try {
-    const channel = await createGameChannel({
-      player1Address: wallet1,
-      player2Address: wallet2,
-      player1Name: name1,
-      player2Name: name2,
-    })
-
-    room.channelId = channel.channelId
-    room.channelStatus = channel.status as 'INITIAL' | 'ACTIVE' | 'FINAL'
-
-    console.log('[Nitrolite] Channel created successfully:', {
-      channelId: channel.channelId,
-      participants: channel.participants,
-      allocations: channel.allocations,
-    })
-  } catch (error) {
-    // No mock fallback - throw to surface configuration issues
-    throw new Error(
-      `[Nitrolite] Channel creation failed: ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
-}
-
-// Update Yellow channel state after round ends using Nitrolite
-async function updateYellowChannel(room: GameRoom): Promise<void> {
-  if (!room.channelId || !room.player1Address || !room.player2Address) return
-
-  // CRITICAL: Get dollars by wallet address, not by socket ID order
-  // This ensures correct mapping regardless of Map iteration order
-  const player1Dollars = room.getDollarsByWalletAddress(room.player1Address)
-  const player2Dollars = room.getDollarsByWalletAddress(room.player2Address)
-
-  // console.log('[GameRoom] updateYellowChannel - player dollars:', {
-  //   channelId: room.channelId,
-  //   currentRound: room.currentRound,
-  //   player1Address: room.player1Address,
-  //   player2Address: room.player2Address,
-  //   player1Dollars,
-  //   player2Dollars,
-  //   allPlayers: Array.from(room.players.entries()).map(([id, p]) => ({
-  //     id,
-  //     name: p.name,
-  //     dollars: p.dollars,
-  //   })),
-  // })
-
-  try {
-    await updateChannelState({
-      channelId: room.channelId,
-      player1Address: room.player1Address,
-      player2Address: room.player2Address,
-      player1Dollars,
-      player2Dollars,
-      version: room.currentRound,
-    })
-
-    room.channelStatus = 'ACTIVE'
-  } catch (error) {
-    console.error('[Nitrolite] State update failed:', error)
-  }
-}
-
-// Settle Yellow channel at game end using Nitrolite
-async function settleYellowChannel(room: GameRoom): Promise<{
-  channelId: string
-  player1Payout: string
-  player2Payout: string
-} | null> {
-  if (!room.channelId || !room.player1Address || !room.player2Address) return null
-
-  // CRITICAL: Get dollars by wallet address, not by socket ID order
-  // This ensures correct mapping regardless of Map iteration order
-  const player1Dollars = room.getDollarsByWalletAddress(room.player1Address)
-  const player2Dollars = room.getDollarsByWalletAddress(room.player2Address)
-
-  // console.log('[GameRoom] settleYellowChannel - player dollars:', {
-  //   channelId: room.channelId,
-  //   player1Address: room.player1Address,
-  //   player2Address: room.player2Address,
-  //   player1Dollars,
-  //   player2Dollars,
-  //   allPlayers: Array.from(room.players.entries()).map(([id, p]) => ({
-  //     id,
-  //     name: p.name,
-  //     dollars: p.dollars,
-  //   })),
-  // })
-
-  try {
-    const result = await settleChannel({
-      channelId: room.channelId,
-      player1Address: room.player1Address,
-      player2Address: room.player2Address,
-      player1Dollars,
-      player2Dollars,
-    })
-
-    room.channelStatus = 'FINAL'
-
-    return {
-      channelId: room.channelId,
-      player1Payout: result.player1Payout,
-      player2Payout: result.player2Payout,
-    }
-  } catch (error) {
-    // No mock fallback - throw to surface configuration issues
-    throw new Error(
-      `[Nitrolite] Settlement failed: ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
-}
-
 async function createMatch(
   io: SocketIOServer,
   manager: RoomManager,
@@ -1271,7 +1129,7 @@ async function createMatch(
   room.addPlayer(playerId1, name1, sceneWidth1, sceneHeight1, leverage1)
   room.addPlayer(playerId2, name2, sceneWidth2, sceneHeight2, leverage2)
 
-  // Store wallet addresses for Yellow channel AND create address → socket ID mapping
+  // Store wallet addresses for ENS leverage lookups AND create address → socket ID mapping
   if (wallet1 && wallet1.startsWith('0x')) {
     room.player1Address = wallet1 as `0x${string}`
     room.addressToSocketId.set(wallet1.toLowerCase(), playerId1)
@@ -1279,11 +1137,6 @@ async function createMatch(
   if (wallet2 && wallet2.startsWith('0x')) {
     room.player2Address = wallet2 as `0x${string}`
     room.addressToSocketId.set(wallet2.toLowerCase(), playerId2)
-  }
-
-  // Create Yellow channel if both wallets present
-  if (wallet1 && wallet2) {
-    await createYellowChannel(room, name1, name2, wallet1, wallet2)
   }
 
   manager.setPlayerRoom(playerId1, roomId)
@@ -1294,7 +1147,6 @@ async function createMatch(
 
   io.to(roomId).emit('match_found', {
     roomId,
-    channelId: room.channelId,
     players: [
       {
         id: playerId1,
@@ -1582,9 +1434,6 @@ async function checkGameOver(
 
     room.roundHistory.push(roundSummary)
 
-    // Settle Yellow channel before game over
-    const settlement = await settleYellowChannel(room)
-
     // Emit game_over with knockout reason (use final winner)
     const winner = room.players.get(winnerIdFinal || '')
     io.to(room.id).emit('game_over', {
@@ -1594,7 +1443,6 @@ async function checkGameOver(
       player1Wins: room.player1Wins,
       player2Wins: room.player2Wins,
       rounds: room.roundHistory,
-      yellowSettlement: settlement,
     })
 
     // CRITICAL: Clear clientsReady to prevent post-game-over round_ready events
@@ -1637,9 +1485,6 @@ async function endRound(io: SocketIOServer, manager: RoomManager, room: GameRoom
     if (winnerId === playerIds[0]) room.player1Wins++
     else if (winnerId === playerIds[1]) room.player2Wins++
   }
-
-  // Update Yellow channel state after round
-  await updateYellowChannel(room)
 
   // Emit round_end event
   io.to(room.id).emit('round_end', {
@@ -1689,9 +1534,6 @@ async function endRound(io: SocketIOServer, manager: RoomManager, room: GameRoom
     // CRITICAL: Mark room as closing to prevent post-game-over round_ready events
     room.setClosing()
 
-    // Settle Yellow channel before game over
-    const settlement = await settleYellowChannel(room)
-
     // Game over - emit final results
     const { winner, reason } = room.getGameWinner()
     io.to(room.id).emit('game_over', {
@@ -1701,7 +1543,6 @@ async function endRound(io: SocketIOServer, manager: RoomManager, room: GameRoom
       player1Wins: room.player1Wins,
       player2Wins: room.player2Wins,
       rounds: room.roundHistory,
-      yellowSettlement: settlement,
     })
 
     // CRITICAL: Clear clientsReady to prevent post-game-over round_ready events
@@ -1751,15 +1592,6 @@ export function setupGameEvents(io: SocketIOServer): {
   cleanup: () => void
   emergencyShutdown: () => void
 } {
-  // Initialize Nitrolite client for Yellow Network integration
-  try {
-    initializeNitrolite()
-    console.log('[Yellow] Nitrolite client initialized successfully')
-  } catch (error) {
-    console.error('[Yellow] Failed to initialize Nitrolite:', error)
-    console.warn('[Yellow] Continuing without Yellow integration - using mock mode')
-  }
-
   // Set up price broadcast to all clients via Socket.IO (single source of truth)
   priceFeed.setBroadcastCallback((data) => {
     io.emit('btc_price', data)
