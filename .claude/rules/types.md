@@ -55,11 +55,6 @@ All core HFT Battle types are centralized in `frontend/game/types/trading.ts`:
 - Stored in ENS text record `games.grid.leverage`
 - Fetched via `frontend/lib/ens.ts`
 
-**Yellow Channel Types:**
-- Defined in `frontend/lib/yellow/` directory
-- Nitrolite-specific types for payment channels
-- State channel management types
-
 ## Type Import Patterns
 
 ### Current Pattern (improved)
@@ -76,9 +71,6 @@ import { STARTING_CASH, ROUND_DURATION_MS } from '@/game/constants'
 
 // ENS types
 import type { LeverageOption } from '@/lib/ens'
-
-// Yellow channel types
-import type { ChannelState, NitroliteChannel } from '@/lib/yellow/channel-manager'
 ```
 
 ## Related Documentation
@@ -86,8 +78,3 @@ import type { ChannelState, NitroliteChannel } from '@/lib/yellow/channel-manage
 - `.claude/rules/game-design.md` - Game mechanics that types model
 - `.claude/rules/frontend.md` - Frontend architecture and conventions
 - `ens-code-usage.md` - ENS integration and leverage types
-
-## Related Documentation
-
-- `.claude/rules/game-design.md` - Game mechanics that types model
-- `.claude/rules/frontend.md` - Frontend architecture and conventions

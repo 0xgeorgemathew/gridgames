@@ -226,12 +226,11 @@ function checkBestOfThreeComplete(room: GameRoom): boolean {
 
 ## Implementation Files
 
-- `frontend/app/api/socket/game-events.ts` - Server-side logic (settlement, spawning, game loop) - 2,155 lines
-- `frontend/game/stores/trading-store.ts` - Client state (orders, settlements, tug-of-war) - 887 lines
-- `frontend/game/scenes/TradingScene.ts` - Phaser scene (rendering, input) - 614 lines
+- `frontend/app/api/socket/game-events.ts` - Server-side logic (settlement, spawning, game loop)
+- `frontend/game/stores/trading-store.ts` - Client state (orders, settlements, tug-of-war)
+- `frontend/game/scenes/TradingScene.ts` - Phaser scene (rendering, input)
 - `frontend/game/systems/` - Extracted game systems (CoinRenderer, BladeRenderer, ParticleSystem, VisualEffects, AudioManager)
 - `frontend/lib/ens.ts` - ENS integration (leverage fetching, stats)
-- `frontend/lib/yellow/` - Yellow/Nitrolite payment channels
 
 ## See Also
 

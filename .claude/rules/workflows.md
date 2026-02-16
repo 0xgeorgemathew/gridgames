@@ -95,7 +95,6 @@ Skill("superpowers:writing-plans") → design ENS text record schema
 |---------|-----------|-----------|
 | New game feature | `brainstorming` → `game-component` | `game-logic-reviewer` agent |
 | ENS feature | `writing-plans` → `executing-plans` | Type checking, contract verification |
-| Yellow channel | `systematic-debugging` → `executing-plans` | L2 integration testing |
 | Contract changes | `writing-plans` | `web3-auditor` agent |
 | Multi-file changes | `dispatching-parallel-agents` | Parallel code-reviewers |
 | Before merging | `verification-before-completion` | `requesting-code-review` |

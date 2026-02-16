@@ -8,7 +8,6 @@
 - **Zustand**: State management in `stores/`
 - **Socket.IO**: Real-time multiplayer at `/api/socket`
 - **ENS Integration**: Player identity via `.grid.eth` subdomains with leverage/stats
-- **Yellow/Nitrolite**: L2 payment channels for instant settlements
 
 ## File Structure
 
@@ -18,7 +17,6 @@ frontend/
 │   ├── api/
 │   │   ├── socket/route.ts    # Socket.IO server (game logic)
 │   │   ├── ens/               # ENS integration API
-│   │   ├── yellow/            # Yellow/Nitrolite channels
 │   │   └── page.tsx           # Main pages
 ├── components/                # React UI components (ShadCN)
 │   ├── ens/                   # ENS components
@@ -31,7 +29,7 @@ frontend/
 │   ├── config.ts              # Game configuration
 │   └── constants.ts           # Game constants
 ├── hooks/                     # React hooks (useENS)
-├── lib/                       # Utilities (ENS, Yellow)
+├── lib/                       # Utilities (ENS)
 └── providers.tsx              # App providers (Privy, wagmi, Query)
 ```
 
@@ -42,4 +40,3 @@ frontend/
 - **State**: Logic in stores; components are visual only
 - **Game systems**: Extracted rendering/particle/audio logic to `frontend/game/systems/`
 - **ENS integration**: Text records for leverage/stats, reverse lookup for usernames
-- **Yellow channels**: L2 payment channels for instant settlements

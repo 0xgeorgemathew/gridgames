@@ -12,7 +12,7 @@ Get up and running with Grid Games in 5 minutes.
 
 ```bash
 bun install    # Install dependencies
-cp .env.example .env.local  # Configure environment variables (Privy, ENS, Yellow)
+cp .env.example .env.local  # Configure environment variables (Privy, ENS)
 bun run dev    # Start dev server at http://localhost:3000
 ```
 
@@ -57,7 +57,6 @@ grid-games/
 │   │   ├── api/
 │   │   │   ├── socket/      # Socket.IO server
 │   │   │   ├── ens/         # ENS integration API
-│   │   │   ├── yellow/      # Yellow/Nitrolite channels
 │   │   │   ├── claim-usdc/  # USDC faucet claiming
 │   │   │   └── page.tsx     # Main pages
 │   ├── components/          # React UI (ShadCN)
@@ -71,7 +70,7 @@ grid-games/
 │   │   ├── config.ts        # Game configuration
 │   │   └── constants.ts     # Game constants
 │   ├── hooks/               # React hooks (useENS)
-│   ├── lib/                 # Utilities (ENS, Yellow)
+│   ├── lib/                 # Utilities (ENS)
 │   └── providers.tsx        # App providers (Privy, wagmi, Query)
 ├── contracts/
 │   ├── src/                 # Solidity contracts
@@ -99,7 +98,7 @@ grid-games/
 
 ### Fix Multiplayer Bug
 
-1. Read `.claude/rules/game-design.md` (best-of-three rounds, 100s each)
+1. Read `.claude/rules/game-design.md` (best-of-three rounds, 30s each)
 2. Read `.claude/rules/multiplayer-patterns.md`
 3. Implement in `frontend/game/scenes/` or `frontend/app/api/socket/`
 4. Type check: `bun run types`
@@ -158,7 +157,7 @@ forge update # Reinstall dependencies
 
 ## References
 
-- `CLAUDE.md` - Detailed project info (ENS Integration, Yellow/Nitrolite sections)
+- `CLAUDE.md` - Detailed project info (ENS Integration)
 - `ens-code-usage.md` - ENS integration documentation
 - `.claude/rules/game-design.md` - Game mechanics (best-of-three rounds, leverage system)
 - `.claude/rules/multiplayer-patterns.md` - Reliability patterns (SettlementGuard, RAII)
