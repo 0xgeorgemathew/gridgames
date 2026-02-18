@@ -57,7 +57,6 @@ grid-games/
 │   │   ├── api/
 │   │   │   ├── socket/      # Socket.IO server
 │   │   │   ├── ens/         # ENS integration API
-│   │   │   ├── claim-usdc/  # USDC faucet claiming
 │   │   │   └── page.tsx     # Main pages
 │   ├── components/          # React UI (ShadCN)
 │   │   ├── ens/             # ENS components
@@ -83,7 +82,7 @@ grid-games/
 
 ### Add Game Feature
 
-1. Read `.claude/rules/game-design.md` (best-of-three rounds, 30s each)
+1. Read `.claude/rules/game-design.md` (2-minute game, leverage system)
 2. Read `.claude/rules/multiplayer-patterns.md`
 3. Implement in `frontend/game/scenes/` or `frontend/app/api/socket/`
 4. Type check: `bun run types`
@@ -95,13 +94,6 @@ grid-games/
 3. Add hooks to `frontend/hooks/useENS.ts`
 4. Create UI components in `frontend/components/ens/`
 5. Type check: `bun run types`
-
-### Fix Multiplayer Bug
-
-1. Read `.claude/rules/game-design.md` (best-of-three rounds, 30s each)
-2. Read `.claude/rules/multiplayer-patterns.md`
-3. Implement in `frontend/game/scenes/` or `frontend/app/api/socket/`
-4. Type check: `bun run types`
 
 ### Fix Multiplayer Bug
 
@@ -159,6 +151,6 @@ forge update # Reinstall dependencies
 
 - `CLAUDE.md` - Detailed project info (ENS Integration)
 - `ens-code-usage.md` - ENS integration documentation
-- `.claude/rules/game-design.md` - Game mechanics (best-of-three rounds, leverage system)
+- `.claude/rules/game-design.md` - Game mechanics (2-minute game, leverage system)
 - `.claude/rules/multiplayer-patterns.md` - Reliability patterns (SettlementGuard, RAII)
 - `.claude/rules/types.md` - Type system documentation and conventions

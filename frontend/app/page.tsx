@@ -8,7 +8,6 @@ import { GameCanvasBackground } from '@/components/GameCanvasBackground'
 import { ToastNotifications } from '@/components/ToastNotifications'
 import { GameOverModal } from '@/components/GameOverModal'
 import { SettlementFlash } from '@/components/SettlementFlash'
-import { RoundEndFlash } from '@/components/RoundEndFlash'
 import GameCanvas from '@/components/GameCanvas'
 import { useEffect } from 'react'
 import { sdk } from '@farcaster/miniapp-sdk'
@@ -42,9 +41,6 @@ export default function Home() {
 
       {/* Settlement Flash - shows when orders settle */}
       <SettlementFlash />
-
-      {/* Round End Flash - shows round results */}
-      <RoundEndFlash />
 
       {!isPlaying ? (
         <MatchmakingScreen />

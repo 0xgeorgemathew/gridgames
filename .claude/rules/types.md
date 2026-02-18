@@ -7,14 +7,14 @@ TypeScript type organization, exports, and conventions for Grid Games frontend.
 ```
 frontend/game/
 ├── types/
-│   └── trading.ts       # All HFT Battle types (184 lines)
+│   └── trading.ts       # All HFT Battle types
 ├── stores/
-│   └── trading-store.ts # Zustand store (887 lines)
+│   └── trading-store.ts # Zustand store
 ├── config.ts            # Game configuration (Phaser config, grid dimensions)
 ├── constants.ts         # Game constants (economy, timing) - SEPARATED from config
 ├── systems/             # Game systems (extracted from scenes)
 └── scenes/
-    └── TradingScene.ts  # Phaser scene (614 lines, down from 1289)
+    └── TradingScene.ts  # Phaser scene
 ```
 
 ## Exported Types (from types/trading.ts)
@@ -30,10 +30,7 @@ All core HFT Battle types are centralized in `frontend/game/types/trading.ts`:
 | `OrderPlacedEvent` | Active order with countdown | ✅ Yes |
 | `SettlementEvent` | Settlement result after timer expires | ✅ Yes |
 | `MatchFoundEvent` | Two players matched | ✅ Yes |
-| `RoundStartEvent` | Round start notification | ✅ Yes |
-| `RoundEndEvent` | Round end with summary | ✅ Yes |
-| `GameOverEvent` | Game over with round history | ✅ Yes |
-| `RoundSummary` | Per-round results for game over modal | ✅ Yes |
+| `GameOverEvent` | Game over with final results | ✅ Yes |
 | `PriceData` | Binance price data | ✅ Yes |
 | `LobbyPlayer` | Lobby player for matchmaking | ✅ Yes |
 | `LobbyPlayersEvent` | Lobby players list event | ✅ Yes |
@@ -57,7 +54,7 @@ All core HFT Battle types are centralized in `frontend/game/types/trading.ts`:
 
 ## Type Import Patterns
 
-### Current Pattern (improved)
+### Current Pattern
 
 ```typescript
 // Core types from types/
@@ -67,7 +64,7 @@ import type { CoinType, Player, LobbyPlayer } from '@/game/types/trading'
 import { COIN_CONFIGS, GRID_CONFIG } from '@/game/config'
 
 // Game constants (economy, timing)
-import { STARTING_CASH, ROUND_DURATION_MS } from '@/game/constants'
+import { GAME_CONFIG } from '@/game/constants'
 
 // ENS types
 import type { LeverageOption } from '@/lib/ens'

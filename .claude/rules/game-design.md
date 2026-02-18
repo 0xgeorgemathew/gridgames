@@ -1,6 +1,6 @@
 # HFT Battle Game Design
 
-2-player competitive trading game. Slice coins to predict BTC price movement. **Best-of-three round system. First to 2 round wins.**
+2-player competitive trading game. Slice coins to predict BTC price movement. **2-minute game. Most dollars wins.**
 
 ## Overview
 
@@ -9,58 +9,35 @@
 **Starting Conditions:**
 - Each player: $10
 - Total economy: $20 (zero-sum, $0 floor)
-- **Game Mode**: Best-of-three rounds
-- **Round Duration**: 30 seconds per round
-- Coin spawn rate: 2000-3000ms (randomized)
+- **Game Duration**: 2 minutes (120 seconds)
+- Coin spawn rate: Progressive (warmup → climax)
 
-## Round System
-
-HFT Battle uses a **best-of-three** round format instead of single continuous gameplay.
-
-### Round Structure
+## Game Structure
 
 | Aspect | Value |
 |--------|-------|
-| Rounds per game | 3 (best-of-three) |
-| Round duration | 30 seconds (30,000ms) |
-| Starting cash per round | $10 each (first round only) |
-| Subsequent rounds | Carry over cash from previous round end |
-| Round end condition | Time limit (30s) OR knockout ($0) |
-| Game end condition | First player to 2 round wins |
-
-### Sudden Death
-
-If players are tied 1-1 after two rounds:
-- Third round is played as **sudden death** (⚡ FINAL ROUND)
-- Same 30-second duration
-- Winner takes all (no additional mechanics)
-
-### Round Transitions
-
-1. **Round End**: Time expires OR player reaches $0
-2. **Settlement**: All pending orders settled immediately
-3. **Summary Update**: Round results added to history
-4. **Cash Carry-Over**: Players keep ending cash amount for next round
-5. **Delay**: 3-second pause before next round starts
-6. **Next Round**: New `round_start` event emitted
-
-### Round History
-
-Each round records:
-- Round number
-- Winner ID (null if tie)
-- Player 1 and Player 2 ending dollars
-- Gained/lost amounts per player
-
-Displayed in game over modal via `GameOverEvent.rounds` array.
+| Duration | 2 minutes (120,000ms) |
+| Starting cash | $10 each |
+| Game end condition | Time limit OR knockout ($0) |
 
 ### Deterministic Spawning
 
 All players see the **same coin types in the same sequence** regardless of device. Only screen positions differ.
 
-- **Method**: Pre-generated sequence using seeded RNG (room ID + round number as seed)
-- **Tokens per round**: ~10-12 tokens (30s round with 2-3s spawn interval)
+- **Method**: Pre-generated sequence using seeded RNG (room ID as seed)
+- **Tokens per game**: ~60-80 tokens (2 min with progressive spawn rate)
 - **Fairness**: Identical opportunities for both players
+
+### Wave-Based Spawning
+
+Progressive difficulty through 4 waves:
+
+| Wave | Duration | Spawn Rate | Burst Chance |
+|------|----------|------------|--------------|
+| Warmup | 0-30s | 1200-1800ms | 10% |
+| Ramp | 30-60s | 1400-1800ms | 15% |
+| Intensity | 60-100s | 1000-1400ms | 25% |
+| Climax | 100-120s | 700-1100ms | 40% |
 
 ## Coin Types
 
@@ -157,70 +134,42 @@ if (data.coinType === 'whale') {
 
 ## Game Flow
 
-### Per Round
 1. Two players queue → RoomManager creates room → Both join Socket.IO room
-2. 5-second delay for Phaser initialization → Round 1 begins
-3. `round_start` event emitted with round number and duration
-4. Coins spawn every 2000-3000ms with deterministic types (same sequence for both players) and random X positions
-5. Player slices coin:
+2. Wait for both clients to signal ready → `game_start` event emitted
+3. Coins spawn with progressive spawn rate (wave-based)
+4. Player slices coin:
    - **Call/Put**: Order created with 5s countdown
    - **Gas**: Immediate penalty ($1 from slicer to opponent)
-   - **Whale**: 2X mode activated for slicing player (10 seconds)
-6. After 5s, price checked → Winner/loser determined → Funds transferred (×2 if 2X active)
-
-### Round End
-1. Round time expires (30s) OR knockout ($0)
-2. All pending orders settled immediately
-3. `round_end` event emitted with round summary
-4. If game continues: 3-second delay → Next round starts
-5. If game over: `game_over` event emitted with full round history
-
-### Game Over
-1. **Best-of-three complete**: One player has 2 round wins
-2. All pending orders settled
-3. Room deleted after 1-second delay (events sent)
+   - **Whale**: Leverage multiplier activated for slicing player
+5. After 5s, price checked → Winner/loser determined → Funds transferred
+6. Game ends after 2 minutes OR knockout ($0)
 
 ## Win Conditions
 
-### Per Round (determines round winner)
 1. **Knockout (Instant):** Opponent reaches $0
-2. **Time Limit:** 30 seconds expire, highest dollar amount wins
-3. **Tie:** Equal dollars when time expires (rare)
-
-### Game Over (best-of-three)
-1. **2-0 Sweep:** Player wins both rounds 1 and 2
-2. **2-1 Victory:** Players split rounds 1 and 2, winner of round 3 takes game
-3. **Forfeit:** Opponent disconnects (remaining player wins by default)
+2. **Time Limit:** 2 minutes expire, highest dollar amount wins
 
 ```typescript
-function checkGameOver(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
-  if (room.hasDeadPlayer()) {
-    const winner = room.getWinner()
-
-    // CRITICAL: Settle all pending orders before deleting room
-    for (const [orderId, order] of room.pendingOrders) {
-      settleOrder(io, room, order)
-    }
-
-    io.to(room.id).emit('game_over', {
-      winnerId: winner?.id,
-      winnerName: winner?.name,
-      roomId: room.id,
-      reason: 'knockout',
-      rounds: room.getRoundSummaries(), // Round history for game over modal
-    })
-
-    setTimeout(() => manager.deleteRoom(room.id), 1000)
+function endGame(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
+  // Settle all pending orders
+  for (const [orderId, order] of room.pendingOrders) {
+    settleOrder(io, room, order)
   }
-}
 
-function checkBestOfThreeComplete(room: GameRoom): boolean {
-  const { player1Wins, player2Wins } = room
-  const maxWins = Math.max(player1Wins, player2Wins)
-  const roundsPlayed = room.currentRound
+  const winner = room.getWinner()
+  const playerIds = room.getPlayerIds()
+  const p1 = room.players.get(playerIds[0])
+  const p2 = room.players.get(playerIds[1])
 
-  // Game over if someone has 2 wins, OR if round 3 complete
-  return maxWins >= 2 || roundsPlayed >= 3
+  io.to(room.id).emit('game_over', {
+    winnerId: winner?.id,
+    winnerName: winner?.name,
+    reason: 'time_limit',
+    player1Dollars: p1?.dollars ?? GAME_CONFIG.STARTING_CASH,
+    player2Dollars: p2?.dollars ?? GAME_CONFIG.STARTING_CASH,
+  })
+
+  setTimeout(() => manager.deleteRoom(room.id), 1000)
 }
 ```
 
@@ -231,6 +180,7 @@ function checkBestOfThreeComplete(room: GameRoom): boolean {
 - `frontend/game/scenes/TradingScene.ts` - Phaser scene (rendering, input)
 - `frontend/game/systems/` - Extracted game systems (CoinRenderer, BladeRenderer, ParticleSystem, VisualEffects, AudioManager)
 - `frontend/lib/ens.ts` - ENS integration (leverage fetching, stats)
+- `frontend/game/constants.ts` - Game configuration (GAME_DURATION_MS: 120000)
 
 ## See Also
 

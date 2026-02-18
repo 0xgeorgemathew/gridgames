@@ -8,9 +8,6 @@ import type {
   SettlementEvent,
   MatchFoundEvent,
   GameOverEvent,
-  RoundStartEvent,
-  RoundEndEvent,
-  RoundSummary,
   CoinType,
   PriceData,
   LobbyPlayer,
@@ -71,16 +68,6 @@ interface TradingState {
   isPlayer1: boolean
   players: Player[]
 
-  // Round state
-  currentRound: number
-  player1Wins: number
-  player2Wins: number
-  isSuddenDeath: boolean // Final round mode (tied 1-1 entering round 3)
-  roundTimeRemaining: number
-  roundTimerInterval: number | null
-  hasEmittedReady: boolean // Track if we've emitted scene_ready (once per game session)
-  roundHistory: RoundSummary[] // Client-side round history for in-game stats
-
   // Game state
   tugOfWar: number
   activeOrders: Map<string, OrderPlacedEvent> // Active orders (5s countdown)
@@ -118,8 +105,7 @@ interface TradingState {
   handleSlice: (slice: SliceEvent) => void
   handleOrderPlaced: (order: OrderPlacedEvent) => void
   handleSettlement: (settlement: SettlementEvent) => void
-  handleRoundStart: (data: RoundStartEvent) => void
-  handleRoundEnd: (data: RoundEndEvent) => void
+  handleGameStart: (data: { durationMs: number }) => void
   handleGameOver: (data: GameOverEvent) => void
   handlePlayerHit: (data: { playerId: string; damage: number; reason: string }) => void
   removeActiveOrder: (orderId: string) => void
@@ -250,16 +236,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   lobbyPlayers: [],
   isRefreshingLobby: false,
 
-  // Round state
-  currentRound: 0,
-  player1Wins: 0,
-  player2Wins: 0,
-  isSuddenDeath: false,
-  roundTimeRemaining: 0, // Initialize to 0 - actual value set by round_start event
-  roundTimerInterval: null,
-  hasEmittedReady: false,
-  roundHistory: [] as RoundSummary[],
-
   tugOfWar: 0,
   activeOrders: new Map(),
   pendingOrders: new Map(),
@@ -378,12 +354,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       get().handleSettlement(settlement)
     })
 
-    socket.on('round_start', (data: RoundStartEvent) => {
-      get().handleRoundStart(data)
-    })
-
-    socket.on('round_end', (data: RoundEndEvent) => {
-      get().handleRoundEnd(data)
+    socket.on('game_start', (data: { durationMs: number }) => {
+      get().handleGameStart(data)
     })
 
     socket.on('game_over', (data: GameOverEvent) => {
@@ -562,7 +534,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     const MAX_SETTLEMENT_HISTORY = 50
     if (newPendingOrders.size > MAX_SETTLEMENT_HISTORY) {
-      newPendingOrders.delete(newPendingOrders.keys().next().value)
+      const oldestKey = newPendingOrders.keys().next().value
+      if (oldestKey) newPendingOrders.delete(oldestKey)
     }
 
     set({
@@ -604,115 +577,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     })
   },
 
-  handleRoundStart: (data) => {
-    const { roundTimerInterval } = get()
-
-    // Clear previous round timer
-    if (roundTimerInterval) {
-      clearInterval(roundTimerInterval)
-    }
-
-    set({
-      currentRound: data.roundNumber,
-      isSuddenDeath: data.isSuddenDeath,
-      roundTimeRemaining: data.durationMs,
-    })
-
-    // Start countdown timer (updates every 100ms)
-    const interval = setInterval(() => {
-      const { roundTimeRemaining: remaining } = get()
-      const newRemaining = Math.max(0, remaining - 100)
-      if (newRemaining === 0) {
-        clearInterval(get().roundTimerInterval as unknown as number)
-        set({ roundTimerInterval: null })
-      }
-      set({ roundTimeRemaining: newRemaining })
-    }, 100) as unknown as number
-
-    set({ roundTimerInterval: interval })
-  },
-
-  handleRoundEnd: (data) => {
-    const { roundTimerInterval, roundHistory } = get()
-
-    // Clear round timer
-    if (roundTimerInterval) {
-      clearInterval(roundTimerInterval)
-      set({ roundTimerInterval: null })
-    }
-
-    // Build round summary for client-side tracking
-    const p1Gained = data.player1Gained
-    const p2Gained = data.player2Gained
-    const winnerGained = data.isTie ? 0 : Math.max(p1Gained, p2Gained)
-
-    const roundSummary: RoundSummary = {
-      roundNumber: data.roundNumber,
-      winnerId: data.winnerId,
-      isTie: data.isTie,
-      player1Dollars: data.player1Dollars,
-      player2Dollars: data.player2Dollars,
-      player1Gained: p1Gained,
-      player2Gained: p2Gained,
-      playerLost: winnerGained,
-    }
-
-    set({
-      player1Wins: data.player1Wins,
-      player2Wins: data.player2Wins,
-      // CRITICAL: Clear order maps to prevent stale state
-      activeOrders: new Map(),
-      pendingOrders: new Map(),
-      roundHistory: [...roundHistory, roundSummary],
-    })
-
-    // Emit custom event for RoundEndFlash component ONLY for intermediate rounds
-    // Skip for final rounds (game over) to show GameOverModal immediately
-    if (!data.isFinalRound) {
-      window.dispatchEvent(
-        new CustomEvent('round_end_flash', {
-          detail: {
-            roundNumber: data.roundNumber,
-            winnerId: data.winnerId,
-            isTie: data.isTie,
-            player1Gained: data.player1Gained,
-            player2Gained: data.player2Gained,
-          },
-        })
-      )
-    }
-
-    // Clear coins from Phaser scene
+  handleGameStart: (data) => {
+    // Game started - emit event to Phaser
     if (window.phaserEvents) {
-      window.phaserEvents.emit('clear_coins')
-    }
-
-    // TOAST REMOVED: Redundant with RoundEndFlash and caused UI overlap
-    // TOAST REMOVED: Redundant with RoundEndFlash and caused UI overlap
-
-    // Update player dollars from server
-    const { players } = get()
-    // Need playerIds to map correctly - assuming players order matches or using explicit IDs if available
-    // But data has player1Dollars and player2Dollars. We need to know who is who.
-    // The previous code used playerIds[0] and [1].
-    const playerIds = players.map((p) => p.id)
-
-    const newPlayers = players.map((p) => {
-      if (p.id === playerIds[0]) return { ...p, dollars: data.player1Dollars }
-      if (p.id === playerIds[1]) return { ...p, dollars: data.player2Dollars }
-      return p
-    })
-
-    set({ players: newPlayers })
-
-    // Emit round_ready to signal we're ready for next round ONLY if game continues
-    // Skip for final rounds (game over) to prevent post-game-over round starts
-    if (!data.isFinalRound) {
-      const { socket } = get()
-      if (socket && socket.connected) {
-        socket.emit('round_ready')
-        // console.log('[Client] Emitted round_ready for next round')
-      }
+      window.phaserEvents.emit('game_start', data)
     }
   },
 
@@ -771,10 +639,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   resetGame: () => {
-    const { roundTimerInterval } = get()
-    if (roundTimerInterval) {
-      clearInterval(roundTimerInterval)
-    }
     set({
       roomId: null,
       players: [],
@@ -784,18 +648,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       isPlaying: false,
       isMatching: false,
       latestSettlement: null,
-      whale2XActivatedAt: null, // Clear 2x activation time
-      whale2XExpiresAt: null, // Clear 2x state
-      whaleMultiplier: 2, // Reset to default
-      // Round state reset
-      currentRound: 0,
-      player1Wins: 0,
-      player2Wins: 0,
-      isSuddenDeath: false,
-      roundTimeRemaining: 0, // Reset to 0 instead of 100000
-      roundTimerInterval: null,
-      hasEmittedReady: false, // Reset ready flag for next game
-      roundHistory: [], // Clear round history
+      whale2XActivatedAt: null,
+      whale2XExpiresAt: null,
+      whaleMultiplier: 2,
     })
   },
 

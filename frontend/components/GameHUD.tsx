@@ -239,92 +239,37 @@ const PlayerHealthBar = React.memo(
   }
 )
 
-const RoundHeader = React.memo(function RoundHeader({
-  currentRound,
-  player1Wins,
-  player2Wins,
-  isSuddenDeath,
-  roundTimeRemaining,
-  isPlayer1,
+const GameTimer = React.memo(function GameTimer({
+  gameStartTime,
+  durationMs,
 }: {
-  currentRound: number
-  player1Wins: number
-  player2Wins: number
-  isSuddenDeath: boolean
-  roundTimeRemaining: number
-  isPlayer1: boolean
+  gameStartTime: number
+  durationMs: number
 }) {
-  const roundSeconds = Math.ceil(roundTimeRemaining / 1000)
-  const timeClass = roundSeconds <= 10 ? 'text-red-400 animate-pulse' : 'text-white'
+  const [timeRemaining, setTimeRemaining] = React.useState(durationMs)
 
-  const roundDisplay = isSuddenDeath ? '⚡ SUDDEN DEATH' : `ROUND ${currentRound}`
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - gameStartTime
+      const remaining = Math.max(0, durationMs - elapsed)
+      setTimeRemaining(remaining)
+    }, 100)
+    return () => clearInterval(interval)
+  }, [gameStartTime, durationMs])
 
-  // Perspective-aware win display: if isPlayer1, your wins = player1Wins; else your wins = player2Wins
-  const yourWins = isPlayer1 ? player1Wins : player2Wins
-  const oppWins = isPlayer1 ? player2Wins : player1Wins
+  const seconds = Math.ceil(timeRemaining / 1000)
+  const timeClass = seconds <= 30 ? 'text-red-400 animate-pulse' : 'text-white'
 
   return (
-    <motion.div
-      variants={itemVariants}
-      className="flex items-center justify-between px-2 py-1.5 bg-black/20 rounded-lg border border-white/10 gap-2"
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Left Section: Round Badge + 2X Indicator */}
-      <div className="flex items-center gap-2">
-        {/* Round Badge */}
-        <div
-          className={cn(
-            'px-3 py-1 rounded font-black text-xs tracking-wider',
-            isSuddenDeath
-              ? 'bg-red-500/20 text-red-400 border border-red-500/50'
-              : 'bg-tron-cyan/20 text-tron-cyan border border-tron-cyan/50'
-          )}
-          style={{
-            textShadow: isSuddenDeath
-              ? '0 0 10px rgba(239,68,68,0.8)'
-              : '0 0 10px rgba(0,243,255,0.5)',
-          }}
-        >
-          {roundDisplay}
-        </div>
-
-        {/* 2X Multiplier Badge */}
-        <Multiplier2XBadge />
-      </div>
-
-      {/* Timer - Large digital display */}
-      <div className="flex items-center gap-2">
-        <span className="text-white/40 text-sm">⏱️</span>
-        <span
-          className={cn('text-2xl sm:text-3xl font-mono font-black tracking-wider', timeClass)}
-          style={{ textShadow: '0 0 15px rgba(255,255,255,0.3)' }}
-        >
-          {formatTime(roundSeconds)}
-        </span>
-      </div>
-
-      {/* Win Counter */}
-      <div className="flex items-center gap-3">
-        <span
-          className={cn(
-            'text-xs font-bold px-2 py-1 rounded',
-            oppWins > yourWins ? 'bg-tron-cyan/20 text-tron-cyan' : 'bg-white/10 text-white/60'
-          )}
-        >
-          OPP: {oppWins}
-        </span>
-        <span className="text-white/30">:</span>
-        <span
-          className={cn(
-            'text-xs font-bold px-2 py-1 rounded',
-            yourWins > oppWins ? 'bg-tron-orange/20 text-tron-orange' : 'bg-white/10 text-white/60'
-          )}
-        >
-          YOU: {yourWins}
-        </span>
-      </div>
-    </motion.div>
+    <div className="flex items-center gap-2">
+      <span className="text-white/40 text-sm">⏱️</span>
+      <span
+        className={cn('text-2xl sm:text-3xl font-mono font-black tracking-wider', timeClass)}
+        style={{ textShadow: '0 0 15px rgba(255,255,255,0.3)' }}
+      >
+        {formatTime(seconds)}
+      </span>
+    </div>
   )
 })
 
@@ -378,14 +323,12 @@ export const GameHUD = React.memo(function GameHUD() {
     connectPriceFeed,
     isPlaying,
     priceError,
-    currentRound,
-    player1Wins,
-    player2Wins,
-    isSuddenDeath,
-    roundTimeRemaining,
     isSoundMuted,
     toggleSound,
   } = useTradingStore()
+
+  // Track game start time for timer
+  const [gameStartTime, setGameStartTime] = React.useState<number | null>(null)
 
   const [showHowToPlay, setShowHowToPlay] = useState(false)
   const hasAttemptedConnectionRef = useRef(false)
@@ -398,13 +341,22 @@ export const GameHUD = React.memo(function GameHUD() {
     }
   }, [isPriceConnected, selectedCrypto, connectPriceFeed])
 
+  // Listen for game_start event to set timer
+  React.useEffect(() => {
+    const handleGameStart = () => {
+      setGameStartTime(Date.now())
+    }
+    window.phaserEvents?.on('game_start', handleGameStart)
+    return () => window.phaserEvents?.off('game_start', handleGameStart)
+  }, [])
+
   const { color: priceColor, glow: priceGlow } = getPriceColor(priceData?.changePercent ?? 0)
 
   const localPlayer = players.find((p) => p.id === localPlayerId)
   const opponent = players.find((p) => p.id !== localPlayerId)
 
-  // Game is ready to show when price is connected, game is playing, AND round has started
-  const isGameReady = isPriceConnected && priceData !== null && isPlaying && currentRound > 0
+  // Game is ready to show when price is connected AND game is playing
+  const isGameReady = isPriceConnected && priceData !== null && isPlaying
   const isShowingLoading = !isPriceConnected || priceData === null
 
   return (
@@ -601,15 +553,14 @@ export const GameHUD = React.memo(function GameHUD() {
             {/* Main Game Area - Only show when price is ready AND game is playing */}
             {isGameReady && (
               <>
-                {/* Round Header - NEW */}
-                <RoundHeader
-                  currentRound={currentRound}
-                  player1Wins={player1Wins}
-                  player2Wins={player2Wins}
-                  isSuddenDeath={isSuddenDeath}
-                  roundTimeRemaining={roundTimeRemaining}
-                  isPlayer1={isPlayer1}
-                />
+                {/* Game Timer */}
+                {gameStartTime && (
+                  <div className="flex items-center justify-center py-2 bg-black/20">
+                    <Multiplier2XBadge />
+                    <div className="mx-4" />
+                    <GameTimer gameStartTime={gameStartTime} durationMs={120000} />
+                  </div>
+                )}
 
                 {/* Divider */}
                 <motion.div
@@ -626,7 +577,7 @@ export const GameHUD = React.memo(function GameHUD() {
                   animate="visible"
                 >
                   <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    {getPlayerSlots(localPlayer, opponent).map(
+                    {getPlayerSlots(localPlayer ?? null, opponent ?? null).map(
                       (slot, index) =>
                         slot.player && (
                           <PlayerHealthBar
