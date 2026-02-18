@@ -51,8 +51,8 @@ export function MatchmakingScreen() {
     if (isInMiniApp) {
       // Base Mini App: Use Base Name or fallback to Farcaster username
       if (baseName) return baseName
-      if (miniAppUser?.username) return `@${miniAppUser.username}`
-      if (miniAppUser?.fid) return `@${miniAppUser.fid}`
+      if (miniAppUser?.username) return miniAppUser.username
+      if (miniAppUser?.fid) return `fid:${miniAppUser.fid}`
       if (miniAppWallet) return miniAppWallet
       return null
     } else {
@@ -201,17 +201,37 @@ export function MatchmakingScreen() {
                   </div>
 
                   {/* Username display with Farcaster profile for Base App */}
-                  <motion.div className="relative flex items-center gap-3" whileHover={{ scale: 1.05 }}>
-                    {/* Farcaster avatar for Base App */}
+                  <motion.div
+                    className="relative flex flex-col items-center gap-3"
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  >
+                    {/* Farcaster avatar for Base App - positioned above name */}
                     {isInMiniApp && miniAppUser?.pfpUrl && (
-                      <img
-                        src={miniAppUser.pfpUrl}
-                        alt=""
-                        className="w-10 h-10 rounded-full border-2 border-cyan-400/30"
-                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.4, delay: 0.1 }}
+                        className="relative"
+                      >
+                        {/* Outer glow ring */}
+                        <div className="absolute -inset-1 rounded-full bg-cyan-400/20 blur-md" />
+                        {/* Animated pulse ring */}
+                        <motion.div
+                          className="absolute -inset-2 rounded-full border border-cyan-400/40"
+                          animate={{
+                            scale: [1, 1.1, 1],
+                            opacity: [0.4, 0.2, 0.4],
+                          }}
+                          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                        <img
+                          src={miniAppUser.pfpUrl}
+                          alt=""
+                          className="relative w-14 h-14 rounded-full border-2 border-cyan-400/50 object-cover"
+                        />
+                      </motion.div>
                     )}
-                    {/* Background glow ring */}
-                    <div className="absolute inset-0 rounded-full blur-xl glow-background-username" />
                     <PlayerName
                       username={displayName}
                       className="text-2xl tracking-wider relative z-10"
