@@ -862,11 +862,9 @@ class RoomManager {
 // =============================================================================
 
 function validatePlayerName(name: unknown): string {
-  // Allow up to 50 chars for Base Names / ENS names (e.g., "username.base.eth")
-  if (typeof name !== 'string' || name.length < 1 || name.length > 50) {
+  if (typeof name !== 'string' || name.length < 1) {
     throw new Error('Invalid player name')
   }
-  // Allow dots for Base Names, hyphens and underscores
   return name.replace(/[^a-zA-Z0-9_.-]/g, '')
 }
 
