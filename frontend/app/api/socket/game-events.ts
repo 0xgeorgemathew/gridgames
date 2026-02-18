@@ -258,6 +258,31 @@ class PriceFeedManager {
 const priceFeed = new PriceFeedManager()
 
 // =============================================================================
+// Lazy Price Feed Management - Connect only when games are active
+// =============================================================================
+
+let priceFeedConnected = false
+
+function ensurePriceFeedConnected(io: SocketIOServer): void {
+  if (priceFeedConnected) return
+
+  // Set up price broadcast to all clients via Socket.IO (single source of truth)
+  priceFeed.setBroadcastCallback((data) => {
+    io.emit('btc_price', data)
+  })
+
+  priceFeed.connect('btcusdt')
+  priceFeedConnected = true
+}
+
+function disconnectPriceFeedIfIdle(manager: RoomManager): void {
+  if (manager.getRoomCount() === 0 && priceFeedConnected) {
+    priceFeed.disconnect()
+    priceFeedConnected = false
+  }
+}
+
+// =============================================================================
 // Type Definitions
 // =============================================================================
 
@@ -434,7 +459,13 @@ class GameRoom {
     return undefined
   }
 
-  addPlayer(id: string, name: string, sceneWidth: number, sceneHeight: number, leverage: number = 2): void {
+  addPlayer(
+    id: string,
+    name: string,
+    sceneWidth: number,
+    sceneHeight: number,
+    leverage: number = 2
+  ): void {
     this.players.set(id, {
       id,
       name,
@@ -723,6 +754,10 @@ class RoomManager {
     return this.rooms.has(roomId)
   }
 
+  getRoomCount(): number {
+    return this.rooms.size
+  }
+
   deleteRoom(roomId: string): void {
     const room = this.rooms.get(roomId)
     if (!room) return
@@ -939,12 +974,7 @@ function spawnCoin(room: GameRoom): SpawnedCoin | null {
 function startGameLoop(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
   // CRITICAL: Don't start game loop if room is closing, shut down, or game is over
   // Prevents post-game-over game loop starts from queued round_ready events
-  if (
-    room.isShutdown ||
-    room.getIsClosing() ||
-    room.player1Wins >= 2 ||
-    room.player2Wins >= 2
-  ) {
+  if (room.isShutdown || room.getIsClosing() || room.player1Wins >= 2 || room.player2Wins >= 2) {
     // console.log('[Game Loop] Rejected - room is closing or shut down', {
     //   roomId: room.id,
     //   round: room.currentRound,
@@ -1122,6 +1152,9 @@ async function createMatch(
   leverage1: number,
   leverage2: number
 ): Promise<void> {
+  // Lazy-load price feed - connect only when first game starts
+  ensurePriceFeedConnected(io)
+
   const roomId = `room-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
   const room = manager.createRoom(roomId)
 
@@ -1450,6 +1483,7 @@ async function checkGameOver(
     room.resetClientsReady()
 
     setTimeout(() => manager.deleteRoom(room.id), 1000)
+    setTimeout(() => disconnectPriceFeedIfIdle(manager), 1100)
   }
 }
 
@@ -1550,6 +1584,7 @@ async function endRound(io: SocketIOServer, manager: RoomManager, room: GameRoom
     room.resetClientsReady()
 
     setTimeout(() => manager.deleteRoom(room.id), 1000)
+    setTimeout(() => disconnectPriceFeedIfIdle(manager), 1100)
   } else {
     // Reset client ready state for next round
     room.resetClientsReady()
@@ -1592,13 +1627,8 @@ export function setupGameEvents(io: SocketIOServer): {
   cleanup: () => void
   emergencyShutdown: () => void
 } {
-  // Set up price broadcast to all clients via Socket.IO (single source of truth)
-  priceFeed.setBroadcastCallback((data) => {
-    io.emit('btc_price', data)
-  })
-
-  // Start price feed
-  priceFeed.connect('btcusdt')
+  // NOTE: Price feed is now lazy-loaded - connects when first game starts
+  // See ensurePriceFeedConnected() and disconnectPriceFeedIfIdle()
 
   // Start settlement guard cleanup
   settlementGuard.start()
@@ -1612,7 +1642,10 @@ export function setupGameEvents(io: SocketIOServer): {
   const cleanup = () => {
     clearInterval(cleanupInterval)
     settlementGuard.stop()
-    priceFeed.disconnect()
+    if (priceFeedConnected) {
+      priceFeed.disconnect()
+      priceFeedConnected = false
+    }
   }
 
   // Emergency shutdown - settles all pending orders before closing
@@ -1977,6 +2010,7 @@ export function setupGameEvents(io: SocketIOServer): {
 
           if (room.pendingOrders.size === 0) {
             setTimeout(() => manager.deleteRoom(roomId), 5000)
+            setTimeout(() => disconnectPriceFeedIfIdle(manager), 5100)
           }
         }
       }
