@@ -282,7 +282,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const { socketCleanupFunctions } = get()
     socketCleanupFunctions.forEach((fn) => fn())
 
-    const socket = io({
+    // Use explicit URL for Mini App iframe compatibility
+    // Falls back to relative path for web (same-origin)
+    const socketUrl = process.env.NEXT_PUBLIC_URL || ''
+    const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
     })
 
