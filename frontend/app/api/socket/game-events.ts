@@ -862,10 +862,18 @@ class RoomManager {
 // =============================================================================
 
 function validatePlayerName(name: unknown): string {
+  console.log('[validatePlayerName] Input:', { name, type: typeof name, length: (name as string)?.length })
   if (typeof name !== 'string' || name.length < 1 || name.length > 20) {
+    console.error('[validatePlayerName] Validation failed:', {
+      isString: typeof name === 'string',
+      length: (name as string)?.length,
+      name,
+    })
     throw new Error('Invalid player name')
   }
-  return name.replace(/[^a-zA-Z0-9_-]/g, '')
+  const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, '')
+  console.log('[validatePlayerName] Sanitized:', sanitized)
+  return sanitized
 }
 
 function validateCoinType(coinType: string): coinType is 'call' | 'put' | 'whale' {
@@ -1738,7 +1746,18 @@ export function setupGameEvents(io: SocketIOServer): {
           // No opponent found, already in pool from above
           socket.emit('waiting_for_match')
         } catch (error) {
-          socket.emit('error', { message: 'Failed to find match' })
+          console.error('[find_match] Error details:', {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            playerName,
+            playerNameLength: playerName?.length,
+            walletAddress,
+            socketId: socket.id,
+          })
+          socket.emit('error', {
+            message: 'Failed to find match',
+            details: error instanceof Error ? error.message : String(error),
+          })
         }
       }
     )
