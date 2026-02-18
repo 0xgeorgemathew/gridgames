@@ -436,6 +436,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       whaleMultiplier: 2,
       gameTimeRemaining: 0,
       gameTimerInterval: null,
+      // Reset price state for clean reconnection in next game
+      priceData: null,
+      isPriceConnected: false,
+      firstPrice: null,
+      priceError: null,
+      lastPriceUpdate: 0,
     })
   },
 

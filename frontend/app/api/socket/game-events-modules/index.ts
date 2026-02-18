@@ -31,7 +31,14 @@ let priceFeedConnected = false
 // =============================================================================
 
 function ensurePriceFeedConnected(io: SocketIOServer): void {
-  if (priceFeedConnected) return
+  // Check if already connected and the WebSocket is actually open
+  if (priceFeedConnected && priceFeed.isConnected()) return
+
+  // Reset price feed if it was shutdown (e.g., after previous game)
+  if (!priceFeed.isConnected()) {
+    priceFeed.reset()
+    priceFeedConnected = false
+  }
 
   priceFeed.setBroadcastCallback((data) => {
     io.emit('btc_price', data)

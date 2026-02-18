@@ -119,6 +119,20 @@ export class PriceFeedManager {
     return this.firstPrice
   }
 
+  isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN
+  }
+
+  reset(): void {
+    this.isShutdown = false
+    this.ws = null
+    this.reconnectTimeout = null
+    // Reset prices to defaults for fresh game session
+    this.latestPrice = DEFAULT_BTC_PRICE
+    this.firstPrice = DEFAULT_BTC_PRICE
+    this.lastBroadcastTime = 0
+  }
+
   subscribe(callback: (price: number) => void): () => void {
     this.subscribers.add(callback)
     return () => this.subscribers.delete(callback)
