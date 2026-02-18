@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ensdomains/ensjs": "^4.2.2",
+    "@farcaster/miniapp-sdk": "^0.2.3",
     "@privy-io/node": "^0.8.0",
     "@privy-io/react-auth": "^3.13.1",
     "@radix-ui/react-progress": "^1.1.8",

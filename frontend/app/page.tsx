@@ -11,12 +11,17 @@ import { SettlementFlash } from '@/components/SettlementFlash'
 import { RoundEndFlash } from '@/components/RoundEndFlash'
 import GameCanvas from '@/components/GameCanvas'
 import { useEffect } from 'react'
+import { sdk } from '@farcaster/miniapp-sdk'
 
 export default function Home() {
   const { isPlaying, connect, resetGame, disconnectPriceFeed, toasts, removeToast } =
     useTradingStore()
 
   useEffect(() => {
+    // Signal to Farcaster/Base that the mini app is ready
+    // This hides the loading splash screen
+    sdk.actions.ready().catch(console.error)
+
     // Connect to socket on mount
     connect()
 
