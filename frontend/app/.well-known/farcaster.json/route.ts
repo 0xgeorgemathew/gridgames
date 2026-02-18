@@ -4,18 +4,19 @@ import { NextResponse } from 'next/server'
  * Farcaster Mini App Manifest
  * Required for Base Mini App integration
  *
- * After deploying, generate accountAssociation credentials at:
- * https://www.base.dev/preview?tab=account
+ * Account association verified at: https://www.base.dev/preview?tab=account
+ * Domain: gridgames.space
  */
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://your-domain.com'
+  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://gridgames.space'
 
   const manifest = {
     accountAssociation: {
-      // Populated from Base Build verification: https://www.base.dev/preview?tab=account
-      header: process.env.FC_HEADER || '',
-      payload: process.env.FC_PAYLOAD || '',
-      signature: process.env.FC_SIGNATURE || '',
+      header:
+        'eyJmaWQiOjIwMjU3MzksInR5cGUiOiJhdXRoIiwia2V5IjoiMHg3OThmOTgxN2VmYzQzQ0Y2MzQzNDYwMDAyNzc2MWI5NDAyNDJBMTcwIn0',
+      payload: 'eyJkb21haW4iOiJncmlkZ2FtZXMuc3BhY2UifQ',
+      signature:
+        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEEXa-DhA863fYTfpe8kGP225_XD3zZWIESn6HzyQKKqH2XbP07KWi_1hAJG27TMAPyt71XsKKOIdte92Cp-DoUHGwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
     },
     miniapp: {
       version: '1',

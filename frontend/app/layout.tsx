@@ -25,7 +25,7 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ['100', '200', '300', '400', '500', '600', '700', '800'],
 })
 
-const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://your-domain.com'
+const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://gridgames.space'
 
 export const metadata: Metadata = {
   title: 'Grid Games',

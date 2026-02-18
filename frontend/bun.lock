@@ -6,6 +6,7 @@
       "name": "@grid-games/frontend",
       "dependencies": {
         "@ensdomains/ensjs": "^4.2.2",
+        "@farcaster/miniapp-node": "^0.1.13",
         "@farcaster/miniapp-sdk": "^0.2.3",
         "@privy-io/node": "^0.8.0",
         "@privy-io/react-auth": "^3.13.1",
@@ -146,6 +147,8 @@
     "@ethereumjs/util": ["@ethereumjs/util@8.1.0", "", { "dependencies": { "@ethereumjs/rlp": "^4.0.1", "ethereum-cryptography": "^2.0.0", "micro-ftch": "^0.3.1" } }, "sha512-zQ0IqbdX8FZ9aw11vP+dZkKDkS+kgIvQPHnSAXzP9pLu+Rfu3D3XEeLbicvoXJTYnhZiPmsZUxgdzXwNKxRPbA=="],
 
     "@farcaster/miniapp-core": ["@farcaster/miniapp-core@0.5.1", "", { "dependencies": { "@solana/web3.js": "^1.98.2", "ox": "^0.4.4", "zod": "^3.25.0" } }, "sha512-5QFn9zTV8GHUqZF31X9iwq9tNlnoOgP/o0UXb+QmdNeJsWXrhUFBKYl+C7KQOhVw2xqWKhBSDgYIHOkSRua3vg=="],
+
+    "@farcaster/miniapp-node": ["@farcaster/miniapp-node@0.1.13", "", { "dependencies": { "@farcaster/miniapp-core": "0.5.1", "@noble/curves": "^1.7.0", "ox": "^0.4.4", "zod": "^3.24.1" } }, "sha512-CN+JlMPGWlDXZxNY6GRCu7Pkwd1B21ACrOnu7ZxAHkd9vkwU75onls55lAQp27Qk06KwHBtRsp1SnWKBvtnf5Q=="],
 
     "@farcaster/miniapp-sdk": ["@farcaster/miniapp-sdk@0.2.3", "", { "dependencies": { "@farcaster/miniapp-core": "0.5.1", "@farcaster/quick-auth": "^0.0.6", "comlink": "^4.4.2", "eventemitter3": "^5.0.1", "ox": "^0.4.4" } }, "sha512-FwxqGcYCXw3HyGfDuchFUmQN9Gd49jTJs585zzQv6l1Oba6A/vVVCYohEG6QxRT6b/UrdemImpNMGTnqAZ3hKw=="],
 
