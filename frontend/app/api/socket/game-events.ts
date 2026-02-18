@@ -862,18 +862,12 @@ class RoomManager {
 // =============================================================================
 
 function validatePlayerName(name: unknown): string {
-  console.log('[validatePlayerName] Input:', { name, type: typeof name, length: (name as string)?.length })
-  if (typeof name !== 'string' || name.length < 1 || name.length > 20) {
-    console.error('[validatePlayerName] Validation failed:', {
-      isString: typeof name === 'string',
-      length: (name as string)?.length,
-      name,
-    })
+  // Allow up to 50 chars for Base Names / ENS names (e.g., "username.base.eth")
+  if (typeof name !== 'string' || name.length < 1 || name.length > 50) {
     throw new Error('Invalid player name')
   }
-  const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, '')
-  console.log('[validatePlayerName] Sanitized:', sanitized)
-  return sanitized
+  // Allow dots for Base Names, hyphens and underscores
+  return name.replace(/[^a-zA-Z0-9_.-]/g, '')
 }
 
 function validateCoinType(coinType: string): coinType is 'call' | 'put' | 'whale' {
@@ -1746,18 +1740,8 @@ export function setupGameEvents(io: SocketIOServer): {
           // No opponent found, already in pool from above
           socket.emit('waiting_for_match')
         } catch (error) {
-          console.error('[find_match] Error details:', {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-            playerName,
-            playerNameLength: playerName?.length,
-            walletAddress,
-            socketId: socket.id,
-          })
-          socket.emit('error', {
-            message: 'Failed to find match',
-            details: error instanceof Error ? error.message : String(error),
-          })
+          console.error('[find_match] Error:', error instanceof Error ? error.message : String(error))
+          socket.emit('error', { message: 'Failed to find match' })
         }
       }
     )
