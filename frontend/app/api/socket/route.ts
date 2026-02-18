@@ -36,18 +36,20 @@ export function initializeSocketIO(httpServer: HTTPServer): {
     }
   }
 
-  // In production, use ALLOWED_ORIGINS or RAILWAY_PUBLIC_DOMAIN, otherwise use wildcard fallback for Railway
+  // In production, use origin reflection for Mini App iframe compatibility
+  // 'true' reflects the request origin, works with credentials: true
+  // Wildcard '*' is incompatible with credentials: true per CORS spec
   const isProd = process.env.NODE_ENV === 'production'
-  const originConfig = isProd
-    ? process.env.ALLOWED_ORIGINS?.split(',') ||
-      (process.env.RAILWAY_PUBLIC_DOMAIN ? [`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`] : ['*'])
-    : process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']
+  const originConfig: string[] | boolean = isProd
+    ? (process.env.ALLOWED_ORIGINS?.split(',') as string[]) ||
+      (process.env.RAILWAY_PUBLIC_DOMAIN
+        ? ([`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`] as string[])
+        : true)
+    : (process.env.ALLOWED_ORIGINS?.split(',') as string[]) || ['http://localhost:3000']
 
-  // Warn if using wildcard in production
-  if (isProd && originConfig.includes('*')) {
-    console.warn(
-      '[Socket.IO] Using wildcard CORS origin (*) - Set ALLOWED_ORIGINS or RAILWAY_PUBLIC_DOMAIN env var for production security'
-    )
+  // Note: originConfig can be boolean 'true' for origin reflection (Mini App compatible)
+  if (isProd && originConfig === true) {
+    console.log('[Socket.IO] Using origin reflection for Mini App iframe compatibility')
   }
 
   const io = new SocketIOServer(httpServer, {
