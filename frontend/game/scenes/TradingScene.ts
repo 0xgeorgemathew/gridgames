@@ -49,10 +49,6 @@ export class TradingScene extends Scene {
   private isShutdown = false
   private isMobile = false
   private eventEmitter: Phaser.Events.EventEmitter
-
-  // Audio rate limiting
-  private lastSwipeTime = 0
-  private readonly SWIPE_COOLDOWN = 120 // ms (~8 swipes/second)
   private userLeverage: string = '2x' // User's leverage for whale texture
 
   // Window visibility handlers for cleanup
@@ -166,12 +162,8 @@ export class TradingScene extends Scene {
       const MIN_SPEED = 15
       if (speed < MIN_SPEED) return
 
-      // Rate-limited swipe: only play if cooldown has elapsed
-      const now = this.time.now
-      if (now - this.lastSwipeTime > this.SWIPE_COOLDOWN) {
-        this.audio.playSwipe()
-        this.lastSwipeTime = now
-      }
+      // AudioManager handles overlap prevention
+      this.audio.playSwipe()
     })
 
     this.input.on('pointerup', () => this.bladeRenderer.clearBladePath())
