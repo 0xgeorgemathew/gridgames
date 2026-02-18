@@ -35,6 +35,7 @@ export const metadata: Metadata = {
     apple: '/icon.svg',
   },
   other: {
+    'base:app_id': '6995cd0fe0d5d2cf831b6001',
     'fc:miniapp': JSON.stringify({
       version: 'next',
       imageUrl: `${baseUrl}/og.png`,
