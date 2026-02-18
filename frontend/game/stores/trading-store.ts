@@ -481,9 +481,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       window.innerHeight
 
     // Convert leverage option to number for server
-    const leverageValue = userLeverage === '5x' ? 5 : userLeverage === '10x' ? 10 : userLeverage === '20x' ? 20 : 2
+    const leverageValue =
+      userLeverage === '5x' ? 5 : userLeverage === '10x' ? 10 : userLeverage === '20x' ? 20 : 2
 
-    socket?.emit('find_match', { playerName, sceneWidth, sceneHeight, walletAddress, leverage: leverageValue })
+    socket?.emit('find_match', {
+      playerName,
+      sceneWidth,
+      sceneHeight,
+      walletAddress,
+      leverage: leverageValue,
+    })
     set({ isMatching: true })
   },
 
@@ -856,9 +863,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       window.innerHeight
 
     // Convert leverage option to number for server
-    const leverageValue = userLeverage === '5x' ? 5 : userLeverage === '10x' ? 10 : userLeverage === '20x' ? 20 : 2
+    const leverageValue =
+      userLeverage === '5x' ? 5 : userLeverage === '10x' ? 10 : userLeverage === '20x' ? 20 : 2
 
-    socket.emit('join_waiting_pool', { playerName, sceneWidth, sceneHeight, walletAddress, leverage: leverageValue })
+    socket.emit('join_waiting_pool', {
+      playerName,
+      sceneWidth,
+      sceneHeight,
+      walletAddress,
+      leverage: leverageValue,
+    })
   },
 
   leaveWaitingPool: () => {
