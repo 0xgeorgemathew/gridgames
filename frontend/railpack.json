@@ -7,7 +7,7 @@
         "NODE_ENV": "production",
         "NEXT_TELEMETRY_DISABLED": "1"
       },
-      "commands": ["bun install", "bun x next build"]
+      "commands": ["bun x next build"]
     }
   },
   "deploy": {
