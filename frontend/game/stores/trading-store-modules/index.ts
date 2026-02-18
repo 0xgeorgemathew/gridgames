@@ -25,9 +25,7 @@ import type {
   SettlementEvent,
   MatchFoundEvent,
   GameOverEvent,
-  RoundStartEvent,
-  RoundEndEvent,
-  RoundSummary,
+  GameStartEvent,
   CoinType,
   LobbyPlayersEvent,
   LobbyUpdatedEvent,
@@ -58,15 +56,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   isPlayer1: false,
   players: [],
 
-  // Round state
-  currentRound: 0,
-  player1Wins: 0,
-  player2Wins: 0,
-  isSuddenDeath: false,
-  roundTimeRemaining: 0,
-  roundTimerInterval: null,
-  hasEmittedReady: false,
-  roundHistory: [],
+  // Timer state
+  gameTimeRemaining: 0,
+  gameTimerInterval: null,
 
   // Game state
   tugOfWar: 0,
@@ -172,8 +164,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     socket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
     socket.on('order_placed', (order: OrderPlacedEvent) => get().handleOrderPlaced(order))
     socket.on('order_settled', (settlement: SettlementEvent) => get().handleSettlement(settlement))
-    socket.on('round_start', (data: RoundStartEvent) => get().handleRoundStart(data))
-    socket.on('round_end', (data: RoundEndEvent) => get().handleRoundEnd(data))
+    socket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
     socket.on('game_over', (data: GameOverEvent) => get().handleGameOver(data))
     socket.on('player_hit', (data) => get().handlePlayerHit(data))
 
@@ -360,94 +351,26 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     })
   },
 
-  handleRoundStart: (data) => {
-    const { roundTimerInterval } = get()
+  handleGameStart: (data) => {
+    const { gameTimerInterval } = get()
 
-    if (roundTimerInterval) clearInterval(roundTimerInterval)
+    if (gameTimerInterval) clearInterval(gameTimerInterval)
 
     set({
-      currentRound: data.roundNumber,
-      isSuddenDeath: data.isSuddenDeath,
-      roundTimeRemaining: data.durationMs,
+      gameTimeRemaining: data.durationMs,
     })
 
     const interval = setInterval(() => {
-      const { roundTimeRemaining: remaining } = get()
+      const { gameTimeRemaining: remaining } = get()
       const newRemaining = Math.max(0, remaining - 100)
       if (newRemaining === 0) {
-        clearInterval(get().roundTimerInterval as unknown as number)
-        set({ roundTimerInterval: null })
+        clearInterval(get().gameTimerInterval as unknown as number)
+        set({ gameTimerInterval: null })
       }
-      set({ roundTimeRemaining: newRemaining })
+      set({ gameTimeRemaining: newRemaining })
     }, 100) as unknown as number
 
-    set({ roundTimerInterval: interval })
-  },
-
-  handleRoundEnd: (data) => {
-    const { roundTimerInterval, roundHistory } = get()
-
-    if (roundTimerInterval) {
-      clearInterval(roundTimerInterval)
-      set({ roundTimerInterval: null })
-    }
-
-    const p1Gained = data.player1Gained
-    const p2Gained = data.player2Gained
-    const winnerGained = data.isTie ? 0 : Math.max(p1Gained, p2Gained)
-
-    const roundSummary: RoundSummary = {
-      roundNumber: data.roundNumber,
-      winnerId: data.winnerId,
-      isTie: data.isTie,
-      player1Dollars: data.player1Dollars,
-      player2Dollars: data.player2Dollars,
-      player1Gained: p1Gained,
-      player2Gained: p2Gained,
-      playerLost: winnerGained,
-    }
-
-    set({
-      player1Wins: data.player1Wins,
-      player2Wins: data.player2Wins,
-      activeOrders: new Map(),
-      pendingOrders: new Map(),
-      roundHistory: [...roundHistory, roundSummary],
-    })
-
-    if (!data.isFinalRound) {
-      window.dispatchEvent(
-        new CustomEvent('round_end_flash', {
-          detail: {
-            roundNumber: data.roundNumber,
-            winnerId: data.winnerId,
-            isTie: data.isTie,
-            player1Gained: data.player1Gained,
-            player2Gained: data.player2Gained,
-          },
-        })
-      )
-    }
-
-    window.phaserEvents?.emit('clear_coins')
-
-    const { players } = get()
-    const playerIds = players.map((p) => p.id)
-
-    const newPlayers = players.map((p) => {
-      if (p.id === playerIds[0]) return { ...p, dollars: data.player1Dollars }
-      if (p.id === playerIds[1]) return { ...p, dollars: data.player2Dollars }
-      return p
-    })
-
-    set({ players: newPlayers })
-
-    if (!data.isFinalRound) {
-      const { socket } = get()
-      if (socket && socket.connected) {
-        socket.emit('round_ready')
-      }
-    }
+    set({ gameTimerInterval: interval })
   },
 
   handleGameOver: (data) => {
@@ -496,8 +419,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   resetGame: () => {
-    const { roundTimerInterval } = get()
-    if (roundTimerInterval) clearInterval(roundTimerInterval)
+    const { gameTimerInterval } = get()
+    if (gameTimerInterval) clearInterval(gameTimerInterval)
 
     set({
       roomId: null,
@@ -511,14 +434,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       whale2XActivatedAt: null,
       whale2XExpiresAt: null,
       whaleMultiplier: 2,
-      currentRound: 0,
-      player1Wins: 0,
-      player2Wins: 0,
-      isSuddenDeath: false,
-      roundTimeRemaining: 0,
-      roundTimerInterval: null,
-      hasEmittedReady: false,
-      roundHistory: [],
+      gameTimeRemaining: 0,
+      gameTimerInterval: null,
     })
   },
 
@@ -550,6 +467,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ toasts: [] })
     get().resetGame()
     set({ isGameOver: false, gameOverData: null })
+  },
+
+  endGame: () => {
+    const { socket } = get()
+    if (!socket || !socket.connected) return
+    socket.emit('end_game')
   },
 
   // ==========================================================================

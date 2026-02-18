@@ -7,9 +7,7 @@ import type {
   SettlementEvent,
   MatchFoundEvent,
   GameOverEvent,
-  RoundStartEvent,
-  RoundEndEvent,
-  RoundSummary,
+  GameStartEvent,
   CoinType,
   PriceData,
   LobbyPlayer,
@@ -61,16 +59,10 @@ export interface RoomState {
   players: Player[]
 }
 
-// Round state slice
-export interface RoundState {
-  currentRound: number
-  player1Wins: number
-  player2Wins: number
-  isSuddenDeath: boolean
-  roundTimeRemaining: number
-  roundTimerInterval: number | null
-  hasEmittedReady: boolean
-  roundHistory: RoundSummary[]
+// Timer state slice
+export interface TimerState {
+  gameTimeRemaining: number
+  gameTimerInterval: number | null
 }
 
 // Game state slice
@@ -110,7 +102,7 @@ export interface TradingState
   extends ConnectionState,
     LobbyState,
     RoomState,
-    RoundState,
+    TimerState,
     GameState,
     AudioState,
     PriceFeedState {
@@ -123,8 +115,7 @@ export interface TradingState
   handleSlice: (slice: SliceEvent) => void
   handleOrderPlaced: (order: OrderPlacedEvent) => void
   handleSettlement: (settlement: SettlementEvent) => void
-  handleRoundStart: (data: RoundStartEvent) => void
-  handleRoundEnd: (data: RoundEndEvent) => void
+  handleGameStart: (data: GameStartEvent) => void
   handleGameOver: (data: GameOverEvent) => void
   handlePlayerHit: (data: { playerId: string; damage: number; reason: string }) => void
   removeActiveOrder: (orderId: string) => void
@@ -138,6 +129,7 @@ export interface TradingState
   removeToast: (id: string) => void
   clearToasts: () => void
   playAgain: () => void
+  endGame: () => void
   toggleSound: () => void
   getLobbyPlayers: () => void
   joinWaitingPool: (playerName: string, walletAddress?: string) => void
@@ -154,9 +146,7 @@ export type {
   SettlementEvent,
   MatchFoundEvent,
   GameOverEvent,
-  RoundStartEvent,
-  RoundEndEvent,
-  RoundSummary,
+  GameStartEvent,
   CoinType,
   PriceData,
   LobbyPlayer,

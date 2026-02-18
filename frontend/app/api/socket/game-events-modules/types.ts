@@ -1,4 +1,4 @@
-import { Player, RoundSummary } from '@/game/types/trading'
+import { Player } from '@/game/types/trading'
 
 // Price broadcast data for clients
 export interface PriceBroadcastData {
@@ -47,4 +47,4 @@ export interface SpawnedCoin {
 }
 
 // Re-export types from trading for convenience
-export type { Player, RoundSummary }
+export type { Player }

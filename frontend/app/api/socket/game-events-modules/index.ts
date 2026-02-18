@@ -136,7 +136,7 @@ function spawnCoin(room: GameRoom): SpawnedCoin | null {
 // =============================================================================
 
 function startGameLoop(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
-  if (room.isShutdown || room.getIsClosing() || room.player1Wins >= 2 || room.player2Wins >= 2) {
+  if (room.isShutdown || room.getIsClosing()) {
     return
   }
 
@@ -144,13 +144,10 @@ function startGameLoop(io: SocketIOServer, manager: RoomManager, room: GameRoom)
   room.gameLoopActive = true
 
   room.initCoinSequence()
-  room.startNewRound()
-  const roundStartTime = Date.now()
+  const gameStartTime = Date.now()
 
-  io.to(room.id).emit('round_start', {
-    roundNumber: room.currentRound,
-    isSuddenDeath: room.isSuddenDeath,
-    durationMs: room.ROUND_DURATION,
+  io.to(room.id).emit('game_start', {
+    durationMs: room.GAME_DURATION,
   })
 
   const emitCoinSpawn = (coin: SpawnedCoin) => {
@@ -164,7 +161,7 @@ function startGameLoop(io: SocketIOServer, manager: RoomManager, room: GameRoom)
   const scheduleNextSpawn = () => {
     if (!manager.hasRoom(room.id) || room.players.size < 2 || room.isShutdown) return
 
-    const elapsedMs = Date.now() - roundStartTime
+    const elapsedMs = Date.now() - gameStartTime
     const spawnConfig = room.getSpawnInterval(elapsedMs)
 
     const rng = Math.random()
@@ -204,13 +201,13 @@ function startGameLoop(io: SocketIOServer, manager: RoomManager, room: GameRoom)
 
   scheduleNextSpawn()
 
-  if (room.roundTimeout) clearTimeout(room.roundTimeout)
+  if (room.gameTimeout) clearTimeout(room.gameTimeout)
 
-  room.roundTimeout = setTimeout(() => {
-    endRound(io, manager, room)
-  }, room.ROUND_DURATION)
+  room.gameTimeout = setTimeout(() => {
+    endGame(io, manager, room, 'time_limit')
+  }, room.GAME_DURATION)
 
-  room.trackTimeout(room.roundTimeout)
+  room.trackTimeout(room.gameTimeout)
 }
 
 function startGameWhenClientsReady(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
@@ -227,194 +224,42 @@ function startGameWhenClientsReady(io: SocketIOServer, manager: RoomManager, roo
 }
 
 // =============================================================================
-// Round Management
+// Game End
 // =============================================================================
 
-async function endRound(io: SocketIOServer, manager: RoomManager, room: GameRoom): Promise<void> {
-  room.gameLoopActive = false
+function endGame(
+  io: SocketIOServer,
+  manager: RoomManager,
+  room: GameRoom,
+  reason: 'time_limit' | 'knockout' | 'forfeit'
+): void {
+  if (room.getIsClosing()) return
+  room.setClosing()
 
+  // Settle all pending orders
   for (const [orderId, order] of room.pendingOrders) {
     settleOrder(io, room, order)
   }
 
-  if (room.hasDeadPlayer()) {
-    await checkGameOver(io, manager, room)
-    return
-  }
+  const winner = room.getWinner()
 
-  const { winnerId, isTie } = room.getRoundWinner()
-  const playerIds = room.getPlayerIds()
-  const p1 = room.players.get(playerIds[0])
-  const p2 = room.players.get(playerIds[1])
-
-  const p1Gained = (p1?.dollars || GAME_CONFIG.STARTING_CASH) - room.player1CashAtRoundStart
-  const p2Gained = (p2?.dollars || GAME_CONFIG.STARTING_CASH) - room.player2CashAtRoundStart
-
-  if (!room.isSuddenDeath || !isTie) {
-    if (winnerId === playerIds[0]) room.player1Wins++
-    else if (winnerId === playerIds[1]) room.player2Wins++
-  }
-
-  io.to(room.id).emit('round_end', {
-    roundNumber: room.currentRound,
-    winnerId,
-    isTie,
-    player1Wins: room.player1Wins,
-    player2Wins: room.player2Wins,
-    player1Dollars: p1?.dollars,
-    player2Dollars: p2?.dollars,
-    player1Gained: p1Gained,
-    player2Gained: p2Gained,
-    isFinalRound: room.checkGameEndCondition(),
+  io.to(room.id).emit('game_over', {
+    winnerId: winner?.id,
+    winnerName: winner?.name,
+    reason,
   })
 
-  const roundSummary = {
-    roundNumber: room.currentRound,
-    winnerId,
-    isTie,
-    player1Dollars: p1?.dollars || GAME_CONFIG.STARTING_CASH,
-    player2Dollars: p2?.dollars || GAME_CONFIG.STARTING_CASH,
-    player1Gained: p1Gained,
-    player2Gained: p2Gained,
-    playerLost:
-      winnerId === playerIds[0]
-        ? Math.max(0, p1Gained)
-        : winnerId === playerIds[1]
-          ? Math.max(0, p2Gained)
-          : undefined,
-  }
-
-  room.roundHistory.push(roundSummary)
-
-  if (room.checkGameEndCondition()) {
-    room.setClosing()
-
-    const { winner, reason } = room.getGameWinner()
-    io.to(room.id).emit('game_over', {
-      winnerId: winner?.id,
-      winnerName: winner?.name,
-      reason: reason === 'dollars' ? 'tie_break' : 'best_of_three_complete',
-      player1Wins: room.player1Wins,
-      player2Wins: room.player2Wins,
-      rounds: room.roundHistory,
-    })
-
-    room.resetClientsReady()
-
-    setTimeout(() => manager.deleteRoom(room.id), 1000)
-    setTimeout(() => disconnectPriceFeedIfIdle(manager), 1100)
-  } else {
-    room.resetClientsReady()
-
-    if (room.currentRound === 2 && room.player1Wins === 1 && room.player2Wins === 1) {
-      room.isSuddenDeath = true
-    }
-
-    const timeoutId = setTimeout(() => {
-      startGameLoop(io, manager, room)
-    }, 6000)
-
-    room.trackTimeout(timeoutId)
-  }
+  setTimeout(() => manager.deleteRoom(room.id), 1000)
+  setTimeout(() => disconnectPriceFeedIfIdle(manager), 1100)
 }
 
 // =============================================================================
-// Game Over Check
+// Game Over Check (for knockout)
 // =============================================================================
 
-async function checkGameOver(
-  io: SocketIOServer,
-  manager: RoomManager,
-  room: GameRoom
-): Promise<void> {
+function checkGameOver(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
   if (room.hasDeadPlayer()) {
-    room.setClosing()
-
-    for (const [_orderId, order] of room.pendingOrders) {
-      settleOrder(io, room, order)
-    }
-
-    const playerIds = room.getPlayerIds()
-    const { winnerId } = room.getRoundWinner()
-    const p1 = room.players.get(playerIds[0])
-    const p2 = room.players.get(playerIds[1])
-
-    const totalDollars = (p1?.dollars || 0) + (p2?.dollars || 0)
-    const expectedTotal = GAME_CONFIG.STARTING_CASH * 2
-
-    if (totalDollars !== expectedTotal) {
-      console.error('[checkGameOver] Dollar sum invalid after knockout settlement:', {
-        total: totalDollars,
-        expected: expectedTotal,
-        p1Dollars: p1?.dollars,
-        p2Dollars: p2?.dollars,
-        roundNumber: room.currentRound,
-      })
-    }
-
-    const pendingOrderIds = Array.from(room.pendingOrders.keys())
-    for (const orderId of pendingOrderIds) {
-      const order = room.pendingOrders.get(orderId)
-      if (order) {
-        settleOrder(io, room, order)
-      }
-    }
-
-    const p1Final = room.players.get(playerIds[0])
-    const p2Final = room.players.get(playerIds[1])
-    const winnerIdFinal = p1Final?.dollars === 0 ? playerIds[1] : playerIds[0]
-
-    if (winnerIdFinal === playerIds[0]) room.player1Wins++
-    else if (winnerIdFinal === playerIds[1]) room.player2Wins++
-
-    const p1Gained = (p1Final?.dollars || GAME_CONFIG.STARTING_CASH) - room.player1CashAtRoundStart
-    const p2Gained = (p2Final?.dollars || GAME_CONFIG.STARTING_CASH) - room.player2CashAtRoundStart
-
-    io.to(room.id).emit('round_end', {
-      roundNumber: room.currentRound,
-      winnerId: winnerIdFinal,
-      isTie: false,
-      player1Wins: room.player1Wins,
-      player2Wins: room.player2Wins,
-      player1Dollars: p1Final?.dollars,
-      player2Dollars: p2Final?.dollars,
-      player1Gained: p1Gained,
-      player2Gained: p2Gained,
-      isFinalRound: true,
-    })
-
-    const roundSummary = {
-      roundNumber: room.currentRound,
-      winnerId: winnerIdFinal,
-      isTie: false,
-      player1Dollars: p1Final?.dollars || GAME_CONFIG.STARTING_CASH,
-      player2Dollars: p2Final?.dollars || GAME_CONFIG.STARTING_CASH,
-      player1Gained: p1Gained,
-      player2Gained: p2Gained,
-      playerLost:
-        winnerIdFinal === playerIds[0]
-          ? Math.max(0, p1Gained)
-          : winnerIdFinal === playerIds[1]
-            ? Math.max(0, p2Gained)
-            : undefined,
-    }
-
-    room.roundHistory.push(roundSummary)
-
-    const winner = room.players.get(winnerIdFinal || '')
-    io.to(room.id).emit('game_over', {
-      winnerId: winner?.id,
-      winnerName: winner?.name,
-      reason: 'knockout' as const,
-      player1Wins: room.player1Wins,
-      player2Wins: room.player2Wins,
-      rounds: room.roundHistory,
-    })
-
-    room.resetClientsReady()
-
-    setTimeout(() => manager.deleteRoom(room.id), 1000)
-    setTimeout(() => disconnectPriceFeedIfIdle(manager), 1100)
+    endGame(io, manager, room, 'knockout')
   }
 }
 
@@ -525,7 +370,7 @@ async function handleSlice(
     io.to(room.id).emit('player_hit', { playerId, damage: actualTransfer, reason: 'gas' })
 
     if (room.hasDeadPlayer()) {
-      await checkGameOver(io, manager, room)
+      checkGameOver(io, manager, room)
     }
     return
   }
@@ -808,28 +653,19 @@ export function setupGameEvents(io: SocketIOServer): {
       }
     })
 
-    socket.on('round_ready', () => {
+    socket.on('end_game', () => {
       const roomId = manager.getPlayerRoomId(socket.id)
       if (!roomId) return
 
       const room = manager.getRoom(roomId)
-      if (!room) return
+      if (!room || room.getIsClosing()) return
 
-      if (
-        room.isShutdown ||
-        room.getIsClosing() ||
-        room.currentRound >= 3 ||
-        room.player1Wins >= 2 ||
-        room.player2Wins >= 2
-      ) {
-        return
-      }
+      // The player who clicked ends the game - opponent wins
+      const playerIds = room.getPlayerIds()
+      const opponentId = playerIds.find((id) => id !== socket.id)
+      const opponent = opponentId ? room.players.get(opponentId) : undefined
 
-      const bothReady = room.markClientReady(socket.id)
-
-      if (bothReady) {
-        startGameLoop(io, manager, room)
-      }
+      endGame(io, manager, room, 'forfeit')
     })
 
     socket.on(

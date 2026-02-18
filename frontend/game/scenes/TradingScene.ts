@@ -202,10 +202,8 @@ export class TradingScene extends Scene {
     // Emit scene_ready to server after Phaser initialization completes
     // This ensures the server waits for both clients before starting the game loop
     const tradingStore = useTradingStore.getState()
-    if (tradingStore.socket && tradingStore.socket.connected && !tradingStore.hasEmittedReady) {
+    if (tradingStore.socket && tradingStore.socket.connected) {
       tradingStore.socket.emit('scene_ready')
-      tradingStore.hasEmittedReady = true
-      // console.log('[Phaser] Scene ready, emitted scene_ready to server')
     }
 
     const updateDimensions = () => {

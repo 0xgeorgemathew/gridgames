@@ -12,7 +12,7 @@ export {
   type ConnectionState,
   type LobbyState,
   type RoomState,
-  type RoundState,
+  type TimerState,
   type GameState,
   type AudioState,
   type PriceFeedState,
