@@ -74,9 +74,8 @@ export class TradingScene extends Scene {
     this.isMobile = this.sys.game.device.os.android || this.sys.game.device.os.iOS
     this.physics.world.setBounds(0, 0, this.cameras.main.width, this.cameras.main.height)
 
-    // Get user's leverage from store for whale texture generation
-    const store = useTradingStore.getState()
-    this.userLeverage = store.userLeverage || '2x'
+    // Leverage is always 2x now - ENS leverage removed
+    this.userLeverage = '2x'
 
     // Initialize systems
     this.particles = new ParticleSystem(this)

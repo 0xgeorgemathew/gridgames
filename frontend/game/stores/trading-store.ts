@@ -18,7 +18,6 @@ import type {
   LobbyUpdatedEvent,
 } from '../types/trading'
 import type { Toast } from '@/components/ToastNotifications'
-import type { LeverageOption } from '@/lib/ens'
 
 // Debug logging control - set DEBUG_FUNDS=true in .env.local to enable
 const DEBUG_FUNDS = typeof process !== 'undefined' && process.env?.DEBUG_FUNDS === 'true'
@@ -61,9 +60,6 @@ interface TradingState {
   // Lobby state
   lobbyPlayers: LobbyPlayer[]
   isRefreshingLobby: boolean
-
-  // User leverage (from ENS)
-  userLeverage: LeverageOption | null // User's selected leverage for whale texture
 
   // Room/Players
   roomId: string | null
@@ -133,9 +129,6 @@ interface TradingState {
   removeToast: (id: string) => void
   clearToasts: () => void
   playAgain: () => void
-
-  // Leverage actions
-  setUserLeverage: (leverage: LeverageOption) => void
 
   // Audio actions
   toggleSound: () => void
@@ -242,9 +235,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   localPlayerId: null,
   isPlayer1: false,
   players: [],
-
-  // User leverage
-  userLeverage: null,
 
   // Lobby state
   lobbyPlayers: [],
@@ -470,7 +460,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   findMatch: (playerName: string, walletAddress?: string) => {
-    const { socket, userLeverage } = get()
+    const { socket } = get()
 
     // Use actual Phaser scene dimensions if available, otherwise window dimensions
     const sceneWidth =
@@ -480,16 +470,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       (window as { sceneDimensions?: { width: number; height: number } }).sceneDimensions?.height ||
       window.innerHeight
 
-    // Convert leverage option to number for server
-    const leverageValue =
-      userLeverage === '5x' ? 5 : userLeverage === '10x' ? 10 : userLeverage === '20x' ? 20 : 2
-
     socket?.emit('find_match', {
       playerName,
       sceneWidth,
       sceneHeight,
       walletAddress,
-      leverage: leverageValue,
+      leverage: 2, // Default leverage
     })
     set({ isMatching: true })
   },
@@ -836,10 +822,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ isGameOver: false, gameOverData: null })
   },
 
-  setUserLeverage: (leverage) => {
-    set({ userLeverage: leverage })
-  },
-
   // Lobby actions
   getLobbyPlayers: () => {
     const { socket } = get()
@@ -851,7 +833,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   joinWaitingPool: (playerName: string, walletAddress?: string) => {
-    const { socket, userLeverage } = get()
+    const { socket } = get()
     if (!socket) return
 
     // Use actual Phaser scene dimensions if available, otherwise window dimensions
@@ -862,16 +844,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       (window as { sceneDimensions?: { width: number; height: number } }).sceneDimensions?.height ||
       window.innerHeight
 
-    // Convert leverage option to number for server
-    const leverageValue =
-      userLeverage === '5x' ? 5 : userLeverage === '10x' ? 10 : userLeverage === '20x' ? 20 : 2
-
     socket.emit('join_waiting_pool', {
       playerName,
       sceneWidth,
       sceneHeight,
       walletAddress,
-      leverage: leverageValue,
+      leverage: 2, // Default leverage
     })
   },
 

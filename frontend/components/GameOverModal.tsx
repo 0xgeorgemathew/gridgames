@@ -5,8 +5,6 @@ import { motion } from 'framer-motion'
 import { useTradingStore } from '@/game/stores/trading-store'
 import { cn } from '@/lib/utils'
 import { PlayerName } from '@/components/ens/PlayerName'
-import { useUpdatePlayerStats, useGetPlayerStats } from '@/hooks/useENS'
-import { usePrivy } from '@privy-io/react-auth'
 
 const GLOW_ANIMATION = {
   textShadow: [
@@ -20,89 +18,6 @@ const GLOW_ANIMATION = {
 export const GameOverModal = React.memo(function GameOverModal() {
   const { isGameOver, gameOverData, localPlayerId, playAgain, players } = useTradingStore()
   const [showModal, setShowModal] = React.useState(false)
-  const { user } = usePrivy()
-
-  // Stats update hooks
-  const { updateStats, isUpdating } = useUpdatePlayerStats()
-
-  // Get current stats from ENS (need to fetch to know current values)
-  // We'll derive the username from the wallet address using reverse ENS
-  const walletAddress = user?.wallet?.address as `0x${string}` | undefined
-  const [claimedUsername, setClaimedUsername] = React.useState<string | null>(null)
-
-  // Fetch username from ENS reverse lookup when game ends
-  React.useEffect(() => {
-    if (isGameOver && walletAddress && !claimedUsername) {
-      // Simple reverse ENS lookup to get username
-      fetch(`/api/ens?action=getName&address=${walletAddress}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.name) {
-            const label = data.name.split('.')[0]
-            setClaimedUsername(label)
-          }
-        })
-        .catch((err) => console.error('Failed to get username from ENS:', err))
-    }
-  }, [isGameOver, walletAddress, claimedUsername])
-
-  // State for displaying updated stats in modal
-  const [updatedStats, setUpdatedStats] = React.useState<{
-    totalGames: number
-    streak: number
-  } | null>(null)
-
-  // Race condition guard - track if stats have been updated for current game
-  const statsUpdatedRef = React.useRef(false)
-  const lastGameOverDataRef = React.useRef<typeof gameOverData | null>(null)
-
-  // Update stats when game over
-  React.useEffect(() => {
-    // Reset guard when game over data changes (new game)
-    if (gameOverData !== lastGameOverDataRef.current) {
-      statsUpdatedRef.current = false
-      lastGameOverDataRef.current = gameOverData
-      setUpdatedStats(null)
-    }
-
-    if (showModal && gameOverData && claimedUsername && !statsUpdatedRef.current) {
-      statsUpdatedRef.current = true
-
-      const isWinner = gameOverData.winnerId === localPlayerId
-      const isTie = gameOverData.winnerId === null
-
-      // Fetch current stats first to calculate new values
-      fetch(`/api/ens?action=getStats&label=${claimedUsername}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const currentTotalGames = data.totalGames ?? 0
-          const currentStreak = data.streak ?? 0
-
-          // Calculate new values with tie handling
-          const newTotalGames = currentTotalGames + 1
-          const newStreak = isTie ? currentStreak : isWinner ? currentStreak + 1 : 0
-
-          // Update local state for display
-          setUpdatedStats({ totalGames: newTotalGames, streak: newStreak })
-
-          // Update ENS with silent update - no UI blocking
-          updateStats(claimedUsername, {
-            totalGames: newTotalGames,
-            streak: newStreak,
-          }).catch((err) => {
-            console.error('Failed to update stats:', err)
-            // Use trading store's toast notification
-            const { addToast } = useTradingStore.getState()
-            addToast({
-              message: 'Stats update failed. Will retry on next game.',
-              type: 'warning',
-              duration: 5000,
-            })
-          })
-        })
-        .catch((err) => console.error('Failed to fetch current stats:', err))
-    }
-  }, [showModal, gameOverData, claimedUsername, localPlayerId, updateStats])
 
   // Delay showing modal - short for knockouts (immediate game over), longer for time limit wins
   // For knockouts, show immediately since we skip RoundEndFlash
@@ -455,46 +370,6 @@ export const GameOverModal = React.memo(function GameOverModal() {
             </motion.div>
           </div>
         </motion.div>
-
-        {/* Syncing indicator */}
-        {isUpdating && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-4 text-[10px] text-cyan-400/60 tracking-wider"
-          >
-            SYNCING STATS TO ENS...
-          </motion.div>
-        )}
-
-        {/* Updated Stats Display */}
-        {updatedStats && (
-          <motion.div
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="mb-4 flex items-center justify-center gap-4 text-xs text-white/50 tracking-wider"
-          >
-            <div className="flex items-center gap-1">
-              <span className="text-white/30">GAMES:</span>
-              <span className="text-white/70 font-mono">{updatedStats.totalGames}</span>
-            </div>
-            <div className="w-px h-3 bg-white/10" />
-            <div className="flex items-center gap-1">
-              <span className="text-white/30">STREAK:</span>
-              <span
-                className={cn(
-                  'font-mono',
-                  updatedStats.streak > 0 ? 'text-tron-cyan' : 'text-white/50'
-                )}
-              >
-                {updatedStats.streak}
-              </span>
-              {updatedStats.streak >= 3 && <span className="text-orange-400">🔥</span>}
-              {updatedStats.streak >= 5 && <span className="text-orange-400">🔥</span>}
-            </div>
-          </motion.div>
-        )}
 
         {/* PLAY AGAIN Button - Tron Style */}
         <motion.button
