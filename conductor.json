@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "setup": "cp $CONDUCTOR_ROOT_PATH/frontend/.env.local frontend/.env.local && cd frontend && bun install",
+    "run": "",
+    "archive": ""
+  }
+}
