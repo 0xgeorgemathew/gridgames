@@ -33,12 +33,11 @@ export const GameHUD = React.memo(function GameHUD() {
     selectedCrypto,
     connectPriceFeed,
     isPlaying,
+    isGameOver,
+    playAgain,
+    endGame,
     priceError,
-    currentRound,
-    player1Wins,
-    player2Wins,
-    isSuddenDeath,
-    roundTimeRemaining,
+    gameTimeRemaining,
     isSoundMuted,
     toggleSound,
   } = useTradingStore()
@@ -58,7 +57,7 @@ export const GameHUD = React.memo(function GameHUD() {
   const localPlayer = players.find((p) => p.id === localPlayerId)
   const opponent = players.find((p) => p.id !== localPlayerId)
 
-  const isGameReady = isPriceConnected && priceData !== null && isPlaying && currentRound > 0
+  const isGameReady = isPriceConnected && priceData !== null && isPlaying && gameTimeRemaining > 0
   const isShowingLoading = !isPriceConnected || priceData === null
 
   return (
@@ -250,12 +249,7 @@ export const GameHUD = React.memo(function GameHUD() {
             {isGameReady && (
               <>
                 <RoundHeader
-                  currentRound={currentRound}
-                  player1Wins={player1Wins}
-                  player2Wins={player2Wins}
-                  isSuddenDeath={isSuddenDeath}
-                  roundTimeRemaining={roundTimeRemaining}
-                  isPlayer1={isPlayer1}
+                  gameTimeRemaining={gameTimeRemaining}
                 />
 
                 <motion.div
@@ -287,8 +281,45 @@ export const GameHUD = React.memo(function GameHUD() {
                     )}
                   </div>
                 </motion.div>
+
+                {/* End Game Button */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex justify-center pt-1"
+                >
+                  <button
+                    onClick={endGame}
+                    className="px-3 py-1 text-[10px] font-[family-name:var(--font-orbitron)] tracking-[0.1em] text-white/40 hover:text-white/60 border border-white/10 hover:border-white/20 rounded bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    END GAME
+                  </button>
+                </motion.div>
               </>
             )}
+
+            {/* Game Over - Play Again Button */}
+            <AnimatePresence>
+              {isGameOver && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex justify-center p-3"
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={playAgain}
+                    className="px-6 py-2 bg-tron-cyan/20 border border-tron-cyan/40 rounded-lg backdrop-blur-sm"
+                  >
+                    <span className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.15em] text-tron-cyan font-medium">
+                      PLAY AGAIN
+                    </span>
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       </motion.div>

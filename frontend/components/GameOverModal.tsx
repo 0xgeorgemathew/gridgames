@@ -19,15 +19,12 @@ export const GameOverModal = React.memo(function GameOverModal() {
   const { isGameOver, gameOverData, localPlayerId, playAgain, players } = useTradingStore()
   const [showModal, setShowModal] = React.useState(false)
 
-  // Delay showing modal - short for knockouts (immediate game over), longer for time limit wins
-  // For knockouts, show immediately since we skip RoundEndFlash
-  // For time limit/game completion wins, allow brief delay for round end processing
+  // Show modal after short delay
   React.useEffect(() => {
     if (isGameOver && gameOverData) {
-      const delayMs = gameOverData.reason === 'knockout' ? 100 : 7500
       const timer = setTimeout(() => {
         setShowModal(true)
-      }, delayMs)
+      }, 500)
       return () => clearTimeout(timer)
     } else {
       setShowModal(false)
@@ -38,21 +35,6 @@ export const GameOverModal = React.memo(function GameOverModal() {
 
   const isWinner = gameOverData.winnerId === localPlayerId
   const isTie = gameOverData.winnerId === null
-
-  // Helper to get round result from local player's perspective
-  const getRoundResult = (round: (typeof gameOverData.rounds)[0]) => {
-    if (round.isTie) return { text: 'TIE', amount: 0, isWin: false, isLoss: false }
-    if (round.winnerId === localPlayerId) {
-      return { text: 'WON', amount: round.playerLost || 0, isWin: true, isLoss: false }
-    }
-    // Local player lost - show negative of what winner gained
-    return {
-      text: 'LOST',
-      amount: -(round.playerLost || 0),
-      isWin: false,
-      isLoss: true,
-    }
-  }
 
   // Get final wallet balances
   const localPlayer = players.find((p) => p.id === localPlayerId)
@@ -105,145 +87,11 @@ export const GameOverModal = React.memo(function GameOverModal() {
           </div>
         </motion.div>
 
-        {/* ROUND SUMMARY - Vertical Stacked Text */}
-        <div className="mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="flex flex-col items-center gap-2 mb-4"
-          >
-            <h3 className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.2em] text-white/60">
-              ROUND
-            </h3>
-            <motion.h3
-              className="font-[family-name:var(--font-orbitron)] text-xl tracking-[0.2em] text-tron-cyan"
-              animate={GLOW_ANIMATION.textShadow}
-              transition={GLOW_ANIMATION.transition}
-            >
-              SUMMARY
-            </motion.h3>
-            {/* Animated data stream line */}
-            <motion.div
-              className="h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent w-32"
-              animate={{ opacity: [0.3, 1, 0.3], scaleX: [0.8, 1, 0.8] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-          </motion.div>
-
-          {/* Round Cards - Local Player Perspective */}
-          <div className="space-y-3">
-            {gameOverData.rounds.map((round, index) => {
-              const result = getRoundResult(round)
-              const amountText =
-                result.amount > 0
-                  ? `+$${result.amount}`
-                  : result.amount < 0
-                    ? `-$${Math.abs(result.amount)}`
-                    : ''
-
-              return (
-                <motion.div
-                  key={round.roundNumber}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + index * 0.1 }}
-                  whileHover={{
-                    scale: 1.02,
-                    borderColor: result.isWin ? 'rgba(0, 243, 255, 0.6)' : 'rgba(255, 107, 0, 0.6)',
-                  }}
-                  className={cn(
-                    'relative rounded-lg p-4 border backdrop-blur-sm overflow-hidden group',
-                    result.isWin
-                      ? 'border-cyan-400/30 bg-cyan-950/20'
-                      : result.isLoss
-                        ? 'border-orange-400/30 bg-orange-950/20'
-                        : 'border-white/10 bg-white/5'
-                  )}
-                >
-                  {/* Grid background overlay */}
-                  <div className="absolute inset-0 opacity-10 tron-grid pointer-events-none" />
-
-                  {/* Scanline effect on hover */}
-                  <motion.div
-                    className="absolute inset-0 pointer-events-none"
-                    initial={{ opacity: 0 }}
-                    whileHover={{ opacity: 1 }}
-                  >
-                    <motion.div
-                      className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                      animate={{ y: ['0%', '100%'] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                    />
-                  </motion.div>
-
-                  <div className="relative flex justify-between items-center">
-                    <div className="text-left">
-                      <span
-                        className={cn(
-                          'font-[family-name:var(--font-orbitron)] text-xs tracking-widest block mb-1',
-                          result.isWin
-                            ? 'text-cyan-400/80'
-                            : result.isLoss
-                              ? 'text-orange-400/80'
-                              : 'text-white/60'
-                        )}
-                      >
-                        ROUND {round.roundNumber}
-                      </span>
-                      <span
-                        className={cn(
-                          'font-[family-name:var(--font-orbitron)] text-sm tracking-[0.2em]',
-                          result.isWin
-                            ? 'text-tron-cyan'
-                            : result.isLoss
-                              ? 'text-tron-orange'
-                              : 'text-white/60'
-                        )}
-                      >
-                        YOU {result.text}
-                      </span>
-                    </div>
-                    {amountText && (
-                      <motion.span
-                        className={cn(
-                          'font-[family-name:var(--font-orbitron)] text-xl font-bold tracking-[0.2em]',
-                          result.isWin ? 'text-tron-cyan' : 'text-tron-orange'
-                        )}
-                        animate={
-                          result.isWin
-                            ? {
-                                textShadow: [
-                                  '0 0 15px rgba(0,243,255,0.5)',
-                                  '0 0 30px rgba(0,243,255,0.8)',
-                                  '0 0 15px rgba(0,243,255,0.5)',
-                                ],
-                              }
-                            : {
-                                textShadow: [
-                                  '0 0 15px rgba(255,107,0,0.5)',
-                                  '0 0 30px rgba(255,107,0,0.8)',
-                                  '0 0 15px rgba(255,107,0,0.5)',
-                                ],
-                              }
-                        }
-                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                      >
-                        {amountText}
-                      </motion.span>
-                    )}
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </div>
-
         {/* Final Tally Section */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: 0.4 }}
           className="mb-6 bg-black/40 border border-white/10 rounded-xl p-4"
         >
           <h3 className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-white/50 mb-3 uppercase">
@@ -379,7 +227,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
           className="relative group"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
+          transition={{ delay: 0.6 }}
         >
           <motion.div
             className="absolute inset-0 rounded-lg"

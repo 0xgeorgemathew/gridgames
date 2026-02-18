@@ -118,9 +118,7 @@ export class RoomManager {
       io.to(roomId).emit('game_over', {
         winnerId: winner?.id,
         winnerName: winner?.name,
-        roomId,
         reason: 'server_shutdown',
-        rounds: room.roundHistory,
       })
 
       room.cleanup()

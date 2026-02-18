@@ -1,4 +1,4 @@
-import { Player, RoundSummary } from '@/game/types/trading'
+import { Player } from '@/game/types/trading'
 import { GAME_CONFIG } from '@/game/constants'
 import { CoinSequence } from './CoinSequence'
 import type { Coin, PendingOrder } from './types'
@@ -6,7 +6,7 @@ import type { Coin, PendingOrder } from './types'
 /**
  * GameRoom - Encapsulates room state and lifecycle.
  *
- * Manages players, coins, orders, timers, and round-based game state.
+ * Manages players, coins, orders, timers, and game state.
  * Includes timer tracking for proper cleanup to prevent memory leaks.
  */
 export class GameRoom {
@@ -23,22 +23,10 @@ export class GameRoom {
 
   // Fruit Ninja-style spawn mechanics
   readonly gameStartTime: number
-  readonly GAME_DURATION = 180000 // 3 minutes (legacy, not used in round-based play)
-
-  // Round-based game state
-  currentRound: number = 0 // Starts at 0, startNewRound() increments to 1 before first round
-  player1Wins: number = 0
-  player2Wins: number = 0
-  player1CashAtRoundStart: number = GAME_CONFIG.STARTING_CASH
-  player2CashAtRoundStart: number = GAME_CONFIG.STARTING_CASH
-  isSuddenDeath: boolean = false
-  readonly ROUND_DURATION = GAME_CONFIG.ROUND_DURATION_MS // 30 seconds
+  readonly GAME_DURATION = GAME_CONFIG.GAME_DURATION_MS // 2.5 minutes (150000ms)
 
   // Deterministic coin sequence
   private coinSequence: CoinSequence | null = null
-
-  // Round history for game over summary
-  roundHistory: RoundSummary[] = []
 
   // Per-player 2X mode tracking (whale power-up)
   private whale2XData = new Map<string, { expiresAt: number; multiplier: number }>()
@@ -58,8 +46,8 @@ export class GameRoom {
   // Track if game loop is active
   gameLoopActive = false
 
-  // Round timeout tracker
-  roundTimeout: NodeJS.Timeout | null = null
+  // Game timeout tracker
+  gameTimeout: NodeJS.Timeout | null = null
 
   constructor(roomId: string) {
     this.id = roomId
@@ -190,9 +178,9 @@ export class GameRoom {
     this.intervals.clear()
     this.timeouts.clear()
 
-    if (this.roundTimeout) {
-      clearTimeout(this.roundTimeout)
-      this.roundTimeout = null
+    if (this.gameTimeout) {
+      clearTimeout(this.gameTimeout)
+      this.gameTimeout = null
     }
   }
 
@@ -222,73 +210,6 @@ export class GameRoom {
     return Array.from(this.players.values()).some((p) => p.dollars <= 0)
   }
 
-  // =============================================================================
-  // Round Management Methods
-  // =============================================================================
-
-  startNewRound(): void {
-    this.currentRound++
-    const playerIds = this.getPlayerIds()
-    const p1 = this.players.get(playerIds[0])
-    const p2 = this.players.get(playerIds[1])
-
-    if (p1 && p2) {
-      const total = p1.dollars + p2.dollars
-      if (total !== GAME_CONFIG.STARTING_CASH * 2) {
-        console.error('[GameRoom] Cash validation failed:', {
-          total,
-          expected: GAME_CONFIG.STARTING_CASH * 2,
-          p1: p1.dollars,
-          p2: p2.dollars,
-        })
-      }
-    }
-
-    this.player1CashAtRoundStart = p1?.dollars || GAME_CONFIG.STARTING_CASH
-    this.player2CashAtRoundStart = p2?.dollars || GAME_CONFIG.STARTING_CASH
-  }
-
-  getRoundWinner(): { winnerId: string | null; isTie: boolean } {
-    const playerIds = this.getPlayerIds()
-    const p1 = this.players.get(playerIds[0])
-    const p2 = this.players.get(playerIds[1])
-
-    if (!p1 || !p2) return { winnerId: null, isTie: false }
-
-    const p1Gained = p1.dollars - this.player1CashAtRoundStart
-    const p2Gained = p2.dollars - this.player2CashAtRoundStart
-
-    if (p1Gained > 0 && p2Gained <= 0) return { winnerId: playerIds[0], isTie: false }
-    if (p2Gained > 0 && p1Gained <= 0) return { winnerId: playerIds[1], isTie: false }
-    if (p1Gained > p2Gained) return { winnerId: playerIds[0], isTie: false }
-    if (p2Gained > p1Gained) return { winnerId: playerIds[1], isTie: false }
-
-    return { winnerId: null, isTie: true }
-  }
-
-  checkGameEndCondition(): boolean {
-    if (this.isSuddenDeath) {
-      return this.player1Wins !== this.player2Wins || this.currentRound >= 3
-    }
-    return this.currentRound >= 3
-  }
-
-  getGameWinner(): { winner: Player | undefined; reason: 'wins' | 'dollars' | 'knockout' } {
-    const playerIds = this.getPlayerIds()
-    const p1 = this.players.get(playerIds[0])
-    const p2 = this.players.get(playerIds[1])
-
-    if (!p1 || !p2) return { winner: undefined, reason: 'wins' }
-
-    if (p1.dollars > p2.dollars) return { winner: p1, reason: 'dollars' }
-    if (p2.dollars > p1.dollars) return { winner: p2, reason: 'dollars' }
-
-    if (this.player1Wins > this.player2Wins) return { winner: p1, reason: 'wins' }
-    if (this.player2Wins > this.player1Wins) return { winner: p2, reason: 'wins' }
-
-    return { winner: undefined, reason: 'wins' }
-  }
-
   getIsClosing(): boolean {
     return this.isClosing
   }
@@ -297,13 +218,14 @@ export class GameRoom {
     this.isClosing = true
   }
 
-  // Wave-based spawn intensity
+  // Wave-based spawn intensity (scaled for 150s game)
   getSpawnInterval(elapsedMs: number = 0): { minMs: number; maxMs: number; burstChance: number } {
     const waves = [
-      { endMs: 10000, intervalMs: { min: 1200, max: 1800 }, burstChance: 0.1 },
-      { endMs: 20000, intervalMs: { min: 1400, max: 1800 }, burstChance: 0.15 },
-      { endMs: 27000, intervalMs: { min: 1000, max: 1400 }, burstChance: 0.25 },
-      { endMs: 30000, intervalMs: { min: 700, max: 1100 }, burstChance: 0.4 },
+      { endMs: 30000, intervalMs: { min: 1500, max: 2000 }, burstChance: 0.08 }, // Warmup (0-30s)
+      { endMs: 60000, intervalMs: { min: 1400, max: 1800 }, burstChance: 0.12 }, // Early (30-60s)
+      { endMs: 90000, intervalMs: { min: 1200, max: 1600 }, burstChance: 0.18 }, // Mid (60-90s)
+      { endMs: 120000, intervalMs: { min: 1000, max: 1400 }, burstChance: 0.25 }, // Late (90-120s)
+      { endMs: 150000, intervalMs: { min: 800, max: 1200 }, burstChance: 0.35 }, // Climax (120-150s)
     ]
 
     for (const wave of waves) {
@@ -320,12 +242,12 @@ export class GameRoom {
     return { minMs: last.intervalMs.min, maxMs: last.intervalMs.max, burstChance: last.burstChance }
   }
 
-  // Initialize deterministic coin sequence for this round
+  // Initialize deterministic coin sequence for the game
   initCoinSequence(): void {
-    const seed = this.hashString(`${this.id}-round${this.currentRound}`)
+    const seed = this.hashString(this.id)
     const spawnConfig = this.getSpawnInterval(0)
     this.coinSequence = new CoinSequence(
-      this.ROUND_DURATION,
+      this.GAME_DURATION,
       spawnConfig.minMs,
       spawnConfig.maxMs,
       seed
