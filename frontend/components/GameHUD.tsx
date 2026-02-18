@@ -5,7 +5,7 @@ import { useTradingStore } from '@/game/stores/trading-store'
 import { HowToPlayModal } from '@/components/HowToPlayModal'
 import { SettlementFlash } from '@/components/SettlementFlash'
 import { CountUp } from '@/components/CountUp'
-import { Info, Volume2, VolumeX, Wifi } from 'lucide-react'
+import { Info, Volume2, VolumeX, Wifi, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { CryptoSymbol } from '@/game/stores/trading-store'
@@ -236,6 +236,16 @@ export const GameHUD = React.memo(function GameHUD() {
                     <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-cyan" />
                   )}
                 </button>
+
+                {isGameReady && (
+                  <button
+                    onClick={endGame}
+                    className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-tron-orange/10 rounded transition-colors pointer-events-auto shrink-0"
+                    title="End game early"
+                  >
+                    <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-orange/70 hover:text-tron-orange" />
+                  </button>
+                )}
               </motion.div>
             </motion.div>
 
@@ -248,9 +258,7 @@ export const GameHUD = React.memo(function GameHUD() {
             {/* Main Game Area */}
             {isGameReady && (
               <>
-                <RoundHeader
-                  gameTimeRemaining={gameTimeRemaining}
-                />
+                <RoundHeader gameTimeRemaining={gameTimeRemaining} />
 
                 <motion.div
                   className="h-px bg-gradient-to-r from-transparent via-tron-cyan/30 to-transparent mx-2"
@@ -280,20 +288,6 @@ export const GameHUD = React.memo(function GameHUD() {
                         )
                     )}
                   </div>
-                </motion.div>
-
-                {/* End Game Button */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex justify-center pt-1"
-                >
-                  <button
-                    onClick={endGame}
-                    className="px-3 py-1 text-[10px] font-[family-name:var(--font-orbitron)] tracking-[0.1em] text-white/40 hover:text-white/60 border border-white/10 hover:border-white/20 rounded bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    END GAME
-                  </button>
                 </motion.div>
               </>
             )}

@@ -10,9 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
  */
 export const Multiplier2XBadge = React.memo(function Multiplier2XBadge() {
   const { whale2XExpiresAt, whaleMultiplier } = useTradingStore()
-  const [timeLeft, setTimeLeft] = useState(() =>
-    Math.max(0, (whale2XExpiresAt || 0) - Date.now())
-  )
+  const [timeLeft, setTimeLeft] = useState(() => Math.max(0, (whale2XExpiresAt || 0) - Date.now()))
 
   useEffect(() => {
     const calculateTimeLeft = () => {

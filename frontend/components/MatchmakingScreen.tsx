@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import Image from 'next/image'
 import { useTradingStore } from '@/game/stores/trading-store'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GridScanBackground } from '@/components/GridScanBackground'
@@ -18,8 +19,12 @@ type MatchState = AuthMatchState | UserMatchState
 
 export function MatchmakingScreen() {
   const { ready, authenticated, login, logout, user } = usePrivy()
-  const { isInMiniApp, user: miniAppUser, walletAddress: miniAppWallet, isConnected: miniAppConnected } =
-    useBaseMiniAppAuth()
+  const {
+    isInMiniApp,
+    user: miniAppUser,
+    walletAddress: miniAppWallet,
+    isConnected: miniAppConnected,
+  } = useBaseMiniAppAuth()
   const {
     isConnected,
     isMatching,
@@ -97,7 +102,15 @@ export function MatchmakingScreen() {
       }
       getLobbyPlayers()
     }
-  }, [matchState, joinWaitingPool, getLobbyPlayers, displayName, user?.wallet, isInMiniApp, miniAppWallet])
+  }, [
+    matchState,
+    joinWaitingPool,
+    getLobbyPlayers,
+    displayName,
+    user?.wallet,
+    isInMiniApp,
+    miniAppWallet,
+  ])
 
   const handleEnter = async () => {
     if (!isConnected || isMatching) return
@@ -225,10 +238,13 @@ export function MatchmakingScreen() {
                           }}
                           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                         />
-                        <img
+                        <Image
                           src={miniAppUser.pfpUrl}
                           alt=""
-                          className="relative w-14 h-14 rounded-full border-2 border-cyan-400/50 object-cover"
+                          width={56}
+                          height={56}
+                          unoptimized
+                          className="relative rounded-full border-2 border-cyan-400/50 object-cover"
                         />
                       </motion.div>
                     )}
@@ -278,9 +294,7 @@ export function MatchmakingScreen() {
                   layout
                   className="flex flex-col items-center gap-3"
                 >
-                  <p className="text-green-400 text-xs tracking-wider">
-                    READY TO PLAY
-                  </p>
+                  <p className="text-green-400 text-xs tracking-wider">READY TO PLAY</p>
 
                   <div className="flex flex-col gap-3 w-full min-w-[200px]">
                     <ActionButton

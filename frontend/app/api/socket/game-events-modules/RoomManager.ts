@@ -106,7 +106,10 @@ export class RoomManager {
   }
 
   // Emergency shutdown - settles all pending orders and clears all state
-  emergencyShutdown(io: SocketIOServer, settleOrderFn: (io: SocketIOServer, room: GameRoom, orderId: string) => void): void {
+  emergencyShutdown(
+    io: SocketIOServer,
+    settleOrderFn: (io: SocketIOServer, room: GameRoom, orderId: string) => void
+  ): void {
     for (const [roomId, room] of this.rooms) {
       room.isShutdown = true
 

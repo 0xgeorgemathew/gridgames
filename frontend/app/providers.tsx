@@ -11,9 +11,7 @@ import { useState, type ReactNode } from 'react'
 // Wagmi config for Base and Base Sepolia with Farcaster Mini App connector
 const wagmiConfig = createConfig({
   chains: [base, baseSepolia],
-  connectors: [
-    farcasterMiniApp(),
-  ],
+  connectors: [farcasterMiniApp()],
   transports: {
     [base.id]: http(),
     [baseSepolia.id]: http(),

@@ -574,7 +574,10 @@ export function setupGameEvents(io: SocketIOServer): {
 
           socket.emit('waiting_for_match')
         } catch (error) {
-          console.error('[find_match] Error:', error instanceof Error ? error.message : String(error))
+          console.error(
+            '[find_match] Error:',
+            error instanceof Error ? error.message : String(error)
+          )
           socket.emit('error', { message: 'Failed to find match' })
         }
       }

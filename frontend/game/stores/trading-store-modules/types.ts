@@ -99,7 +99,8 @@ export interface PriceFeedState {
 
 // Combined state type
 export interface TradingState
-  extends ConnectionState,
+  extends
+    ConnectionState,
     LobbyState,
     RoomState,
     TimerState,

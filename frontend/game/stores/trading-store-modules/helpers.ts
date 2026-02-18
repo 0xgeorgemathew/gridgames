@@ -1,10 +1,5 @@
 import type { CoinType, Player, SettlementEvent } from '../../types/trading'
-import {
-  STANDARD_DAMAGE,
-  WHALE_DAMAGE,
-  TUG_OF_WAR_MIN,
-  TUG_OF_WAR_MAX,
-} from './types'
+import { STANDARD_DAMAGE, WHALE_DAMAGE, TUG_OF_WAR_MIN, TUG_OF_WAR_MAX } from './types'
 
 // Debug logging control
 const DEBUG_FUNDS = typeof process !== 'undefined' && process.env?.DEBUG_FUNDS === 'true'
@@ -31,11 +26,7 @@ export function calculateTugOfWarDelta(
 /**
  * Apply damage to a specific player.
  */
-export function applyDamageToPlayer(
-  players: Player[],
-  playerId: string,
-  damage: number
-): Player[] {
+export function applyDamageToPlayer(players: Player[], playerId: string, damage: number): Player[] {
   return players.map((p) =>
     p.id === playerId ? { ...p, dollars: Math.max(0, p.dollars - damage) } : p
   )
