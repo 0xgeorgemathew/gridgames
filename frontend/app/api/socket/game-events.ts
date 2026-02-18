@@ -3,7 +3,6 @@ import { Socket } from 'socket.io'
 import { Player, RoundSummary } from '@/game/types/trading'
 import { DEFAULT_BTC_PRICE } from '@/lib/formatPrice'
 import { GAME_CONFIG } from '@/game/constants'
-import { getLeverageForAddress } from '@/lib/ens'
 
 // Order settlement duration - time between slice and settlement (5 seconds)
 export const ORDER_SETTLEMENT_DURATION_MS = GAME_CONFIG.ORDER_SETTLEMENT_DURATION_MS
@@ -409,37 +408,19 @@ class GameRoom {
     return data.multiplier // Return ENS leverage (2, 5, 10, 20)
   }
 
-  // Get player's leverage from ENS (with caching)
+  // Get player's leverage (always 2x now - ENS leverage removed)
   async getPlayerLeverage(playerId: string): Promise<number> {
     // Check cache first
     if (this.playerLeverageCache.has(playerId)) {
-      const cached = this.playerLeverageCache.get(playerId)!
-      // console.log(
-      //   `[GameRoom] Using cached leverage: playerId=${playerId.slice(0, 8)}, leverage=${cached}x`
-      // )
-      return cached
+      return this.playerLeverageCache.get(playerId)!
     }
 
-    // Get wallet address from room
-    const walletAddress = this.getWalletAddress(playerId)
-    if (!walletAddress) {
-      // console.log(
-      //   `[GameRoom] No wallet address for player (using default 2x): playerId=${playerId.slice(0, 8)}`
-      // )
-      return 2 // Default to 2x
-    }
-
-    // Load from ENS
-    const leverage = await getLeverageForAddress(walletAddress)
-    const finalLeverage = leverage || 2 // Default to 2x
-
-    // console.log(
-    //   `[GameRoom] Loaded leverage from ENS: playerId=${playerId.slice(0, 8)}, address=${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}, leverage=${finalLeverage}x`
-    // )
+    // Default to 2x - ENS leverage removed
+    const leverage = 2
 
     // Cache for future use
-    this.playerLeverageCache.set(playerId, finalLeverage)
-    return finalLeverage
+    this.playerLeverageCache.set(playerId, leverage)
+    return leverage
   }
 
   // Helper to get wallet address for player

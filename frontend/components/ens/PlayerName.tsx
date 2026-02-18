@@ -1,7 +1,6 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { formatENSName } from '@/lib/ens'
 
 interface PlayerNameProps {
   username?: string | null
@@ -13,7 +12,8 @@ interface PlayerNameProps {
 
 /**
  * Component to display a player's name with TRON holographic effect.
- * Shows ENS name if available, otherwise truncated address.
+ * Shows the username as-is (could be Base Name, Privy name, or Farcaster username).
+ * Fallback to truncated address if no username.
  */
 export function PlayerName({
   username,
@@ -23,7 +23,8 @@ export function PlayerName({
   enableGlow = true,
 }: PlayerNameProps) {
   if (username) {
-    const displayName = showFull ? formatENSName(username) : username
+    // Display username as-is (could be "user.base.eth", "@farcaster", or "Google Name")
+    const displayName = showFull ? username : username
 
     return enableGlow ? (
       <motion.span
@@ -50,26 +51,10 @@ export function PlayerName({
         >
           {displayName}
         </motion.span>
-        {!showFull && (
-          <motion.span
-            className="text-cyan-400"
-            animate={{
-              textShadow: [
-                '0 0 15px rgba(0, 243, 255, 0.5)',
-                '0 0 25px rgba(0, 243, 255, 0.8)',
-                '0 0 15px rgba(0, 243, 255, 0.5)',
-              ],
-            }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            .grid.eth
-          </motion.span>
-        )}
       </motion.span>
     ) : (
-      <span className="font-[family-name:var(--font-orbitron)]">
-        <span className={className || 'text-white'}>{displayName}</span>
-        {!showFull && <span className="text-cyan-400">.grid.eth</span>}
+      <span className={`font-[family-name:var(--font-orbitron)] ${className || 'text-white'}`}>
+        {displayName}
       </span>
     )
   }
