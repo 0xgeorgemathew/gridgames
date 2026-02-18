@@ -22,7 +22,7 @@ export async function GET() {
       version: '1',
       name: 'Grid Games',
       homeUrl: baseUrl,
-      iconUrl: `${baseUrl}/icon.svg`,
+      iconUrl: `${baseUrl}/icon.png`,
       splashImageUrl: `${baseUrl}/splash.png`,
       splashBackgroundColor: '#000000',
       webhookUrl: `${baseUrl}/api/webhook`,
