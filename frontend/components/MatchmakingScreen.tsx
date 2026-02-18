@@ -10,6 +10,7 @@ import { ClaimUsername } from '@/components/ens/ClaimUsername'
 import { SetLeverage } from '@/components/ens/SetLeverage'
 import { PlayerName } from '@/components/ens/PlayerName'
 import { useUserName, useGetLeverage, useGetPlayerStats } from '@/hooks/useENS'
+import { useBaseMiniAppAuth } from '@/hooks/useBaseMiniAppAuth'
 import type { LeverageOption } from '@/lib/ens'
 
 const BOTTOM_DOTS_COUNT = 7
@@ -29,6 +30,8 @@ type MatchState =
 
 export function MatchmakingScreen() {
   const { ready, authenticated, login, logout, user } = usePrivy()
+  const { isInMiniApp, user: miniAppUser, walletAddress: miniAppWallet, isConnected: miniAppConnected } =
+    useBaseMiniAppAuth()
   const {
     isConnected,
     isMatching,
@@ -89,24 +92,47 @@ export function MatchmakingScreen() {
   }, [connect])
 
   // Update match state based on auth - check for existing username
+  // Dual auth flow: Base Mini App (skip Privy) or Web browser (Privy)
   useEffect(() => {
-    if (authenticated && user?.wallet && hasChecked) {
-      if (hasName && existingUsername) {
-        // User already has a username, skip to balance check
-        setClaimedUsername(existingUsername)
-        checkBalance()
-      } else if (!isCheckingUsername) {
-        // No username found, prompt to claim
-        setMatchState('claimUsername')
+    if (isInMiniApp) {
+      // Base App path: Use Farcaster identity, skip Privy entirely
+      if (miniAppConnected && miniAppUser) {
+        // Direct to ready state - no ENS username needed for Base App users
+        setMatchState('ready')
+        setClaimedUsername(`@${miniAppUser.username || miniAppUser.fid}`)
+      } else if (!miniAppConnected) {
+        setMatchState('login') // Show "CONNECTING..." state
       }
-    } else if (authenticated && user?.wallet && !hasChecked) {
-      setMatchState('checkingUsername')
-    } else if (!authenticated) {
-      setMatchState('login')
-      setClaimedUsername(null)
+    } else {
+      // Web browser path: Existing Privy flow
+      if (authenticated && user?.wallet && hasChecked) {
+        if (hasName && existingUsername) {
+          // User already has a username, skip to balance check
+          setClaimedUsername(existingUsername)
+          checkBalance()
+        } else if (!isCheckingUsername) {
+          // No username found, prompt to claim
+          setMatchState('claimUsername')
+        }
+      } else if (authenticated && user?.wallet && !hasChecked) {
+        setMatchState('checkingUsername')
+      } else if (!authenticated) {
+        setMatchState('login')
+        setClaimedUsername(null)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, user?.wallet, existingUsername, hasName, hasChecked, isCheckingUsername])
+  }, [
+    isInMiniApp,
+    miniAppConnected,
+    miniAppUser,
+    authenticated,
+    user?.wallet,
+    existingUsername,
+    hasName,
+    hasChecked,
+    isCheckingUsername,
+  ])
 
   // Update user leverage in store when leverage changes or username is claimed
   useEffect(() => {
@@ -122,18 +148,24 @@ export function MatchmakingScreen() {
   // Initial lobby fetch when entering lobby state
   useEffect(() => {
     if (matchState === 'lobby') {
+      // Determine wallet address based on auth method
+      const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
       // Join waiting pool first so we can be seen by others
-      const playerName = claimedUsername || user?.wallet?.address
-      if (playerName) {
-        joinWaitingPool(playerName, user?.wallet?.address)
+      const playerName = claimedUsername || walletAddress
+      if (playerName && walletAddress) {
+        joinWaitingPool(playerName, walletAddress)
       }
       getLobbyPlayers()
     }
-  }, [matchState, joinWaitingPool, getLobbyPlayers, claimedUsername, user?.wallet])
+  }, [matchState, joinWaitingPool, getLobbyPlayers, claimedUsername, user?.wallet, isInMiniApp, miniAppWallet])
 
   const handleClaimFaucet = async () => {
-    if (!authenticated || !ready || !user?.wallet) {
-      alert('Please login first.')
+    // For Base App, faucet uses connected wallet; for web, uses Privy
+    const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
+    const userId = isInMiniApp ? miniAppUser?.fid.toString() : user?.id
+
+    if (!walletAddress) {
+      alert('Please connect your wallet first.')
       return
     }
 
@@ -143,8 +175,8 @@ export function MatchmakingScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userWalletAddress: user.wallet.address,
-          userId: user.id,
+          userWalletAddress: walletAddress,
+          userId: userId,
         }),
       })
 
@@ -160,7 +192,7 @@ export function MatchmakingScreen() {
         for (let i = 0; i < maxRetries; i++) {
           await new Promise((resolve) => setTimeout(resolve, delayMs))
 
-          const result = await checkUsdcBalance(user.wallet.address)
+          const result = await checkUsdcBalance(walletAddress)
           setUsdcBalance(result.formatted || '0')
 
           if (result.hasEnough) {
@@ -203,7 +235,11 @@ export function MatchmakingScreen() {
   }, [user?.wallet, checkUsdcBalance])
 
   const handleEnter = async () => {
-    if (!isConnected || isMatching || !user?.wallet) return
+    if (!isConnected || isMatching) return
+
+    // Determine wallet address based on auth method
+    const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
+    if (!walletAddress) return
 
     setMatchState('entering')
 
@@ -214,7 +250,7 @@ export function MatchmakingScreen() {
     }
 
     // Final balance check before entering
-    const balanceResult = await checkUsdcBalance(user.wallet.address)
+    const balanceResult = await checkUsdcBalance(walletAddress)
     if (!balanceResult.hasEnough) {
       setUsdcBalance(balanceResult.formatted || '0')
       setMatchState('insufficient')
@@ -222,8 +258,8 @@ export function MatchmakingScreen() {
     }
 
     // Proceed with matchmaking - pass username or wallet address
-    const playerName = claimedUsername || user.wallet.address
-    findMatch(playerName, user.wallet.address)
+    const playerName = claimedUsername || walletAddress
+    findMatch(playerName, walletAddress)
   }
 
   // ENS callbacks
@@ -252,11 +288,15 @@ export function MatchmakingScreen() {
 
   const handleSelectOpponent = useCallback(
     (opponentSocketId: string) => {
-      if (!isConnected || isMatching || !user?.wallet) return
+      if (!isConnected || isMatching) return
+
+      // Determine wallet address based on auth method
+      const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
+      if (!walletAddress) return
 
       setMatchState('entering')
 
-      checkUsdcBalance(user.wallet.address).then((result) => {
+      checkUsdcBalance(walletAddress).then((result) => {
         if (!result.hasEnough) {
           setUsdcBalance(result.formatted || '0')
           setMatchState('insufficient')
@@ -265,7 +305,7 @@ export function MatchmakingScreen() {
         selectOpponent(opponentSocketId)
       })
     },
-    [isConnected, isMatching, user?.wallet, selectOpponent, checkUsdcBalance]
+    [isConnected, isMatching, isInMiniApp, miniAppWallet, user?.wallet, selectOpponent, checkUsdcBalance]
   )
 
   if (!ready) {
@@ -333,57 +373,69 @@ export function MatchmakingScreen() {
                       PLAYING AS
                     </motion.p>
                     <motion.div className="h-3 w-px bg-cyan-400/30" />
-                    {/* Profile stats button */}
-                    <motion.button
-                      onClick={() => setMatchState('profile')}
-                      whileHover={{ scale: 1.15, rotate: 90 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="text-cyan-400/60 hover:text-cyan-400 transition-colors p-2 rounded-full hover:bg-cyan-900/30"
-                      title="View Profile Stats"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                    {/* Profile stats button - only show for Privy users with ENS */}
+                    {!isInMiniApp && (
+                      <motion.button
+                        onClick={() => setMatchState('profile')}
+                        whileHover={{ scale: 1.15, rotate: 90 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="text-cyan-400/60 hover:text-cyan-400 transition-colors p-2 rounded-full hover:bg-cyan-900/30"
+                        title="View Profile Stats"
                       >
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                      </svg>
-                    </motion.button>
-                    {/* Leverage settings button */}
-                    <motion.button
-                      onClick={() => setMatchState('setLeverage')}
-                      whileHover={{ scale: 1.15, rotate: 90 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="text-cyan-400/60 hover:text-cyan-400 transition-colors p-2 rounded-full hover:bg-cyan-900/30"
-                      title="Set Leverage"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="16" x2="12" y2="12"></line>
+                          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                      </motion.button>
+                    )}
+                    {/* Leverage settings button - only for Privy users */}
+                    {!isInMiniApp && (
+                      <motion.button
+                        onClick={() => setMatchState('setLeverage')}
+                        whileHover={{ scale: 1.15, rotate: 90 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="text-cyan-400/60 hover:text-cyan-400 transition-colors p-2 rounded-full hover:bg-cyan-900/30"
+                        title="Set Leverage"
                       >
-                        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    </motion.button>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </motion.button>
+                    )}
                   </div>
 
-                  {/* Username with larger size and enhanced glow */}
-                  <motion.div className="relative" whileHover={{ scale: 1.05 }}>
+                  {/* Username display with Farcaster profile for Base App */}
+                  <motion.div className="relative flex items-center gap-3" whileHover={{ scale: 1.05 }}>
+                    {/* Farcaster avatar for Base App */}
+                    {isInMiniApp && miniAppUser?.pfpUrl && (
+                      <img
+                        src={miniAppUser.pfpUrl}
+                        alt=""
+                        className="w-10 h-10 rounded-full border-2 border-cyan-400/30"
+                      />
+                    )}
                     {/* Background glow ring */}
                     <div className="absolute inset-0 rounded-full blur-xl glow-background-username" />
                     <PlayerName
@@ -411,10 +463,14 @@ export function MatchmakingScreen() {
                   layout
                   className="flex flex-col items-center gap-4"
                 >
-                  <p className="text-gray-400 text-sm tracking-wider">CONNECT TO PLAY</p>
-                  <ActionButton onClick={login} color="cyan">
-                    LOGIN WITH GOOGLE
-                  </ActionButton>
+                  <p className="text-gray-400 text-sm tracking-wider">
+                    {isInMiniApp ? 'CONNECTING...' : 'CONNECT TO PLAY'}
+                  </p>
+                  {!isInMiniApp && (
+                    <ActionButton onClick={login} color="cyan">
+                      LOGIN WITH GOOGLE
+                    </ActionButton>
+                  )}
                 </motion.div>
               )}
 
@@ -544,12 +600,15 @@ export function MatchmakingScreen() {
                     </ActionButton>
                   </div>
 
-                  <button
-                    onClick={logout}
-                    className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                  >
-                    LOGOUT
-                  </button>
+                  {/* Logout button - only for Privy users */}
+                  {!isInMiniApp && (
+                    <button
+                      onClick={logout}
+                      className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
+                    >
+                      LOGOUT
+                    </button>
+                  )}
                 </motion.div>
               )}
 

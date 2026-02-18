@@ -3,14 +3,19 @@
 import { PrivyProvider } from '@privy-io/react-auth'
 import { privyConfig } from '@/privy/config'
 import { WagmiProvider, createConfig, http } from 'wagmi'
-import { baseSepolia } from 'wagmi/chains'
+import { base, baseSepolia } from 'wagmi/chains'
+import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 
-// Wagmi config for Base Sepolia
+// Wagmi config for Base and Base Sepolia with Farcaster Mini App connector
 const wagmiConfig = createConfig({
-  chains: [baseSepolia],
+  chains: [base, baseSepolia],
+  connectors: [
+    farcasterMiniApp(),
+  ],
   transports: {
+    [base.id]: http(),
     [baseSepolia.id]: http(),
   },
 })
