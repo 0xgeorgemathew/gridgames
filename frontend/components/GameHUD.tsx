@@ -95,12 +95,12 @@ export const GameHUD = React.memo(function GameHUD() {
 
       {/* Bottom Navigation HUD */}
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-30 px-3 pt-3 pb-safe pb-6 bottom-nav-container"
+        className="fixed bottom-0 left-0 right-0 z-30 pt-3 pb-safe pb-6 bottom-nav-container"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <div className="max-w-lg mx-auto">
+        <div>
           <motion.div
             className="glass-panel-vibrant rounded-t-xl overflow-hidden"
             animate={{

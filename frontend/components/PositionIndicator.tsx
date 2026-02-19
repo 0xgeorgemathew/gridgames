@@ -31,7 +31,7 @@ export function PositionIndicator() {
     .slice(0, 5) // Increased to 5 visible (was 3)
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-10 px-2 pt-2 pb-4 pointer-events-none">
+    <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-56 pointer-events-none">
       <div className="max-w-2xl mx-auto">
         <AnimatePresence>
           {localOrders.map((order, index) => {
