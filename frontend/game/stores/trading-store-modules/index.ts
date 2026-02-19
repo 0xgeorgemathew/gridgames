@@ -66,9 +66,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   pendingOrders: new Map(),
   latestSettlement: null,
   toasts: [],
-  whale2XActivatedAt: null,
-  whale2XExpiresAt: null,
-  whaleMultiplier: 2,
+  leverage: 2, // Manual leverage selector (1, 2, 5, 10)
 
   // Audio state
   isSoundMuted: false,
@@ -173,26 +171,13 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       get().resetGame()
     })
 
-    socket.on(
-      'whale_2x_activated',
-      (data: { playerId: string; playerName: string; durationMs: number; multiplier: number }) => {
-        const { localPlayerId } = get()
-        const isLocalPlayer = data.playerId === localPlayerId
-
-        if (isLocalPlayer) {
-          const now = Date.now()
-          set({
-            whale2XActivatedAt: now,
-            whale2XExpiresAt: now + data.durationMs,
-            whaleMultiplier: data.multiplier,
-          })
-        }
-
-        if (window.phaserEvents) {
-          window.phaserEvents.emit('whale_2x_activated', { ...data, isLocalPlayer })
-        }
-      }
-    )
+    socket.on('player_leverage_changed', (data: { playerId: string; leverage: number }) => {
+      const { players } = get()
+      const newPlayers = players.map((p) =>
+        p.id === data.playerId ? { ...p, leverage: data.leverage } : p
+      )
+      set({ players: newPlayers })
+    })
 
     socket.on('lobby_players', (players: LobbyPlayersEvent) => {
       set({ lobbyPlayers: players, isRefreshingLobby: false })
@@ -261,6 +246,19 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     socket.emit('slice_coin', { coinId, coinType })
   },
 
+  setLeverage: (leverage: number) => {
+    const { socket, localPlayerId, players } = get()
+    if (!socket || !localPlayerId) return
+
+    // Update local state immediately
+    set({ leverage })
+    const newPlayers = players.map((p) => (p.id === localPlayerId ? { ...p, leverage } : p))
+    set({ players: newPlayers })
+
+    // Emit to server for opponent sync
+    socket.emit('set_leverage', { leverage })
+  },
+
   handleSlice: (slice) => {
     const { localPlayerId } = get()
     if (slice.playerId === localPlayerId) return
@@ -276,7 +274,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   handleSettlement: (settlement) => {
     const { isPlayer1, players, pendingOrders, tugOfWar, activeOrders } = get()
-    const amount = settlement.amountTransferred ?? getDamageForCoinType(settlement.coinType)
+    const amount = settlement.amountTransferred ?? getDamageForCoinType()
 
     const winnerId = settlement.isCorrect
       ? settlement.playerId
@@ -431,9 +429,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       isPlaying: false,
       isMatching: false,
       latestSettlement: null,
-      whale2XActivatedAt: null,
-      whale2XExpiresAt: null,
-      whaleMultiplier: 2,
+      leverage: 2, // Reset to default leverage
       gameTimeRemaining: 0,
       gameTimerInterval: null,
       // Reset price state for clean reconnection in next game

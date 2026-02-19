@@ -142,14 +142,6 @@ export class VisualEffects {
       text = 'LONG - BTC'
     } else if (coinType === 'put') {
       text = 'Short BTC'
-    } else if (coinType === 'gas') {
-      text = 'PENALTY'
-      color = 0xffd700 // Gold
-      fontSize = this.isMobile ? '38px' : '32px'
-    } else if (coinType === 'whale') {
-      text = '2X'
-      color = 0x39ff14 // Electric Lime (green)
-      fontSize = this.isMobile ? '56px' : '48px'
     } else {
       // Fallback (shouldn't happen)
       text = '?'
@@ -159,7 +151,7 @@ export class VisualEffects {
     const colorHex = '#' + color.toString(16).padStart(6, '0')
 
     // Offset text upward to avoid overlap with explosion shards
-    const verticalOffset = coinType === 'whale' ? 60 : 45
+    const verticalOffset = 45
 
     const textObj = this.scene.add
       .text(x, y - verticalOffset, text, {
@@ -383,8 +375,8 @@ export class VisualEffects {
     }
 
     // Animate halves flying apart with more dramatic movement
-    const flyDistance = coinType === 'whale' ? 60 : 40
-    const rotationAmount = coinType === 'whale' ? 1.5 : 1
+    const flyDistance = 40
+    const rotationAmount = 1
 
     this.scene.tweens.add({
       targets: leftContainer,
@@ -413,11 +405,6 @@ export class VisualEffects {
         handleComplete()
       },
     })
-
-    // Add electrical arc effect for GAS coins
-    if (coinType === 'gas') {
-      this.createElectricalArc(x, y, color)
-    }
 
     // Tron-style impact flash: brief white burst followed by colored flash
     // The white flash simulates the high-intensity "shatter" moment

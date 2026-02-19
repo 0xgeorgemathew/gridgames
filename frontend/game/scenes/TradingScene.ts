@@ -49,7 +49,6 @@ export class TradingScene extends Scene {
   private isShutdown = false
   private isMobile = false
   private eventEmitter: Phaser.Events.EventEmitter
-  private userLeverage: string = '2x' // User's leverage for whale texture
 
   // Window visibility handlers for cleanup
   private visibilityChangeHandler?: () => void
@@ -69,9 +68,6 @@ export class TradingScene extends Scene {
   create(): void {
     this.isMobile = this.sys.game.device.os.android || this.sys.game.device.os.iOS
     this.physics.world.setBounds(0, 0, this.cameras.main.width, this.cameras.main.height)
-
-    // Leverage is always 2x now - ENS leverage removed
-    this.userLeverage = '2x'
 
     // Initialize systems
     this.particles = new ParticleSystem(this)
@@ -113,8 +109,8 @@ export class TradingScene extends Scene {
       }
     }
 
-    // Generate textures with user's leverage for whale coin
-    this.coinRenderer.generateCachedTextures(this.userLeverage)
+    // Generate textures (only call and put now)
+    this.coinRenderer.generateCachedTextures()
 
     // Token pool (use regular group since Token manages its own physics in spawn())
     this.tokenPool = this.add.group({
@@ -131,7 +127,6 @@ export class TradingScene extends Scene {
 
     this.eventEmitter.on('coin_spawn', this.handleCoinSpawn.bind(this))
     this.eventEmitter.on('opponent_slice', this.handleOpponentSlice.bind(this))
-    this.eventEmitter.on('whale_2x_activated', this.handleWhale2XActivated.bind(this))
     this.eventEmitter.on('clear_coins', this.cleanupCoins.bind(this))
     this.eventEmitter.on('sound_muted', (muted: boolean) => {
       this.audio.setMuted(muted)
@@ -548,11 +543,7 @@ export class TradingScene extends Scene {
       token.body.enable = true
     }
 
-    // For whale coins, use leverage-specific texture key
-    const textureKey =
-      data.coinType === 'whale' ? `texture_whale_${this.userLeverage}` : `texture_${data.coinType}`
-
-    token.spawn(spawnX, spawnY, data.coinType, data.coinId, config, this.isMobile, textureKey)
+    token.spawn(spawnX, spawnY, data.coinType, data.coinId, config, this.isMobile)
 
     token.setData('gridX', token.x)
     token.setData('gridY', token.y)
@@ -583,21 +574,6 @@ export class TradingScene extends Scene {
     // Server uses its own price feed for order creation (single source of truth)
     store.sliceCoin(coinId, type)
 
-    if (type === 'whale') {
-      this.cameras.main.shake(200, 0.015)
-    }
-
     this.removeCoin(coinId)
-  }
-
-  private handleWhale2XActivated(_data: {
-    playerId: string
-    playerName: string
-    durationMs: number
-    isLocalPlayer: boolean
-  }): void {
-    // Visual indicator is now in React HUD (GameHUD.tsx)
-    // This scene only forwards the event via window.phaserEvents
-    // No Phaser-side rendering needed
   }
 }

@@ -1,9 +1,9 @@
 // Re-export all GameHUD components
-export { Multiplier2XBadge } from './Multiplier2XBadge'
 export { ConnectionStatusDot } from './ConnectionStatusDot'
 export { PlayerHealthBar } from './PlayerHealthBar'
 export { RoundHeader } from './RoundHeader'
 export { PriceLoadingState } from './PriceLoadingState'
+export { LeverageSelector } from './LeverageSelector'
 
 // Re-export types and helpers
 export {

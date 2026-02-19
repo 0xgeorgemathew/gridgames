@@ -5,14 +5,14 @@ import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { itemVariants } from './types'
 import { formatTime } from './types'
-import { Multiplier2XBadge } from './Multiplier2XBadge'
+import { LeverageSelector } from './LeverageSelector'
 
 interface TimerDisplayProps {
   gameTimeRemaining: number // milliseconds
 }
 
 /**
- * TimerDisplay - Displays game timer and 2X multiplier badge.
+ * RoundHeader - Displays game timer and leverage selector.
  */
 export const RoundHeader = React.memo(function TimerDisplay({
   gameTimeRemaining,
@@ -22,13 +22,10 @@ export const RoundHeader = React.memo(function TimerDisplay({
   return (
     <motion.div
       variants={itemVariants}
-      className="flex items-center justify-center px-4 py-2 bg-black/20 rounded-lg border border-white/10 gap-4"
+      className="flex flex-col items-center gap-2 px-4 py-2 bg-black/20 rounded-lg border border-white/10"
       initial="hidden"
       animate="visible"
     >
-      {/* 2X Badge */}
-      <Multiplier2XBadge />
-
       {/* Timer */}
       <div className="flex items-center gap-2">
         <span className="text-white/40 text-sm">⏱️</span>
@@ -42,6 +39,9 @@ export const RoundHeader = React.memo(function TimerDisplay({
           {formatTime(gameTimeRemaining)}
         </span>
       </div>
+
+      {/* Leverage Selector */}
+      <LeverageSelector />
     </motion.div>
   )
 })

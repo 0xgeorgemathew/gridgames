@@ -29,7 +29,6 @@ export interface PhaserEventBridge {
 
 // Game constants
 export const STANDARD_DAMAGE = 1
-export const WHALE_DAMAGE = 2
 export const TUG_OF_WAR_MIN = -100
 export const TUG_OF_WAR_MAX = 100
 
@@ -72,9 +71,7 @@ export interface GameState {
   pendingOrders: Map<string, SettlementEvent>
   latestSettlement: SettlementEvent | null
   toasts: Toast[]
-  whale2XActivatedAt: number | null
-  whale2XExpiresAt: number | null
-  whaleMultiplier: number
+  leverage: number // Manual leverage selector (1, 2, 5, 10)
 }
 
 // Audio state slice
@@ -113,6 +110,7 @@ export interface TradingState
   findMatch: (playerName: string, walletAddress?: string) => void
   spawnCoin: (coin: CoinSpawnEvent) => void
   sliceCoin: (coinId: string, coinType: CoinType) => void
+  setLeverage: (leverage: number) => void
   handleSlice: (slice: SliceEvent) => void
   handleOrderPlaced: (order: OrderPlacedEvent) => void
   handleSettlement: (settlement: SettlementEvent) => void

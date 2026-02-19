@@ -11,15 +11,7 @@ import { formatPrice } from '@/lib/formatPrice'
 const ORDER_SETTLEMENT_DURATION_MS = 5000 // 5 seconds
 
 export function PositionIndicator() {
-  const {
-    activeOrders,
-    localPlayerId,
-    pendingOrders,
-    whale2XActivatedAt,
-    whale2XExpiresAt,
-    whaleMultiplier,
-    priceData,
-  } = useTradingStore()
+  const { activeOrders, localPlayerId, pendingOrders, priceData, leverage } = useTradingStore()
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -54,18 +46,8 @@ export function PositionIndicator() {
             // Check if order timed out (no settlement received)
             const isTimedOut = !settled && timeLeft === 0
 
-            // Determine amount based on coin type
-            const amount = order.coinType === 'whale' ? 2 : 1
-
-            // Check if order was placed during 2x multiplier window
-            // Order settlesAt timestamp is when it was placed + 5s
-            // The order has 2X if it was placed AFTER whale activation but BEFORE expiry
-            const orderPlacedAt = order.settlesAt - ORDER_SETTLEMENT_DURATION_MS
-            const was2XActive =
-              whale2XActivatedAt !== null &&
-              whale2XExpiresAt !== null &&
-              orderPlacedAt >= whale2XActivatedAt &&
-              orderPlacedAt < whale2XExpiresAt
+            // Amount is based on current leverage
+            const amount = leverage
 
             // Border and glow styles based on state
             const borderStyle = isTimedOut
@@ -303,12 +285,19 @@ export function PositionIndicator() {
                     )}
                   </div>
 
-                  {/* Right: Coin type badge with 2X indicator */}
+                  {/* Right: Coin type badge with leverage indicator */}
                   <div className="flex items-center gap-1">
-                    {/* Dynamic multiplier badge if active during order */}
-                    {was2XActive && !settled && !isTimedOut && (
+                    {/* Leverage badge if not 1X */}
+                    {leverage > 1 && (
                       <motion.div
-                        className="px-1.5 py-0.5 rounded bg-purple-500/30 border border-purple-500/50 text-[9px] font-bold text-purple-300"
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[9px] font-bold',
+                          leverage === 2 &&
+                            'bg-green-500/30 border border-green-500/50 text-green-300',
+                          leverage === 5 &&
+                            'bg-yellow-500/30 border border-yellow-500/50 text-yellow-300',
+                          leverage === 10 && 'bg-red-500/30 border border-red-500/50 text-red-300'
+                        )}
                         animate={{
                           scale: [1, 1.1, 1],
                           opacity: [0.8, 1, 0.8],
@@ -318,7 +307,7 @@ export function PositionIndicator() {
                           repeat: Infinity,
                         }}
                       >
-                        {whaleMultiplier}X
+                        {leverage}X
                       </motion.div>
                     )}
 
@@ -328,16 +317,10 @@ export function PositionIndicator() {
                         order.coinType === 'call' &&
                           'bg-green-500/20 text-green-400 border border-green-500/30',
                         order.coinType === 'put' &&
-                          'bg-red-500/20 text-red-400 border border-red-500/30',
-                        order.coinType === 'whale' &&
-                          'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                          'bg-red-500/20 text-red-400 border border-red-500/30'
                       )}
                     >
-                      {order.coinType === 'whale'
-                        ? '🐋'
-                        : order.coinType === 'call'
-                          ? 'LONG'
-                          : 'SHORT'}
+                      {order.coinType === 'call' ? 'LONG' : 'SHORT'}
                     </div>
                   </div>
                 </div>
