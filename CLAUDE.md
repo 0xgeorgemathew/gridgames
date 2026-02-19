@@ -17,7 +17,7 @@ Grid Games is a monorepo containing a web-based game with real-time multiplayer 
 
 - **frontend/**: Next.js web app with Phaser game engine, embedded Socket.IO server, ENS integration (port 3000)
 - **contracts/**: Foundry smart contracts for USDC faucet (Base Sepolia testnet)
-- ~~backend/**~~: *Removed - Socket.IO server now embedded in frontend*
+- ~~backend/\*\*~~: _Removed - Socket.IO server now embedded in frontend_
 
 ## Master Directives
 
@@ -111,11 +111,11 @@ See `.claude/rules/game-design.md` for complete mechanics.
 
 ## Technology Stack
 
-| Layer     | Technology                                                                        |
-| --------- | --------------------------------------------------------------------------------- |
+| Layer     | Technology                                                                                                                              |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Frontend  | Next.js 16.1.6, React 19.2.3, Tailwind CSS v4, SHADCN, Phaser 3.90.0, Socket.IO, viem, wagmi, TanStack Query, Framer Motion, Privy auth |
-| Contracts | Foundry, Solidity ^0.8.20, OpenZeppelin v5.5                                      |
-| Identity  | ENS L2 (Base Sepolia), .grid.eth subdomains                                      |
+| Contracts | Foundry, Solidity ^0.8.20, OpenZeppelin v5.5                                                                                            |
+| Identity  | ENS L2 (Base Sepolia), .grid.eth subdomains                                                                                             |
 
 ## Important File Locations
 
@@ -153,44 +153,22 @@ See `.claude/rules/game-design.md` for complete mechanics.
    - Security concern: Open to any origin
    - Mitigation: Restrict to known domains in production
 
-## ENS Integration
+## Player Identity
 
-Grid Games uses ENS L2 on Base Sepolia for decentralized player identity and persistent state.
-
-### Contract Addresses
-- **L2 Registry**: `0xef46c8e7876f8a84e4b4f7e1a641fa6497bd532d`
-- **L2 Registrar**: `0x85465BBfF2b825481E67A7F1C9eB309e693814E7`
-
-### Text Records
-| Key | Values | Purpose |
-|-----|--------|---------|
-| `games.grid.leverage` | "1", "2", "5", "10", "20" | Whale multiplier in-game |
-| `games.grid.total_games` | Integer string | Games played |
-| `games.grid.streak` | Integer string | Current win streak |
-
-### Implementation Files
-- `frontend/lib/ens.ts` - Contract addresses, ABIs, text record operations
-- `frontend/hooks/useENS.ts` - React hooks for ENS operations
-- `frontend/components/ens/` - UI components for ENS operations
-- `ens-code-usage.md` - Detailed integration documentation
-
-### Matchmaking Flow
-1. Login with Privy → Check ENS name via reverse lookup
-2. Claim username if needed (register `.grid.eth` subdomain)
-3. Set leverage preference (stored in ENS text record)
-4. Join lobby → Server fetches leverage for fair matchmaking
-5. Game ends → Stats updated to ENS (total games, streak)
+- **Base Mini App users**: Base Name resolved via [`useBaseName.ts`](frontend/hooks/useBaseName.ts) (read-only, shows during matchmaking)
+- **Web users**: Privy names for matchmaking
+- **Leverage**: Manual HUD selector in [`LeverageSelector.tsx`](frontend/components/GameHUD-modules/LeverageSelector.tsx) - not stored persistently
 
 ## Smart Contract Status
 
 **USDCFaucet.sol** - Base Sepolia USDC faucet for testnet gameplay.
 
-| Function | Purpose |
-|----------|---------|
-| `claim()` | Claim 0.1 USDC to caller |
-| `claimTo(address)` | Gas-sponsored claiming (for sponsored transactions) |
-| `setClaimAmount(uint256)` | Owner sets claim amount |
-| `withdraw(uint256)` | Owner withdraw USDC |
+| Function                  | Purpose                                             |
+| ------------------------- | --------------------------------------------------- |
+| `claim()`                 | Claim 0.1 USDC to caller                            |
+| `claimTo(address)`        | Gas-sponsored claiming (for sponsored transactions) |
+| `setClaimAmount(uint256)` | Owner sets claim amount                             |
+| `withdraw(uint256)`       | Owner withdraw USDC                                 |
 
 **Contract Address:** `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Base Sepolia USDC)
 **File:** `contracts/src/USDCFaucet.sol`
@@ -198,22 +176,27 @@ Grid Games uses ENS L2 on Base Sepolia for decentralized player identity and per
 ## Claude Code Automations
 
 ### MCP Servers
+
 - **GitHub MCP**: Issue/PR management, CI workflow integration
 - **context7**: Live documentation for Phaser, Socket.IO, ethers.js, Foundry
 
 ### Custom Skills
+
 - `game-component`: Scaffold Phaser scenes with React integration
 
 ### Specialized Agents
+
 - `game-logic-reviewer`: Multiplayer reliability (race conditions, memory leaks, performance)
 - `web3-auditor`: Smart contract security (reentrancy, access control, gas optimization)
 
 ### Automation Hooks
+
 - Auto-format: Prettier on every file edit
 - Type-check: TypeScript validation after edits
 - Security blocks: Prevent .env and lock file edits
 
 ### Workflow Integration
+
 - All automations follow patterns from `.claude/rules/workflows.md`
 - Agents use superpowers framework from `.claude/rules/skills.md`
 - Frontend patterns follow conventions from `.claude/rules/frontend.md`

@@ -7,6 +7,7 @@
 **Objective:** Predict BTC price movement by slicing coins. Correct predictions transfer funds from opponent.
 
 **Starting Conditions:**
+
 - Each player: $10
 - Total economy: $20 (zero-sum, $0 floor)
 - **Game Mode**: Best-of-three rounds
@@ -19,18 +20,19 @@ HFT Battle uses a **best-of-three** round format instead of single continuous ga
 
 ### Round Structure
 
-| Aspect | Value |
-|--------|-------|
-| Rounds per game | 3 (best-of-three) |
-| Round duration | 30 seconds (30,000ms) |
-| Starting cash per round | $10 each (first round only) |
-| Subsequent rounds | Carry over cash from previous round end |
-| Round end condition | Time limit (30s) OR knockout ($0) |
-| Game end condition | First player to 2 round wins |
+| Aspect                  | Value                                   |
+| ----------------------- | --------------------------------------- |
+| Rounds per game         | 3 (best-of-three)                       |
+| Round duration          | 30 seconds (30,000ms)                   |
+| Starting cash per round | $10 each (first round only)             |
+| Subsequent rounds       | Carry over cash from previous round end |
+| Round end condition     | Time limit (30s) OR knockout ($0)       |
+| Game end condition      | First player to 2 round wins            |
 
 ### Sudden Death
 
 If players are tied 1-1 after two rounds:
+
 - Third round is played as **sudden death** (⚡ FINAL ROUND)
 - Same 30-second duration
 - Winner takes all (no additional mechanics)
@@ -47,6 +49,7 @@ If players are tied 1-1 after two rounds:
 ### Round History
 
 Each round records:
+
 - Round number
 - Winner ID (null if tie)
 - Player 1 and Player 2 ending dollars
@@ -64,12 +67,12 @@ All players see the **same coin types in the same sequence** regardless of devic
 
 ## Coin Types
 
-| Type | Spawn Rate | Symbol | Effect | Transfer |
-|------|------------|--------|--------|----------|
-| Call | 33% (2/6) | ▲ | BTC price goes UP | $1 (×leverage) |
-| Put | 33% (2/6) | ▼ | BTC price goes DOWN | $1 (×leverage) |
-| Gas | 17% (1/6) | ⚡ | Immediate penalty | $1 (slicer to opponent) |
-| Whale | 17% (1/6) | ★ | Leverage power-up (×player's ENS leverage) | No transfer |
+| Type  | Spawn Rate | Symbol | Effect                                     | Transfer                |
+| ----- | ---------- | ------ | ------------------------------------------ | ----------------------- |
+| Call  | 33% (2/6)  | ▲      | BTC price goes UP                          | $1 (×leverage)          |
+| Put   | 33% (2/6)  | ▼      | BTC price goes DOWN                        | $1 (×leverage)          |
+| Gas   | 17% (1/6)  | ⚡     | Immediate penalty                          | $1 (slicer to opponent) |
+| Whale | 17% (1/6)  | ★      | Leverage power-up (×player's HUD leverage) | No transfer             |
 
 ## Mechanics
 
@@ -80,16 +83,15 @@ Orders settle 5 seconds after slicing using the latest BTC price from Binance We
 ```typescript
 const priceChange = (finalPrice - order.priceAtOrder) / order.priceAtOrder
 
-const isCorrect = order.coinType === 'call' ? priceChange > 0
-  : order.coinType === 'put' ? priceChange < 0
-  : false
+const isCorrect =
+  order.coinType === 'call' ? priceChange > 0 : order.coinType === 'put' ? priceChange < 0 : false
 
 const baseImpact = 1
-const multiplier = room.getLeverageForPlayer(order.playerId) // From ENS: 1, 2, 5, 10, or 20
+const multiplier = room.getLeverageForPlayer(order.playerId) // From HUD selector: 1, 2, 5, 10, or 20
 const impact = baseImpact * multiplier
 ```
 
-**Note:** Multiplier fetched from player's ENS text record (`games.grid.leverage`). Default is 1x if not set. Whale coin activates player's leverage multiplier for the next settlement.
+**Note:** Multiplier set via HUD selector (default 2x). Whale coin activates player's leverage multiplier for the next settlement.
 
 ### Zero-Sum Transfer
 
@@ -136,11 +138,11 @@ if (data.coinType === 'gas') {
 }
 ```
 
-**Whale (★):** Activates player's leverage multiplier based on their ENS text record. Multiplier applies to next call/put settlement (not time-based). Does not create a pending order - activates immediately.
+**Whale (★):** Activates player's leverage multiplier based on their HUD selector. Multiplier applies to next call/put settlement (not time-based). Does not create a pending order - activates immediately.
 
 ```typescript
 if (data.coinType === 'whale') {
-  const leverage = room.getLeverageForPlayer(playerId) // From ENS: 2, 5, 10, or 20
+  const leverage = room.getLeverageForPlayer(playerId) // From HUD: 2, 5, 10, or 20
   room.activateWhaleMultiplier(playerId, leverage)
 
   io.to(room.id).emit('whale_multiplier_activated', {
@@ -153,11 +155,12 @@ if (data.coinType === 'whale') {
 }
 ```
 
-**Leverage Options:** 1x (default), 2x, 5x, 10x, 20x - set by player via ENS text record (`games.grid.leverage`).
+**Leverage Options:** 1x (default), 2x, 5x, 10x, 20x - set by player via HUD selector.
 
 ## Game Flow
 
 ### Per Round
+
 1. Two players queue → RoomManager creates room → Both join Socket.IO room
 2. 5-second delay for Phaser initialization → Round 1 begins
 3. `round_start` event emitted with round number and duration
@@ -169,6 +172,7 @@ if (data.coinType === 'whale') {
 6. After 5s, price checked → Winner/loser determined → Funds transferred (×2 if 2X active)
 
 ### Round End
+
 1. Round time expires (30s) OR knockout ($0)
 2. All pending orders settled immediately
 3. `round_end` event emitted with round summary
@@ -176,6 +180,7 @@ if (data.coinType === 'whale') {
 5. If game over: `game_over` event emitted with full round history
 
 ### Game Over
+
 1. **Best-of-three complete**: One player has 2 round wins
 2. All pending orders settled
 3. Room deleted after 1-second delay (events sent)
@@ -183,11 +188,13 @@ if (data.coinType === 'whale') {
 ## Win Conditions
 
 ### Per Round (determines round winner)
+
 1. **Knockout (Instant):** Opponent reaches $0
 2. **Time Limit:** 30 seconds expire, highest dollar amount wins
 3. **Tie:** Equal dollars when time expires (rare)
 
 ### Game Over (best-of-three)
+
 1. **2-0 Sweep:** Player wins both rounds 1 and 2
 2. **2-1 Victory:** Players split rounds 1 and 2, winner of round 3 takes game
 3. **Forfeit:** Opponent disconnects (remaining player wins by default)
@@ -230,7 +237,8 @@ function checkBestOfThreeComplete(room: GameRoom): boolean {
 - `frontend/game/stores/trading-store.ts` - Client state (orders, settlements, tug-of-war)
 - `frontend/game/scenes/TradingScene.ts` - Phaser scene (rendering, input)
 - `frontend/game/systems/` - Extracted game systems (CoinRenderer, BladeRenderer, ParticleSystem, VisualEffects, AudioManager)
-- `frontend/lib/ens.ts` - ENS integration (leverage fetching, stats)
+- `frontend/hooks/useBaseName.ts` - Base Name resolution (read-only)
+- `frontend/components/GameHUD-modules/LeverageSelector.tsx` - Manual leverage selector
 
 ## See Also
 

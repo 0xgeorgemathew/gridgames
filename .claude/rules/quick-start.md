@@ -12,11 +12,12 @@ Get up and running with Grid Games in 5 minutes.
 
 ```bash
 bun install    # Install dependencies
-cp .env.example .env.local  # Configure environment variables (Privy, ENS)
+cp .env.example .env.local  # Configure environment variables (Privy)
 bun run dev    # Start dev server at http://localhost:3000
 ```
 
 **Required Environment Variables:**
+
 - `NEXT_PUBLIC_PRIVY_APP_ID` - Privy authentication
 - `NEXT_PUBLIC_BASE_SEPOLIA_RPC` - Base Sepolia RPC URL
 
@@ -28,25 +29,25 @@ Socket.IO server runs at `/api/socket`.
 
 ### Frontend
 
-| Command | Purpose |
-|---------|---------|
-| `bun install` | Install dependencies |
-| `bun run dev` | Start dev server (localhost:3000) |
-| `bun run build` | Production build |
-| `bun run start` | Start production server |
-| `bun run lint` | Run ESLint |
-| `bun run format` | Format with Prettier |
-| `bun run types` | TypeScript type check |
+| Command          | Purpose                           |
+| ---------------- | --------------------------------- |
+| `bun install`    | Install dependencies              |
+| `bun run dev`    | Start dev server (localhost:3000) |
+| `bun run build`  | Production build                  |
+| `bun run start`  | Start production server           |
+| `bun run lint`   | Run ESLint                        |
+| `bun run format` | Format with Prettier              |
+| `bun run types`  | TypeScript type check             |
 
 ### Contracts
 
-| Command | Purpose |
-|---------|---------|
-| `forge build` | Compile contracts |
-| `forge test` | Run tests |
-| `forge fmt` | Format Solidity |
-| `forge snapshot` | Capture gas snapshots |
-| `anvil` | Start local Ethereum node |
+| Command          | Purpose                   |
+| ---------------- | ------------------------- |
+| `forge build`    | Compile contracts         |
+| `forge test`     | Run tests                 |
+| `forge fmt`      | Format Solidity           |
+| `forge snapshot` | Capture gas snapshots     |
+| `anvil`          | Start local Ethereum node |
 
 ## Project Structure
 
@@ -56,11 +57,8 @@ grid-games/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── socket/      # Socket.IO server
-│   │   │   ├── ens/         # ENS integration API
-│   │   │   ├── claim-usdc/  # USDC faucet claiming
 │   │   │   └── page.tsx     # Main pages
 │   ├── components/          # React UI (ShadCN)
-│   │   ├── ens/             # ENS components
 │   │   └── ui/              # UI primitives
 │   ├── game/
 │   │   ├── scenes/          # Phaser scenes
@@ -69,8 +67,8 @@ grid-games/
 │   │   ├── types/           # TypeScript types
 │   │   ├── config.ts        # Game configuration
 │   │   └── constants.ts     # Game constants
-│   ├── hooks/               # React hooks (useENS)
-│   ├── lib/                 # Utilities (ENS)
+│   ├── hooks/               # React hooks (useBaseName)
+│   ├── lib/                 # Utilities
 │   └── providers.tsx        # App providers (Privy, wagmi, Query)
 ├── contracts/
 │   ├── src/                 # Solidity contracts
@@ -88,13 +86,10 @@ grid-games/
 3. Implement in `frontend/game/scenes/` or `frontend/app/api/socket/`
 4. Type check: `bun run types`
 
-### Add ENS Feature
+### Add Base Name Feature
 
-1. Read `ens-code-usage.md` for ENS integration patterns
-2. Update `frontend/lib/ens.ts` for new text records
-3. Add hooks to `frontend/hooks/useENS.ts`
-4. Create UI components in `frontend/components/ens/`
-5. Type check: `bun run types`
+1. Update `frontend/hooks/useBaseName.ts` for Base Name resolution
+2. Type check: `bun run types`
 
 ### Fix Multiplayer Bug
 
@@ -157,8 +152,7 @@ forge update # Reinstall dependencies
 
 ## References
 
-- `CLAUDE.md` - Detailed project info (ENS Integration)
-- `ens-code-usage.md` - ENS integration documentation
+- `CLAUDE.md` - Detailed project info (Player Identity)
 - `.claude/rules/game-design.md` - Game mechanics (best-of-three rounds, leverage system)
 - `.claude/rules/multiplayer-patterns.md` - Reliability patterns (SettlementGuard, RAII)
 - `.claude/rules/types.md` - Type system documentation and conventions

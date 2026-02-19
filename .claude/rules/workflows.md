@@ -29,17 +29,21 @@ Skill("superpowers:dispatching-parallel-agents")    # Launch 2+ independent task
 
 Use with `general-purpose` Task + `agentConfig` for domain-specific review:
 
-| Agent | Config | Focus Areas |
-|-------|--------|-------------|
+| Agent                   | Config                          | Focus Areas                                                                         |
+| ----------------------- | ------------------------------- | ----------------------------------------------------------------------------------- |
 | **Game Logic Reviewer** | `agents/game-logic-reviewer.md` | Memory leaks, race conditions, Phaser lifecycle, Socket.IO reliability, performance |
-| **Web3 Auditor** | `agents/web3-auditor.md` | Reentrancy, access control, gas optimization, ethers.js integration, test coverage |
+| **Web3 Auditor**        | `agents/web3-auditor.md`        | Reentrancy, access control, gas optimization, ethers.js integration, test coverage  |
 
 ### Usage Pattern
 
 ```typescript
 // After feature completion: parallel review (domain + general)
-Task({ subagent_type: "general-purpose", agentConfig: "agents/game-logic-reviewer.md", prompt: "..." })
-Task({ subagent_type: "feature-dev:code-reviewer", prompt: "Review code quality" })
+Task({
+  subagent_type: 'general-purpose',
+  agentConfig: 'agents/game-logic-reviewer.md',
+  prompt: '...',
+})
+Task({ subagent_type: 'feature-dev:code-reviewer', prompt: 'Review code quality' })
 // Consolidate findings by severity
 ```
 
@@ -78,23 +82,21 @@ Skill("superpowers:systematic-debugging") → root cause
 → Skill("commit-commands:commit")
 ```
 
-### ENS Feature Development
+### Base Name Feature Development
 
 ```
-Skill("superpowers:writing-plans") → design ENS text record schema
-→ Update frontend/lib/ens.ts (contract addresses, ABIs)
-→ Add hooks to frontend/hooks/useENS.ts
-→ Create UI components in frontend/components/ens/
+Skill("superpowers:writing-plans") → design feature
+→ Update frontend/hooks/useBaseName.ts (Base Name resolution)
+→ Type check: bun run types
 → Skill("superpowers:verification-before-completion")
 → Skill("commit-commands:commit")
 ```
 
 ## Integration Points
 
-| Context | Superpower | Follow-up |
-|---------|-----------|-----------|
-| New game feature | `brainstorming` → `game-component` | `game-logic-reviewer` agent |
-| ENS feature | `writing-plans` → `executing-plans` | Type checking, contract verification |
-| Contract changes | `writing-plans` | `web3-auditor` agent |
-| Multi-file changes | `dispatching-parallel-agents` | Parallel code-reviewers |
-| Before merging | `verification-before-completion` | `requesting-code-review` |
+| Context            | Superpower                         | Follow-up                   |
+| ------------------ | ---------------------------------- | --------------------------- |
+| New game feature   | `brainstorming` → `game-component` | `game-logic-reviewer` agent |
+| Contract changes   | `writing-plans`                    | `web3-auditor` agent        |
+| Multi-file changes | `dispatching-parallel-agents`      | Parallel code-reviewers     |
+| Before merging     | `verification-before-completion`   | `requesting-code-review`    |
