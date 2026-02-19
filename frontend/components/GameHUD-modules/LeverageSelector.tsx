@@ -72,9 +72,10 @@ function getLeverageBorderClass(leverage: number, isSelected: boolean): string {
 }
 
 /**
- * LeverageSelector - Manual leverage control for gameplay.
+ * LeverageSelector - Prominent horizontal leverage control for bottom navigation.
  *
  * Displays 4 pill buttons (1X, 2X, 5X, 10X) with risk-colored glows.
+ * Optimized for thumb reach with 44px minimum touch targets.
  * Players can change leverage at any time - only new orders are affected.
  */
 export const LeverageSelector = React.memo(function LeverageSelector() {
@@ -83,7 +84,7 @@ export const LeverageSelector = React.memo(function LeverageSelector() {
   if (!isPlaying) return null
 
   return (
-    <div className="flex items-center justify-center gap-1 sm:gap-2">
+    <div className="flex items-center justify-center gap-2 sm:gap-3 px-2 py-2">
       {LEVERAGE_OPTIONS.map((option) => {
         const isSelected = leverage === option.value
 
@@ -94,13 +95,14 @@ export const LeverageSelector = React.memo(function LeverageSelector() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className={cn(
-              'relative px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-black text-xs sm:text-sm tracking-wider',
-              'border transition-all duration-200 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0',
-              'flex flex-col items-center justify-center',
+              'relative px-4 py-2.5 rounded-lg font-black text-sm tracking-wider',
+              'border transition-all duration-200',
+              'flex items-center justify-center',
+              'min-w-[48px] min-h-[44px]', // Thumb-friendly touch targets
               getLeverageBorderClass(option.value, isSelected),
               isSelected
                 ? `${getLeverageColorClass(option.value)} bg-black/40`
-                : 'text-white/40 bg-black/20'
+                : 'text-white/40 bg-black/20 hover:bg-black/30'
             )}
             style={{
               boxShadow: isSelected ? getLeverageGlow(option.value) : 'none',
@@ -120,21 +122,8 @@ export const LeverageSelector = React.memo(function LeverageSelector() {
               />
             )}
 
-            {/* Label */}
+            {/* Label only - no risk dot for cleaner UI */}
             <span className="relative z-10">{option.label}</span>
-
-            {/* Risk indicator dot */}
-            <motion.div
-              className={cn(
-                'relative z-10 w-1.5 h-1.5 rounded-full mt-0.5',
-                option.value === 1 && 'bg-tron-cyan',
-                option.value === 2 && 'bg-green-400',
-                option.value === 5 && 'bg-yellow-400',
-                option.value === 10 && 'bg-red-400'
-              )}
-              animate={isSelected ? { scale: [1, 1.3, 1] } : {}}
-              transition={{ duration: 1, repeat: isSelected ? Infinity : 0 }}
-            />
           </motion.button>
         )
       })}

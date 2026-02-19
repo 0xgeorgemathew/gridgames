@@ -4,30 +4,20 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useTradingStore } from '@/game/stores/trading-store'
 import { HowToPlayModal } from '@/components/HowToPlayModal'
 import { SettlementFlash } from '@/components/SettlementFlash'
-import { CountUp } from '@/components/CountUp'
-import { Info, Volume2, VolumeX, Wifi, LogOut } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { CryptoSymbol } from '@/game/stores/trading-store'
 
-// Import extracted components and helpers
+// Import extracted components
 import {
-  ConnectionStatusDot,
-  PlayerHealthBar,
-  RoundHeader,
-  PriceLoadingState,
-  CRYPTO_SYMBOLS,
-  getPriceColor,
-  getPlayerSlots,
+  CompactPriceRow,
+  LeverageSelector,
+  SinglePlayerHealth,
   containerVariants,
-  itemVariants,
 } from './GameHUD-modules'
 
 export const GameHUD = React.memo(function GameHUD() {
   const {
     players,
     localPlayerId,
-    isPlayer1,
     priceData,
     isPriceConnected,
     selectedCrypto,
@@ -52,10 +42,7 @@ export const GameHUD = React.memo(function GameHUD() {
     }
   }, [isPriceConnected, selectedCrypto, connectPriceFeed])
 
-  const { color: priceColor, glow: priceGlow } = getPriceColor(priceData?.changePercent ?? 0)
-
   const localPlayer = players.find((p) => p.id === localPlayerId)
-  const opponent = players.find((p) => p.id !== localPlayerId)
 
   const isGameReady = isPriceConnected && priceData !== null && isPlaying && gameTimeRemaining > 0
   const isShowingLoading = !isPriceConnected || priceData === null
@@ -65,7 +52,7 @@ export const GameHUD = React.memo(function GameHUD() {
       <SettlementFlash />
       <HowToPlayModal isOpen={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
 
-      {/* Price Feed Loading Overlay */}
+      {/* Price Feed Loading Overlay - Full screen when connecting */}
       <AnimatePresence>
         {isPlaying && isShowingLoading && (
           <motion.div
@@ -84,56 +71,21 @@ export const GameHUD = React.memo(function GameHUD() {
                   boxShadow: '0 0 40px rgba(0,243,255,0.2), inset 0 0 40px rgba(0,243,255,0.05)',
                 }}
               >
-                <div className="flex flex-col items-center gap-6">
-                  {/* Dual spinning rings */}
-                  <div className="relative w-20 h-20">
-                    <motion.div
-                      className="absolute inset-0 rounded-full border-4 border-tron-cyan/20 border-t-tron-cyan"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                    />
-                    <motion.div
-                      className="absolute inset-2 rounded-full border-4 border-transparent border-r-tron-orange/30"
-                      animate={{ rotate: -360 }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                    />
-                    <motion.div
-                      className="absolute inset-4 rounded-full border-4 border-tron-cyan/10 border-b-tron-cyan/50"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Wifi className="w-6 h-6 text-tron-cyan animate-pulse" />
-                    </div>
-                  </div>
+                <div className="flex flex-col items-center gap-4">
+                  {/* Simple loading indicator */}
+                  <motion.div
+                    className="w-12 h-12 rounded-full border-4 border-tron-cyan/20 border-t-tron-cyan"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                  />
 
-                  <div className="space-y-2">
-                    <motion.h2
-                      className="text-xl font-black text-tron-cyan tracking-widest"
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      INITIALIZING MARKET DATA
-                    </motion.h2>
-                    <motion.p
-                      className="text-sm text-tron-white-dim font-mono"
-                      animate={{ opacity: [0.3, 0.7, 0.3] }}
-                      transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-                    >
-                      Connecting to real-time BTC price feed...
-                    </motion.p>
-                  </div>
-
-                  <div className="flex items-center gap-4 text-xs font-mono">
-                    <motion.div
-                      className="flex items-center gap-2 text-tron-cyan/60"
-                      animate={{ opacity: [0.4, 0.8, 0.4] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
-                      <div className="w-2 h-2 rounded-full bg-tron-cyan animate-pulse" />
-                      <span>ESTABLISHING CONNECTION</span>
-                    </motion.div>
-                  </div>
+                  <motion.p
+                    className="text-sm text-tron-cyan font-medium tracking-wider"
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    CONNECTING TO MARKET...
+                  </motion.p>
                 </div>
               </motion.div>
             </div>
@@ -141,15 +93,16 @@ export const GameHUD = React.memo(function GameHUD() {
         )}
       </AnimatePresence>
 
+      {/* Bottom Navigation HUD */}
       <motion.div
-        className="absolute top-0 left-0 right-0 z-10 p-1.5 sm:p-2 lg:p-3 pointer-events-none"
+        className="fixed bottom-0 left-0 right-0 z-30 px-3 pt-3 pb-safe pb-6 bottom-nav-container"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <div className="max-w-3xl sm:max-w-4xl mx-auto space-y-2 sm:space-y-3">
+        <div className="max-w-lg mx-auto">
           <motion.div
-            className="glass-panel-vibrant rounded-xl overflow-hidden"
+            className="glass-panel-vibrant rounded-t-xl overflow-hidden"
             animate={{
               boxShadow: [
                 '0 0 20px rgba(0,243,255,0.1), inset 0 0 20px rgba(0,243,255,0.03)',
@@ -159,137 +112,48 @@ export const GameHUD = React.memo(function GameHUD() {
             }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            {/* Price Bar - Top Section */}
-            <motion.div
-              variants={itemVariants}
-              className="p-2 sm:p-3"
-              initial="hidden"
-              animate="visible"
-            >
-              <motion.div
-                variants={itemVariants}
-                className="flex items-center justify-center gap-4"
-                initial="hidden"
-                animate="visible"
-              >
-                <div className="w-6 flex justify-center shrink-0">
-                  <ConnectionStatusDot
-                    isPriceConnected={isPriceConnected}
-                    priceError={priceError}
-                  />
-                </div>
+            {/* Compact Price Row - Always visible when playing */}
+            {isPlaying && (
+              <CompactPriceRow
+                priceData={priceData}
+                selectedCrypto={selectedCrypto}
+                isPriceConnected={isPriceConnected}
+                priceError={priceError}
+                gameTimeRemaining={gameTimeRemaining}
+                isSoundMuted={isSoundMuted}
+                onToggleSound={toggleSound}
+                onShowHowToPlay={() => setShowHowToPlay(true)}
+                onEndGame={endGame}
+                isGameReady={isGameReady}
+              />
+            )}
 
-                {priceData ? (
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <span className="text-sm sm:text-base text-tron-white-dim uppercase tracking-[0.2em] font-bold shrink-0">
-                      {CRYPTO_SYMBOLS[selectedCrypto as CryptoSymbol]}
-                    </span>
-
-                    <CountUp
-                      value={priceData.price}
-                      className={cn(
-                        'text-2xl sm:text-4xl font-black font-mono tracking-tight',
-                        priceColor
-                      )}
-                      style={{ textShadow: priceGlow }}
-                    />
-
-                    <motion.span
-                      className={cn(
-                        'text-sm sm:text-lg font-bold font-mono shrink-0 px-2 py-0.5 rounded',
-                        priceData.changePercent >= 0
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-red-500/20 text-red-400'
-                      )}
-                      style={{ textShadow: priceGlow }}
-                      animate={{ opacity: [1, 0.8, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
-                      {priceData.changePercent >= 0 ? '+' : ''}
-                      {priceData.changePercent.toFixed(2)}%
-                    </motion.span>
-                  </div>
-                ) : (
-                  <PriceLoadingState />
-                )}
-
-                <button
-                  onClick={() => setShowHowToPlay(true)}
-                  className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-tron-cyan/10 rounded transition-colors pointer-events-auto shrink-0"
-                >
-                  <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-cyan" />
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (typeof window !== 'undefined' && (window as any).phaserEvents) {
-                      ;(window as any).phaserEvents.emit('unlock_audio')
-                    }
-                    toggleSound()
-                  }}
-                  className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-tron-cyan/10 rounded transition-colors pointer-events-auto shrink-0"
-                  title={isSoundMuted ? 'Unmute sounds' : 'Mute sounds'}
-                >
-                  {isSoundMuted ? (
-                    <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-orange" />
-                  ) : (
-                    <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-cyan" />
-                  )}
-                </button>
-
-                {isGameReady && (
-                  <button
-                    onClick={endGame}
-                    className="w-7 h-7 sm:w-6 sm:h-6 flex items-center justify-center hover:bg-tron-orange/10 rounded transition-colors pointer-events-auto shrink-0"
-                    title="End game early"
-                  >
-                    <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-orange/70 hover:text-tron-orange" />
-                  </button>
-                )}
-              </motion.div>
-            </motion.div>
-
-            <motion.div
-              className="h-px bg-gradient-to-r from-transparent via-tron-cyan/50 to-transparent"
-              animate={{ opacity: [0.3, 0.6, 0.3] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-
-            {/* Main Game Area */}
+            {/* Divider */}
             {isGameReady && (
-              <>
-                <RoundHeader gameTimeRemaining={gameTimeRemaining} />
+              <motion.div
+                className="h-px bg-gradient-to-r from-transparent via-tron-cyan/50 to-transparent"
+                animate={{ opacity: [0.3, 0.6, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            )}
 
-                <motion.div
-                  className="h-px bg-gradient-to-r from-transparent via-tron-cyan/30 to-transparent mx-2"
-                  animate={{ opacity: [0.2, 0.5, 0.2] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
+            {/* Leverage Selector - Only when game is ready */}
+            {isGameReady && <LeverageSelector />}
 
-                {/* Health Bars Section */}
-                <motion.div
-                  variants={itemVariants}
-                  className="p-2 sm:p-3"
-                  initial="hidden"
-                  animate="visible"
-                >
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                    {getPlayerSlots(localPlayer, opponent).map(
-                      (slot, index) =>
-                        slot.player && (
-                          <PlayerHealthBar
-                            key={slot.player.id}
-                            name={slot.player.name}
-                            dollars={slot.player.dollars}
-                            color={slot.label === 'YOU' ? 'green' : 'red'}
-                            index={index}
-                            label={slot.label}
-                          />
-                        )
-                    )}
-                  </div>
-                </motion.div>
-              </>
+            {/* Divider */}
+            {isGameReady && (
+              <motion.div
+                className="h-px bg-gradient-to-r from-transparent via-tron-cyan/30 to-transparent mx-2"
+                animate={{ opacity: [0.2, 0.5, 0.2] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            )}
+
+            {/* Single Player Health - Only when game is ready */}
+            {isGameReady && localPlayer && (
+              <div className="p-2 sm:p-3">
+                <SinglePlayerHealth dollars={localPlayer.dollars} />
+              </div>
             )}
 
             {/* Game Over - Play Again Button */}

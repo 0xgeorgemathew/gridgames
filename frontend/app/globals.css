@@ -1131,3 +1131,27 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Bottom Navigation Utilities - Mobile-first HUD positioning
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* iOS safe area padding for bottom navigation */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Inter font override for numeric values - tabular nums for price/timer */
+.font-numeric {
+  font-family: 'Inter var', 'Inter', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bottom nav container - allows pointer events only on children */
+.bottom-nav-container {
+  pointer-events: none;
+}
+
+.bottom-nav-container > * {
+  pointer-events: auto;
+}

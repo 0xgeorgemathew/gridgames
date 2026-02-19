@@ -1,9 +1,10 @@
 // Re-export all GameHUD components
 export { ConnectionStatusDot } from './ConnectionStatusDot'
-export { PlayerHealthBar } from './PlayerHealthBar'
-export { RoundHeader } from './RoundHeader'
+export { PlayerHealthBar, SinglePlayerHealth } from './PlayerHealthBar'
+export { CompactPriceRow } from './CompactPriceRow'
 export { PriceLoadingState } from './PriceLoadingState'
 export { LeverageSelector } from './LeverageSelector'
+// RoundHeader removed - functionality integrated into CompactPriceRow
 
 // Re-export types and helpers
 export {
