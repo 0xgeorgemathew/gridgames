@@ -12,6 +12,7 @@ export class AudioManager {
   private currentSwipeSound: any = null
   private swipeDuckTween: Phaser.Tweens.Tween | null = null
   private isUnlocked: boolean = false
+  private isSwipePlaying: boolean = false
 
   constructor(scene: Scene) {
     this.scene = scene
@@ -49,14 +50,25 @@ export class AudioManager {
   playSwipe(): void {
     if (this.isMuted || !this.isLoaded || !this.gameSfx) return
 
+    // Don't start new swipe if one is already playing
+    if (this.isSwipePlaying) return
+
     try {
       const played = this.gameSfx.play('swipe', { volume: 0.5 })
       if (played) {
+        this.isSwipePlaying = true
         // Track the most recent swipe sound for ducking
         this.currentSwipeSound = this.gameSfx
+
+        // Reset state when sound completes
+        this.gameSfx.once('complete', () => {
+          this.isSwipePlaying = false
+          this.currentSwipeSound = null
+        })
       }
     } catch (error) {
       console.warn('[AudioManager] Failed to play swipe sound:', error)
+      this.isSwipePlaying = false
     }
   }
 
