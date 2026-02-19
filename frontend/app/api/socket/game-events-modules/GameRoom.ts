@@ -28,12 +28,8 @@ export class GameRoom {
   // Deterministic coin sequence
   private coinSequence: CoinSequence | null = null
 
-  // Per-player 2X mode tracking (whale power-up)
-  private whale2XData = new Map<string, { expiresAt: number; multiplier: number }>()
-  readonly WHALE_2X_DURATION = 10000 // 10 seconds
-
-  // Cache player leverage from ENS (for whale power-up)
-  private playerLeverageCache = new Map<string, number>()
+  // Per-player leverage (manually controlled via HUD)
+  private playerLeverage = new Map<string, number>()
 
   // Wallet addresses for ENS leverage lookups
   player1Address: `0x${string}` | null = null
@@ -57,42 +53,19 @@ export class GameRoom {
     this.gameStartTime = Date.now()
   }
 
-  // Check if player has active 2X mode
-  hasWhale2X(playerId: string): boolean {
-    const data = this.whale2XData.get(playerId)
-    if (!data) return false
-    if (Date.now() > data.expiresAt) {
-      this.whale2XData.delete(playerId)
-      return false
+  // Set player's leverage (called from HUD selector)
+  setPlayerLeverage(playerId: string, leverage: number): void {
+    this.playerLeverage.set(playerId, leverage)
+    // Also update the player object
+    const player = this.players.get(playerId)
+    if (player) {
+      player.leverage = leverage
     }
-    return true
   }
 
-  // Activate whale mode for a player with their ENS leverage multiplier
-  activateWhale2X(playerId: string, multiplier: number): void {
-    const expiresAt = Date.now() + this.WHALE_2X_DURATION
-    this.whale2XData.set(playerId, { expiresAt, multiplier })
-  }
-
-  // Get multiplier for a player (leverage from ENS if whale active, 1 if not)
-  get2XMultiplier(playerId: string): number {
-    const data = this.whale2XData.get(playerId)
-    if (!data) return 1
-    if (Date.now() > data.expiresAt) {
-      this.whale2XData.delete(playerId)
-      return 1
-    }
-    return data.multiplier
-  }
-
-  // Get player's leverage
-  async getPlayerLeverage(playerId: string): Promise<number> {
-    if (this.playerLeverageCache.has(playerId)) {
-      return this.playerLeverageCache.get(playerId)!
-    }
-    const leverage = 2 // Default to 2x
-    this.playerLeverageCache.set(playerId, leverage)
-    return leverage
+  // Get player's current leverage (defaults to 2x)
+  getLeverageForPlayer(playerId: string): number {
+    return this.playerLeverage.get(playerId) ?? 2
   }
 
   // Helper to get wallet address for player
@@ -128,10 +101,13 @@ export class GameRoom {
       sceneHeight,
       leverage,
     })
+    // Initialize leverage tracking
+    this.playerLeverage.set(id, leverage)
   }
 
   removePlayer(id: string): void {
     this.players.delete(id)
+    this.playerLeverage.delete(id)
   }
 
   hasPlayer(id: string): boolean {
@@ -266,12 +242,12 @@ export class GameRoom {
   }
 
   // Get next coin from deterministic sequence
-  getNextCoinData(): { type: 'call' | 'put' | 'gas' | 'whale'; xNormalized: number } | null {
+  getNextCoinData(): { type: 'call' | 'put'; xNormalized: number } | null {
     return this.coinSequence?.next() ?? null
   }
 
   // Peek at next coin without consuming it
-  peekNextCoinData(): { type: 'call' | 'put' | 'gas' | 'whale'; xNormalized: number } | null {
+  peekNextCoinData(): { type: 'call' | 'put'; xNormalized: number } | null {
     return this.coinSequence?.peek() ?? null
   }
 }

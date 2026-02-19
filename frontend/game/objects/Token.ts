@@ -5,10 +5,6 @@ export interface CoinConfig {
   color: number
   edgeColor: number // Darker shade for milled edge/rim
   radius: number
-  innerColor?: number // Optional (only gas uses gradient inner)
-  rotationSpeed?: number // Radians per second
-  jitterAmount?: number // For gas coins
-  hasTrail?: boolean // For whale coins
   hitboxMultiplier?: number // Hitbox size multiplier (default 1.0)
 }
 
@@ -33,7 +29,6 @@ export class Token extends GameObjects.Container {
       color: 0xf7931a,
       edgeColor: 0xc47000,
       radius: 28,
-      innerColor: 0xffd700,
     }
   }
 
@@ -46,8 +41,6 @@ export class Token extends GameObjects.Container {
    * - Upward velocity: -400 to -600 px/s (reaches 60-80% screen height)
    * - Horizontal drift: -50 to 50 px/s for variety
    * - Gravity: 180 pulls arc back down for satisfying parabola
-   *
-   * @param textureKey - Optional custom texture key (e.g., 'texture_whale_5x' for leverage-specific whale)
    */
   spawn(
     x: number,
@@ -55,8 +48,7 @@ export class Token extends GameObjects.Container {
     type: CoinType,
     id: string,
     config: CoinConfig,
-    isMobile: boolean,
-    textureKey?: string
+    isMobile: boolean
   ): void {
     this.config = config
 
@@ -67,13 +59,12 @@ export class Token extends GameObjects.Container {
     this.image.setDepth(10) // Ensure image inherits depth
 
     // Update texture with validation
-    // Use provided textureKey or default to `texture_${type}`
-    const actualTextureKey = textureKey || `texture_${type}`
-    if (!this.scene.textures.exists(actualTextureKey)) {
-      console.error(`Missing texture: ${actualTextureKey}, falling back to texture_call`)
+    const textureKey = `texture_${type}`
+    if (!this.scene.textures.exists(textureKey)) {
+      console.error(`Missing texture: ${textureKey}, falling back to texture_call`)
       this.image.setTexture('texture_call')
     } else {
-      this.image.setTexture(actualTextureKey)
+      this.image.setTexture(textureKey)
     }
 
     // Apply mobile scale (0.7x on mobile for less visual clutter)
@@ -86,8 +77,6 @@ export class Token extends GameObjects.Container {
 
     // Determine rotation behavior based on coin type
     let rotationSpeed = 0.5 // Default clockwise for CALL
-    let jitterAmount = 0
-    let hasTrail = false
 
     switch (type) {
       case 'call':
@@ -96,19 +85,9 @@ export class Token extends GameObjects.Container {
       case 'put':
         rotationSpeed = -0.5 // Counter-clockwise
         break
-      case 'gas':
-        rotationSpeed = 0
-        jitterAmount = 0.8 // Reduced jitter for smoother motion (was 2, too aggressive)
-        break
-      case 'whale':
-        rotationSpeed = 1.2 // Double speed
-        hasTrail = true
-        break
     }
 
     this.setData('rotationSpeed', rotationSpeed)
-    this.setData('jitterAmount', jitterAmount)
-    this.setData('hasTrail', hasTrail)
     this.setData('spawnTime', this.scene.time.now)
     this.setData('baseScale', scale)
 
@@ -134,11 +113,6 @@ export class Token extends GameObjects.Container {
     // Use actual camera height for bottom-toss detection
     const sceneHeight = this.scene.cameras?.main?.height ?? 800
     const isBottomToss = y > sceneHeight // Spawned from bottom edge
-
-    // Debug logging disabled
-    // console.log(
-    //   `[Token] Spawning at (${x.toFixed(0)}, ${y.toFixed(0)}) | sceneHeight: ${sceneHeight} | isBottomToss: ${isBottomToss} | type: ${type}`
-    // )
 
     if (isBottomToss) {
       // Bottom-toss physics: upward velocity with horizontal drift
@@ -166,7 +140,7 @@ export class Token extends GameObjects.Container {
     this.setScale(scale * 0.1)
 
     // Play spawn animation (elastic scale-in + rotation burst)
-    this.playSpawnAnimation(scale, type)
+    this.playSpawnAnimation(scale)
 
     // Set initial angular velocity
     this.body.setAngularVelocity(rotationSpeed * 60) // Convert rad/s to deg/s for Phaser
@@ -187,7 +161,7 @@ export class Token extends GameObjects.Container {
     }
   }
 
-  private playSpawnAnimation(targetScale: number, type: CoinType): void {
+  private playSpawnAnimation(targetScale: number): void {
     // Kill any existing spawn tweens
     this.cleanupTweens()
 
@@ -236,16 +210,14 @@ export class Token extends GameObjects.Container {
       })
     }
 
-    // Initial rotation burst (±90 degrees) - SKIP for gas coins (they use jitter instead)
-    if (type !== 'gas') {
-      const rotationBurst = Phaser.Math.FloatBetween(-Math.PI / 2, Math.PI / 2)
-      this.spawnRotationTween = this.scene.tweens.add({
-        targets: this,
-        angle: rotationBurst * (180 / Math.PI), // Convert to degrees
-        duration: 200,
-        ease: 'Power2.easeOut',
-      })
-    }
+    // Initial rotation burst (±90 degrees)
+    const rotationBurst = Phaser.Math.FloatBetween(-Math.PI / 2, Math.PI / 2)
+    this.spawnRotationTween = this.scene.tweens.add({
+      targets: this,
+      angle: rotationBurst * (180 / Math.PI), // Convert to degrees
+      duration: 200,
+      ease: 'Power2.easeOut',
+    })
   }
 
   /**
@@ -285,24 +257,5 @@ export class Token extends GameObjects.Container {
     this.image = null as any
 
     super.destroy()
-  }
-
-  /**
-   * Update rotation (not handled by physics).
-   * Gas coins have smooth jitter for visual effect.
-   */
-  preUpdate(time: number, delta: number): void {
-    const type = this.getData('type') as CoinType
-    const jitterAmount = this.getData('jitterAmount') as number
-
-    // Apply smooth jitter for gas coins using sine wave for organic feel
-    if (type === 'gas' && jitterAmount > 0) {
-      // Use time-based sine wave instead of pure random for smoother motion
-      const wobbleSpeed = 0.003 // Speed of wobble
-      const wobble = Math.sin(time * wobbleSpeed) * jitterAmount * 0.5
-      // Add tiny random micro-jitter for "glitchy" feel
-      const microJitter = Phaser.Math.FloatBetween(-0.1, 0.1)
-      this.rotation += (wobble + microJitter) * (delta / 1000)
-    }
   }
 }

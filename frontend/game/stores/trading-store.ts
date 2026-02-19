@@ -20,7 +20,6 @@ export {
   type PhaserEventBridge,
   // Constants
   STANDARD_DAMAGE,
-  WHALE_DAMAGE,
   TUG_OF_WAR_MIN,
   TUG_OF_WAR_MAX,
   // Helpers

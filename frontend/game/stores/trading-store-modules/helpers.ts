@@ -1,14 +1,15 @@
-import type { CoinType, Player, SettlementEvent } from '../../types/trading'
-import { STANDARD_DAMAGE, WHALE_DAMAGE, TUG_OF_WAR_MIN, TUG_OF_WAR_MAX } from './types'
+import type { Player, SettlementEvent } from '../../types/trading'
+import { STANDARD_DAMAGE, TUG_OF_WAR_MIN, TUG_OF_WAR_MAX } from './types'
 
 // Debug logging control
 const DEBUG_FUNDS = typeof process !== 'undefined' && process.env?.DEBUG_FUNDS === 'true'
 
 /**
  * Get damage amount for a coin type.
+ * Now returns standard damage since whale coins are removed.
  */
-export function getDamageForCoinType(coinType: CoinType): number {
-  return coinType === 'whale' ? WHALE_DAMAGE : STANDARD_DAMAGE
+export function getDamageForCoinType(): number {
+  return STANDARD_DAMAGE
 }
 
 /**

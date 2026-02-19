@@ -22,7 +22,7 @@ export interface WaitingPlayer {
 // Server-side coin
 export interface Coin {
   id: string
-  type: 'call' | 'put' | 'gas' | 'whale'
+  type: 'call' | 'put'
   x: number
   y: number
 }
@@ -32,17 +32,17 @@ export interface PendingOrder {
   id: string
   playerId: string
   playerName: string
-  coinType: 'call' | 'put' | 'whale'
+  coinType: 'call' | 'put'
   priceAtOrder: number
   settlesAt: number
   isPlayer1: boolean // Stored at order creation to avoid lookup issues at settlement
-  multiplier: number // Stored at order creation - 2 if 2x was active when placed, 1 otherwise
+  multiplier: number // Leverage multiplier stored at order creation time
 }
 
 // Spawned coin data for network transmission
 export interface SpawnedCoin {
   id: string
-  type: 'call' | 'put' | 'gas' | 'whale'
+  type: 'call' | 'put'
   xNormalized: number
 }
 

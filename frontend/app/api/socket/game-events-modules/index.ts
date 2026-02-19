@@ -365,54 +365,22 @@ async function handleSlice(
 ): Promise<void> {
   room.removeCoin(data.coinId)
 
-  if (data.coinType === 'gas') {
-    const playerIds = room.getPlayerIds()
-    const actualTransfer = transferFunds(
-      room,
-      playerIds.find((id) => id !== playerId)!,
-      playerId,
-      1
-    )
-    room.tugOfWar += playerId === playerIds[0] ? 1 : -1
-    io.to(room.id).emit('player_hit', { playerId, damage: actualTransfer, reason: 'gas' })
-
-    if (room.hasDeadPlayer()) {
-      checkGameOver(io, manager, room)
-    }
-    return
-  }
-
-  if (data.coinType === 'whale') {
-    const player = room.players.get(playerId)
-    const leverage = player?.leverage ?? 2
-
-    room.activateWhale2X(playerId, leverage)
-    io.to(room.id).emit('whale_2x_activated', {
-      playerId,
-      playerName: room.players.get(playerId)?.name || 'Unknown',
-      durationMs: room.WHALE_2X_DURATION,
-      multiplier: leverage,
-    })
-    io.to(room.id).emit('coin_sliced', {
-      playerId,
-      playerName: room.players.get(playerId)?.name,
-      coinType: data.coinType,
-    })
-    return
-  }
-
+  // Only call and put coins now - no gas or whale
   if (!validateCoinType(data.coinType)) return
 
   const playerIds = room.getPlayerIds()
   const isPlayer1 = playerId === playerIds[0]
-  const multiplier = room.get2XMultiplier(playerId)
+  const multiplier = room.getLeverageForPlayer(playerId)
   const serverPrice = priceFeed.getLatestPrice()
+
+  // Type is now validated as 'call' | 'put'
+  const coinType: 'call' | 'put' = data.coinType
 
   const order: PendingOrder = {
     id: `order-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     playerId,
     playerName: room.players.get(playerId)?.name || 'Unknown',
-    coinType: data.coinType,
+    coinType,
     priceAtOrder: serverPrice,
     settlesAt: Date.now() + ORDER_SETTLEMENT_DURATION_MS,
     isPlayer1,
@@ -753,6 +721,24 @@ export function setupGameEvents(io: SocketIOServer): {
       ).catch((error) => {
         console.error('[Match] Failed to create selected match:', error)
         socket.emit('error', { message: 'Failed to start match' })
+      })
+    })
+
+    socket.on('set_leverage', ({ leverage }: { leverage: number }) => {
+      const roomId = manager.getPlayerRoomId(socket.id)
+      if (!roomId) return
+
+      const room = manager.getRoom(roomId)
+      if (!room) return
+
+      // Update the player's leverage (affects future orders only)
+      room.setPlayerLeverage(socket.id, leverage)
+
+      // Broadcast to room so opponent sees the change
+      io.to(room.id).emit('player_leverage_changed', {
+        playerId: socket.id,
+        playerName: room.players.get(socket.id)?.name || 'Unknown',
+        leverage,
       })
     })
 

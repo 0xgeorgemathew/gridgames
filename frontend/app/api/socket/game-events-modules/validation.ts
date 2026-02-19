@@ -9,6 +9,6 @@ export function validatePlayerName(name: unknown): string {
   return name.replace(/[^a-zA-Z0-9_.-]/g, '')
 }
 
-export function validateCoinType(coinType: string): coinType is 'call' | 'put' | 'whale' {
-  return coinType === 'call' || coinType === 'put' || coinType === 'whale'
+export function validateCoinType(coinType: string): coinType is 'call' | 'put' {
+  return coinType === 'call' || coinType === 'put'
 }
