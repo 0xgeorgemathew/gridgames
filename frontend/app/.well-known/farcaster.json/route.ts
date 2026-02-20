@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
+const defaultAccountAssociation = {
+  header:
+    'eyJmaWQiOjIwMjU3MzksInR5cGUiOiJhdXRoIiwia2V5IjoiMHg3OThmOTgxN2VmYzQzQ0Y2MzQzNDYwMDAyNzc2MWI5NDAyNDJBMTcwIn0',
+  payload: 'eyJkb21haW4iOiJncmlkZ2FtZXMuc3BhY2UifQ',
+  signature:
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEEXa-DhA863fYTfpe8kGP225_XD3zZWIESn6HzyQKKqH2XbP07KWi_1hAJG27TMAPyt71XsKKOIdte92Cp-DoUHGwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+}
+
 function normalizeBaseUrl(value: string | undefined): string {
   const raw = (value || 'https://gridgames.space').trim()
   return raw.replace(/^["']|["']$/g, '').replace(/\/+$/, '')
@@ -49,9 +57,12 @@ export async function GET() {
 
   const manifest = {
     accountAssociation: {
-      header: cleanToken(process.env.FC_HEADER),
-      payload: cleanToken(process.env.FC_PAYLOAD),
-      signature: cleanToken(process.env.FC_SIGNATURE),
+      header: cleanToken(process.env.FC_HEADER) || defaultAccountAssociation.header,
+      payload:
+        cleanToken(process.env.FC_PAYLOAD) || defaultAccountAssociation.payload,
+      signature:
+        cleanToken(process.env.FC_SIGNATURE) ||
+        defaultAccountAssociation.signature,
     },
     // Support both keys during transition. Keep them identical for strict validators.
     miniapp: miniAppConfig,
