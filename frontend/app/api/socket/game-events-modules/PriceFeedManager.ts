@@ -7,7 +7,7 @@ import type { PriceBroadcastData } from './types'
  * Manages WebSocket connection to Binance for live BTC prices.
  * Supports auto-reconnection and throttled broadcasts to clients.
  */
-export class PriceFeedManager {
+class PriceFeedManager {
   private ws: WebSocket | null = null
   private latestPrice: number = DEFAULT_BTC_PRICE
   private firstPrice: number = DEFAULT_BTC_PRICE

@@ -1,19 +1,4 @@
-import type { Player } from '../../game/types/trading'
-
-// Crypto symbol type
-export type CryptoSymbol = 'btcusdt'
-
-// Player color options
-export type PlayerColor = 'green' | 'red'
-
-// Player label type
-export type PlayerLabel = 'YOU' | 'OPP'
-
-// Player slot interface
-export interface PlayerSlot {
-  player: Player | undefined
-  label: PlayerLabel
-}
+type CryptoSymbol = 'btcusdt'
 
 // Animation variants for Framer Motion
 export const containerVariants = {
@@ -55,12 +40,4 @@ export function getPriceColor(changePercent: number): { color: string; glow: str
       ? '0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.4)'
       : '0 0 10px rgba(255, 107, 0, 0.8), 0 0 20px rgba(255, 107, 0, 0.4)',
   }
-}
-
-// Helper function to get player slots
-export function getPlayerSlots(localPlayer: Player | null, opponent: Player | null): PlayerSlot[] {
-  return [
-    { player: opponent ?? undefined, label: 'OPP' as const },
-    { player: localPlayer ?? undefined, label: 'YOU' as const },
-  ]
 }

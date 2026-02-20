@@ -1,5 +1,3 @@
-import { Player } from '@/games/hyper-swiper/game/types/trading'
-
 // Price broadcast data for clients
 export interface PriceBroadcastData {
   price: number
@@ -99,6 +97,3 @@ export interface LiquidationEvent {
   healthRatio: number // Collateral health ratio at liquidation (<= 80%)
   pnlAtLiquidation: number // Unrealized PnL at time of liquidation
 }
-
-// Re-export types from trading for convenience
-export type { Player }

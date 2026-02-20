@@ -277,9 +277,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     const nextLeverage = FIXED_LEVERAGE
     if (leverage !== FIXED_LEVERAGE) {
-      console.warn(
-        `[Store] Ignoring requested leverage ${leverage}x, fixed at ${FIXED_LEVERAGE}x`
-      )
+      console.warn(`[Store] Ignoring requested leverage ${leverage}x, fixed at ${FIXED_LEVERAGE}x`)
     }
 
     // Update local state immediately
@@ -305,9 +303,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   setSelectedLeverage: (leverage: number) => {
     const nextLeverage = FIXED_LEVERAGE
     if (leverage !== FIXED_LEVERAGE) {
-      console.warn(
-        `[Store] Ignoring selected leverage ${leverage}x, fixed at ${FIXED_LEVERAGE}x`
-      )
+      console.warn(`[Store] Ignoring selected leverage ${leverage}x, fixed at ${FIXED_LEVERAGE}x`)
     }
     set({ selectedLeverage: nextLeverage })
     // Persist to localStorage
@@ -389,7 +385,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const isOwnPosition = liquidationEvent.playerId === localPlayerId
     const direction = liquidationEvent.isLong ? 'LONG' : 'SHORT'
     const healthPercent = (liquidationEvent.healthRatio * 100).toFixed(1)
-    
+
     get().addToast({
       message: isOwnPosition
         ? `Your ${direction} position was LIQUIDATED at ${healthPercent}% health!`

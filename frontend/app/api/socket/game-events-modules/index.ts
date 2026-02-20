@@ -17,25 +17,6 @@ import type {
   LiquidationEvent,
 } from './types'
 
-// Re-export types and modules for external use
-export { SeededRandom } from './SeededRandom'
-export { CoinSequence } from './CoinSequence'
-export { PriceFeedManager, priceFeed } from './PriceFeedManager'
-export { GameRoom } from './GameRoom'
-export { RoomManager } from './RoomManager'
-export { validatePlayerName, validateCoinType } from './validation'
-export type {
-  WaitingPlayer,
-  OpenPosition,
-  SpawnedCoin,
-  Coin,
-  PriceBroadcastData,
-  PositionSettlementResult,
-  PlayerSettlementResult,
-  GameSettlementData,
-  LiquidationEvent,
-} from './types'
-
 // Price feed state
 let priceFeedConnected = false
 const FIXED_LEVERAGE = 100
@@ -65,7 +46,7 @@ function ensurePriceFeedConnected(io: SocketIOServer, manager?: RoomManager): vo
 
   priceFeed.setBroadcastCallback((data) => {
     io.emit('btc_price', data)
-    
+
     // Check all active rooms for liquidations on each price update
     if (roomManagerRef) {
       checkLiquidations(io, roomManagerRef, data.price)
@@ -92,15 +73,11 @@ function disconnectPriceFeedIfIdle(manager: RoomManager): void {
  * Check all open positions across active rooms for liquidation
  * Called on every price update from the feed
  */
-function checkLiquidations(
-  io: SocketIOServer,
-  manager: RoomManager,
-  currentPrice: number
-): void {
+function checkLiquidations(io: SocketIOServer, manager: RoomManager, currentPrice: number): void {
   for (const room of manager.getAllRooms()) {
     // Skip rooms that are closing or shutdown
     if (room.getIsClosing() || room.isShutdown) continue
-    
+
     // Check each open position in the room
     for (const [, position] of room.openPositions) {
       if (shouldLiquidate(position, currentPrice)) {
@@ -137,7 +114,7 @@ function liquidatePosition(
     isProfitable,
     isLiquidated: true,
   })
-  
+
   // Create liquidation event
   const liquidationEvent: LiquidationEvent = {
     positionId: position.id,
@@ -151,17 +128,17 @@ function liquidatePosition(
     healthRatio,
     pnlAtLiquidation: pnl,
   }
-  
+
   // Remove position from open positions
   room.removeOpenPosition(position.id)
-  
+
   // Emit liquidation event to room
   io.to(room.id).emit('position_liquidated', liquidationEvent)
-  
+
   console.log(
     `[Liquidation] Position ${position.id} liquidated for player ${position.playerName} ` +
-    `at health ratio ${(healthRatio * 100).toFixed(1)}% ` +
-    `(PnL: $${pnl.toFixed(4)}, Price: $${currentPrice.toFixed(2)})`
+      `at health ratio ${(healthRatio * 100).toFixed(1)}% ` +
+      `(PnL: $${pnl.toFixed(4)}, Price: $${currentPrice.toFixed(2)})`
   )
 }
 
@@ -191,18 +168,15 @@ function calculatePositionPnl(
  * Calculate collateral health ratio for a position
  * Health Ratio = (Net Collateral + PnL) / Net Collateral
  * Liquidation at <= 80%
- * 
+ *
  * Following Avantis Docs:
  * Collateral Health Ratio = (Net Collateral + PnL - accumulated margin fee - closing fee) / Net Collateral
  * Since we have no fees, this simplifies to: (Net Collateral + PnL) / Net Collateral
  */
-function calculateCollateralHealthRatio(
-  position: OpenPosition,
-  currentPrice: number
-): number {
+function calculateCollateralHealthRatio(position: OpenPosition, currentPrice: number): number {
   const { pnl } = calculatePositionPnl(position, currentPrice)
   const netCollateral = position.collateral // No opening fee, so net = original collateral
-  
+
   return (netCollateral + pnl) / netCollateral
 }
 
@@ -210,10 +184,7 @@ function calculateCollateralHealthRatio(
  * Check if a position should be liquidated
  * Returns true if health ratio <= 80%
  */
-function shouldLiquidate(
-  position: OpenPosition,
-  currentPrice: number
-): boolean {
+function shouldLiquidate(position: OpenPosition, currentPrice: number): boolean {
   const healthRatio = calculateCollateralHealthRatio(position, currentPrice)
   return healthRatio <= GAME_CONFIG.LIQUIDATION_HEALTH_RATIO
 }
@@ -309,10 +280,7 @@ function determineWinner(
   if (playerResults.length === 0) return null
 
   const sorted = [...playerResults].sort((a, b) => b.totalPnl - a.totalPnl)
-  if (
-    sorted.length > 1 &&
-    Math.abs(sorted[0].totalPnl - sorted[1].totalPnl) <= TIE_EPSILON
-  ) {
+  if (sorted.length > 1 && Math.abs(sorted[0].totalPnl - sorted[1].totalPnl) <= TIE_EPSILON) {
     return null
   }
   const winner = sorted[0]
@@ -816,12 +784,7 @@ export function setupGameEvents(io: SocketIOServer): {
             return
           }
 
-          manager.addWaitingPlayer(
-            socket.id,
-            validatedName,
-            FIXED_LEVERAGE,
-            gameDuration ?? 60000
-          )
+          manager.addWaitingPlayer(socket.id, validatedName, FIXED_LEVERAGE, gameDuration ?? 60000)
           const waitingPlayer = manager.getWaitingPlayer(socket.id)
           if (waitingPlayer) {
             if (sceneWidth && sceneHeight) {

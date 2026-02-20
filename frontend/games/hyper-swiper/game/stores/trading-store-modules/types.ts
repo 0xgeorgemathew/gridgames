@@ -4,14 +4,11 @@ import type {
   CoinSpawnEvent,
   SliceEvent,
   PositionOpenedEvent,
-  MatchFoundEvent,
   GameOverEvent,
   GameStartEvent,
   CoinType,
   PriceData,
   LobbyPlayer,
-  LobbyPlayersEvent,
-  LobbyUpdatedEvent,
   Position,
   GameSettlementEvent,
   LiquidationEvent,
@@ -37,11 +34,8 @@ export interface PhaserEventBridge {
   destroy?(): void
 }
 
-// Game constants
-export const STANDARD_DAMAGE = 1
-
 // Connection state slice
-export interface ConnectionState {
+interface ConnectionState {
   socket: Socket | null
   isConnected: boolean
   isMatching: boolean
@@ -53,13 +47,13 @@ export interface ConnectionState {
 }
 
 // Lobby state slice
-export interface LobbyState {
+interface LobbyState {
   lobbyPlayers: LobbyPlayer[]
   isRefreshingLobby: boolean
 }
 
 // Room/Players state slice
-export interface RoomState {
+interface RoomState {
   roomId: string | null
   localPlayerId: string | null
   isPlayer1: boolean
@@ -67,13 +61,13 @@ export interface RoomState {
 }
 
 // Timer state slice
-export interface TimerState {
+interface TimerState {
   gameTimeRemaining: number
   gameTimerInterval: number | null
 }
 
 // Game state slice - Perp-style positions
-export interface GameState {
+interface GameState {
   openPositions: Map<string, Position> // Open positions (no settlement timer)
   gameSettlement: GameSettlementEvent | null // Settlement data at game end
   toasts: Toast[]
@@ -81,18 +75,18 @@ export interface GameState {
 }
 
 // Matchmaking settings slice
-export interface MatchmakingSettingsState {
+interface MatchmakingSettingsState {
   selectedGameDuration: number // Game duration in ms (60000, 120000, 180000)
   selectedLeverage: number // Leverage for matchmaking (fixed at 100X)
 }
 
 // Audio state slice
-export interface AudioState {
+interface AudioState {
   isSoundMuted: boolean
 }
 
 // Price feed state slice
-export interface PriceFeedState {
+interface PriceFeedState {
   priceSocket: WebSocket | null
   priceReconnectTimer: NodeJS.Timeout | null
   priceData: PriceData | null
@@ -147,23 +141,4 @@ export interface TradingState
   joinWaitingPool: (playerName: string, walletAddress?: string) => void
   leaveWaitingPool: () => void
   selectOpponent: (opponentSocketId: string) => void
-}
-
-// Re-export types for convenience
-export type {
-  Player,
-  CoinSpawnEvent,
-  SliceEvent,
-  PositionOpenedEvent,
-  MatchFoundEvent,
-  GameOverEvent,
-  GameStartEvent,
-  CoinType,
-  PriceData,
-  LobbyPlayer,
-  LobbyPlayersEvent,
-  LobbyUpdatedEvent,
-  Position,
-  GameSettlementEvent,
-  LiquidationEvent,
 }
