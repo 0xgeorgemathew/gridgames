@@ -3,8 +3,6 @@ import { sdk } from '@farcaster/miniapp-sdk'
 import { useAccount } from 'wagmi'
 import type { Context } from '@farcaster/miniapp-core'
 
-export type BaseMiniAppUser = Context.UserContext
-
 export function useBaseMiniAppAuth() {
   const [isInMiniApp, setIsInMiniApp] = useState(false)
   const [contextUser, setContextUser] = useState<Context.UserContext | null>(null)

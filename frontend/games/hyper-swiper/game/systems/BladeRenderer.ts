@@ -1,6 +1,6 @@
 import { Scene, GameObjects, Geom } from 'phaser'
 
-export const BLADE_CONFIG = {
+const BLADE_CONFIG = {
   color: 0x00f3ff,
   // Ribbon dimensions - the "height" of the vertical light wall
   mobileRibbonWidth: 16,

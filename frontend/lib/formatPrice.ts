@@ -13,11 +13,3 @@ export function formatPrice(price: number): string {
   if (price < 100) return price.toFixed(4)
   return price.toFixed(2)
 }
-
-/**
- * Format price change with sign and decimal places
- */
-export function formatPriceChange(change: number): string {
-  const sign = change >= 0 ? '+' : ''
-  return `${sign}${change.toFixed(2)}`
-}

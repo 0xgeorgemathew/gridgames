@@ -22,9 +22,6 @@ const GRID_CONFIG = {
   size: 51,
 } as const
 
-// Re-export COIN_CONFIG for external use
-export { COIN_CONFIG }
-
 export class TradingScene extends Scene {
   // Game objects
   private tokenPool!: GameObjects.Group
@@ -217,14 +214,14 @@ export class TradingScene extends Scene {
     setTimeout(updateDimensions, 500)
   }
 
-  update(): void {
+  update(_time: number, delta: number): void {
     if (this.isShutdown) return
 
-    const delta = 1000 / 60
+    const clampedDelta = Math.max(4, Math.min(50, delta))
 
     this.updateGrid()
     this.updateCoinPhysics()
-    this.particles.update(delta)
+    this.particles.update(clampedDelta)
     this.bladeRenderer.draw()
     this.checkCollisions()
     this.visualEffects.update()

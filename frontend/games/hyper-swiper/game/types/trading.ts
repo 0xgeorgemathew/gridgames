@@ -4,7 +4,7 @@ export type CoinType = 'long' | 'short'
  * Coin visual and physics configuration
  * Used for rendering and hitbox calculation
  */
-export type CoinConfig = {
+type CoinConfig = {
   color: number // Main coin color
   edgeColor: number // Darker shade for milled edge/rim
   radius: number // Visual radius in pixels
@@ -51,7 +51,7 @@ export type SliceEvent = {
  * Active order with 5-second countdown timer
  * Emitted by server in 'order_placed' event
  */
-export type OrderPlacedEvent = {
+type OrderPlacedEvent = {
   orderId: string
   playerId: string
   playerName: string
@@ -64,7 +64,7 @@ export type OrderPlacedEvent = {
  * Settlement result after 5-second timer expires
  * Emitted by server in 'order_settled' event
  */
-export type SettlementEvent = {
+type SettlementEvent = {
   orderId: string
   playerId: string
   playerName: string
@@ -166,7 +166,7 @@ export type LobbyUpdatedEvent = {
  * true = LONG (profit when price goes up)
  * false = SHORT (profit when price goes down)
  */
-export type PositionDirection = boolean // isLong
+type PositionDirection = boolean // isLong
 
 /**
  * Position status

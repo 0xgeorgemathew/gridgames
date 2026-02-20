@@ -17,7 +17,8 @@ export async function GET() {
   const appDescription = 'Real-time multiplayer games with blockchain settlement'
   const appTagline = 'Onchain multiplayer arcade'
   const ogTitle = 'Grid Games on Base'
-  const ogDescription = 'Play real-time multiplayer games with onchain settlement and instant rematches.'
+  const ogDescription =
+    'Play real-time multiplayer games with onchain settlement and instant rematches.'
 
   const miniAppConfig = {
     version: '1',
