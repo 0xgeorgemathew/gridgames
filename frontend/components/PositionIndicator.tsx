@@ -30,6 +30,13 @@ export function PositionIndicator() {
     .sort((a, b) => a.settlesAt - b.settlesAt)
     .slice(0, 5) // Increased to 5 visible (was 3)
 
+  // Debug logging (development only)
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log('[PositionIndicator] Active orders:', activeOrders.size)
+    console.log('[PositionIndicator] Local player ID:', localPlayerId)
+    console.log('[PositionIndicator] Local orders:', localOrders.length)
+  }
+
   return (
     <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-56 pointer-events-none">
       <div className="max-w-2xl mx-auto">
