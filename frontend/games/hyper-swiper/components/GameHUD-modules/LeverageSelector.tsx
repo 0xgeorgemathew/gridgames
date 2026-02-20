@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { useTradingStore } from '../../game/stores/trading-store'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 /**
@@ -89,7 +89,7 @@ export const LeverageSelector = React.memo(function LeverageSelector() {
         const isSelected = leverage === option.value
 
         return (
-          <motion.button
+          <m.button
             key={option.value}
             onClick={() => setLeverage(option.value)}
             whileHover={{ scale: 1.05 }}
@@ -111,7 +111,7 @@ export const LeverageSelector = React.memo(function LeverageSelector() {
           >
             {/* Animated glow ring for selected option */}
             {isSelected && (
-              <motion.div
+              <m.div
                 className="absolute inset-0 rounded-lg"
                 initial={{ opacity: 0.3 }}
                 animate={{ opacity: [0.3, 0.6, 0.3] }}
@@ -124,7 +124,7 @@ export const LeverageSelector = React.memo(function LeverageSelector() {
 
             {/* Label only - no risk dot for cleaner UI */}
             <span className="relative z-10">{option.label}</span>
-          </motion.button>
+          </m.button>
         )
       })}
     </div>

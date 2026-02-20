@@ -1,9 +1,11 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { GridScanBackground } from '@/components/GridScanBackground'
 import { games } from '@/games'
+
+const BOTTOM_DOT_STEPS = [0, 1, 2, 3, 4, 5, 6] as const
 
 export function GameSelectionScreen() {
   const router = useRouter()
@@ -13,7 +15,7 @@ export function GameSelectionScreen() {
       <GridScanBackground />
 
       <div className="fixed inset-0 pointer-events-none z-10 opacity-15">
-        <motion.div
+        <m.div
           className="w-full h-px bg-cyan-400"
           animate={{ y: ['-10%', '110%'] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
@@ -22,27 +24,27 @@ export function GameSelectionScreen() {
 
       <div className="relative z-20 flex flex-col items-center gap-12 px-6">
         <div className="text-center">
-          <motion.h1
+          <m.h1
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
             className="font-[family-name:var(--font-orbitron)] text-3xl sm:text-4xl md:text-5xl font-bold tracking-[0.25em] text-white"
           >
             GRID GAMES
-          </motion.h1>
-          <motion.p
+          </m.h1>
+          <m.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-2 text-sm text-tron-white-dim tracking-widest"
           >
             SELECT YOUR GAME
-          </motion.p>
+          </m.p>
         </div>
 
         <div className="flex flex-col gap-4 w-full max-w-md">
           {games.map((game, index) => (
-            <motion.button
+            <m.button
               key={game.slug}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -92,25 +94,30 @@ export function GameSelectionScreen() {
               </div>
 
               {game.status === 'available' && (
-                <motion.div
+                <m.div
                   className="absolute inset-0 rounded-xl"
                   whileHover={{
                     boxShadow: '0 0 30px rgba(0,243,255,0.2)',
                   }}
                 />
               )}
-            </motion.button>
+            </m.button>
           ))}
         </div>
       </div>
 
       <div className="fixed bottom-12 left-0 right-0 z-20 flex justify-center gap-2">
-        {[...Array(7)].map((_, i) => (
-          <motion.div
-            key={i}
+        {BOTTOM_DOT_STEPS.map((step) => (
+          <m.div
+            key={`dot-${step}`}
             className="w-0.5 h-0.5 bg-cyan-400/40"
             animate={{ opacity: [0.2, 1, 0.2], scaleY: [1, 2, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              delay: step * 0.15,
+              ease: 'easeInOut',
+            }}
           />
         ))}
       </div>

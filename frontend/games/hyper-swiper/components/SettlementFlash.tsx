@@ -1,11 +1,36 @@
 'use client'
 
 import { useTradingStore } from '../game/stores/trading-store'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, m } from 'framer-motion'
+import { useEffect, useReducer, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 const FLASH_DURATION = 800 // 0.8 seconds
+
+interface FlashState {
+  isVisible: boolean
+  isLong: boolean
+}
+
+type FlashAction = { type: 'show'; isLong: boolean } | { type: 'hide' } | { type: 'reset' }
+
+const initialFlashState: FlashState = {
+  isVisible: false,
+  isLong: true,
+}
+
+function flashReducer(state: FlashState, action: FlashAction): FlashState {
+  switch (action.type) {
+    case 'show':
+      return { isVisible: true, isLong: action.isLong }
+    case 'hide':
+      return { ...state, isVisible: false }
+    case 'reset':
+      return initialFlashState
+    default:
+      return state
+  }
+}
 
 /**
  * SettlementFlash - Shows simple position opened feedback
@@ -14,8 +39,7 @@ const FLASH_DURATION = 800 // 0.8 seconds
  */
 export function SettlementFlash() {
   const { openPositions, localPlayerId } = useTradingStore()
-  const [isVisible, setIsVisible] = useState(false)
-  const [isLong, setIsLong] = useState(true)
+  const [flashState, dispatch] = useReducer(flashReducer, initialFlashState)
   const lastShownIdRef = useRef<string | null>(null)
 
   // Get the most recent position for the local player
@@ -27,6 +51,7 @@ export function SettlementFlash() {
   useEffect(() => {
     if (!latestPosition || !localPlayerId) {
       lastShownIdRef.current = null
+      dispatch({ type: 'reset' })
       return
     }
 
@@ -34,14 +59,13 @@ export function SettlementFlash() {
     if (latestPosition.id !== lastShownIdRef.current) {
       lastShownIdRef.current = latestPosition.id
 
-      // Use setTimeout to avoid synchronous setState in effect
+      // Use a single reducer dispatch path to avoid cascading state updates.
       const showTimer = setTimeout(() => {
-        setIsLong(latestPosition.isLong)
-        setIsVisible(true)
+        dispatch({ type: 'show', isLong: latestPosition.isLong })
       }, 0)
 
       // Hide after duration via timeout callback (async setState)
-      const hideTimer = setTimeout(() => setIsVisible(false), FLASH_DURATION)
+      const hideTimer = setTimeout(() => dispatch({ type: 'hide' }), FLASH_DURATION)
 
       return () => {
         clearTimeout(showTimer)
@@ -50,15 +74,15 @@ export function SettlementFlash() {
     }
   }, [latestPosition, localPlayerId])
 
-  if (!isVisible) return null
+  if (!flashState.isVisible) return null
 
-  const directionText = isLong ? 'LONG ▲' : 'SHORT ▼'
-  const directionColor = isLong ? 'text-green-400' : 'text-red-400'
+  const directionText = flashState.isLong ? 'LONG ▲' : 'SHORT ▼'
+  const directionColor = flashState.isLong ? 'text-green-400' : 'text-red-400'
 
   return (
     <AnimatePresence>
-      {isVisible && (
-        <motion.div
+      {flashState.isVisible && (
+        <m.div
           className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -66,8 +90,11 @@ export function SettlementFlash() {
           transition={{ duration: 0.15 }}
         >
           {/* Subtle background glow */}
-          <motion.div
-            className={cn('absolute inset-0', isLong ? 'bg-green-500/5' : 'bg-red-500/5')}
+          <m.div
+            className={cn(
+              'absolute inset-0',
+              flashState.isLong ? 'bg-green-500/5' : 'bg-red-500/5'
+            )}
             animate={{
               opacity: [0, 0.2, 0],
             }}
@@ -78,7 +105,7 @@ export function SettlementFlash() {
           />
 
           {/* Position opened display */}
-          <motion.div
+          <m.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: [1, 1.1, 1], opacity: 1 }}
             exit={{ scale: 1.2, opacity: 0 }}
@@ -88,21 +115,21 @@ export function SettlementFlash() {
             }}
             className="relative"
           >
-            <motion.span
+            <m.span
               className={cn(
                 'text-5xl sm:text-6xl font-black font-mono tracking-tight block',
                 directionColor
               )}
               style={{
-                textShadow: isLong
+                textShadow: flashState.isLong
                   ? '0 0 20px rgba(74, 222, 128, 0.6)'
                   : '0 0 20px rgba(248, 113, 113, 0.6)',
               }}
             >
               {directionText}
-            </motion.span>
-          </motion.div>
-        </motion.div>
+            </m.span>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   )

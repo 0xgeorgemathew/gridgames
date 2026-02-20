@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 interface ConnectionStatusDotProps {
@@ -23,7 +23,7 @@ export const ConnectionStatusDot = React.memo(function ConnectionStatusDot({
       : 'bg-tron-orange'
 
   return (
-    <motion.div
+    <m.div
       className={cn('w-2 h-2 rounded-full', colorClass)}
       animate={{
         scale: isPriceConnected ? [1, 1.4, 1] : priceError ? [1, 1.2, 1] : [0.8, 1, 0.8],

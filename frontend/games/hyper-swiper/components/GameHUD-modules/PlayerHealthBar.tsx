@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { GAME_CONFIG } from '../../game/constants'
 import { itemVariants } from './types'
@@ -32,7 +32,7 @@ export const SinglePlayerHealth = React.memo(
     }
 
     return (
-      <motion.div
+      <m.div
         variants={itemVariants}
         className="w-full max-w-xs mx-auto"
         initial="hidden"
@@ -43,7 +43,7 @@ export const SinglePlayerHealth = React.memo(
           <span className="text-[10px] sm:text-xs text-tron-cyan tracking-wider font-medium">
             Balance
           </span>
-          <motion.span
+          <m.span
             className={cn(
               'text-sm sm:text-base font-bold font-numeric',
               isLowHealth ? 'text-red-400' : 'text-white'
@@ -59,7 +59,7 @@ export const SinglePlayerHealth = React.memo(
             transition={{ duration: 0.2 }}
           >
             ${dollars.toLocaleString()}
-          </motion.span>
+          </m.span>
         </div>
 
         {/* Health bar */}
@@ -69,7 +69,7 @@ export const SinglePlayerHealth = React.memo(
             isLowHealth && 'animate-pulse'
           )}
         >
-          <motion.div
+          <m.div
             className={cn('h-full rounded-full', healthGradientClasses[healthColor])}
             initial={{ width: 0 }}
             animate={{ width: `${healthPercent * 100}%` }}
@@ -78,21 +78,17 @@ export const SinglePlayerHealth = React.memo(
 
           {/* Glow effect for low health */}
           {isLowHealth && (
-            <motion.div
+            <m.div
               className="absolute inset-0 bg-red-500/20 rounded-full"
               animate={{ opacity: [0.2, 0.5, 0.2] }}
               transition={{ duration: 1, repeat: Infinity }}
             />
           )}
         </div>
-      </motion.div>
+      </m.div>
     )
   },
   (prevProps, nextProps) => {
     return prevProps.dollars === nextProps.dollars
   }
 )
-
-// Keep the old named export for backwards compatibility during transition
-// This will be removed after GameHUD is updated
-export const PlayerHealthBar = SinglePlayerHealth

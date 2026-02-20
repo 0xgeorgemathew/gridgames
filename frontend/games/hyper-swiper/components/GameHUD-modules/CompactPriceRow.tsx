@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { Info, Volume2, VolumeX, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CountUp } from '@/components/CountUp'
@@ -69,7 +69,7 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
               style={{ textShadow: priceGlow }}
             />
 
-            <motion.span
+            <m.span
               className={cn(
                 'text-[10px] sm:text-xs font-bold font-numeric shrink-0 px-1.5 py-0.5 rounded',
                 priceData.changePercent >= 0
@@ -82,7 +82,7 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
             >
               {priceData.changePercent >= 0 ? '+' : ''}
               {priceData.changePercent.toFixed(2)}%
-            </motion.span>
+            </m.span>
           </div>
         ) : (
           <span className="text-xs text-tron-white-dim animate-pulse">Loading...</span>

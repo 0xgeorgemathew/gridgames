@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import { X } from 'lucide-react'
 
 interface HowToPlayModalProps {
@@ -14,7 +14,7 @@ export function HowToPlayModal({ isOpen, onClose }: HowToPlayModalProps) {
       {isOpen && (
         <>
           {/* Backdrop */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.7 }}
             exit={{ opacity: 0 }}
@@ -24,7 +24,7 @@ export function HowToPlayModal({ isOpen, onClose }: HowToPlayModalProps) {
 
           {/* Modal */}
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <motion.div
+            <m.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -85,7 +85,7 @@ export function HowToPlayModal({ isOpen, onClose }: HowToPlayModalProps) {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </m.div>
           </div>
         </>
       )}

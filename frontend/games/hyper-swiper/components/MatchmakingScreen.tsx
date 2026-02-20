@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTradingStore } from '../game/stores/trading-store'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import { GridScanBackground } from '@/components/GridScanBackground'
 import { usePrivy } from '@privy-io/react-auth'
 import { ActionButton } from '@/components/ui/ActionButton'
@@ -14,11 +14,282 @@ import { useBaseName } from '@/hooks/useBaseName'
 import { GameSettingsSelector } from './GameSettingsSelector'
 import { cn } from '@/lib/utils'
 
-const BOTTOM_DOTS_COUNT = 7
+const BOTTOM_DOT_STEPS = [0, 1, 2, 3, 4, 5, 6] as const
 
 type AuthMatchState = 'login' | 'ready'
 type UserMatchState = 'lobby' | 'entering'
 type MatchState = AuthMatchState | UserMatchState
+
+interface PlayingAsPanelProps {
+  displayName: string | null
+  matchState: MatchState
+  isInMiniApp: boolean
+  miniAppPfpUrl?: string
+}
+
+function PlayingAsPanel({
+  displayName,
+  matchState,
+  isInMiniApp,
+  miniAppPfpUrl,
+}: PlayingAsPanelProps) {
+  return (
+    <div className="mt-4 min-h-[100px]">
+      <AnimatePresence>
+        {displayName && matchState !== 'login' && (
+          <m.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <m.p className="text-cyan-400/70 text-[10px] tracking-[0.25em] font-medium glow-text-label">
+                PLAYING AS
+              </m.p>
+            </div>
+
+            <m.div
+              className="relative flex flex-col items-center gap-3"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            >
+              {isInMiniApp && miniAppPfpUrl && (
+                <m.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                  className="relative"
+                >
+                  <div className="absolute -inset-1 rounded-full bg-cyan-400/20 blur-md" />
+                  <m.div
+                    className="absolute -inset-2 rounded-full border border-cyan-400/40"
+                    animate={{
+                      scale: [1, 1.1, 1],
+                      opacity: [0.4, 0.2, 0.4],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                  <Image
+                    src={miniAppPfpUrl}
+                    alt=""
+                    width={56}
+                    height={56}
+                    unoptimized
+                    className="relative rounded-full border-2 border-cyan-400/50 object-cover"
+                  />
+                </m.div>
+              )}
+              <PlayerName
+                username={displayName}
+                className="text-2xl tracking-wider relative z-10"
+              />
+            </m.div>
+          </m.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+interface MatchmakingAuthPanelProps {
+  matchState: MatchState
+  isInMiniApp: boolean
+  isConnected: boolean
+  isMatching: boolean
+  isRefreshingLobby: boolean
+  selectedGameDuration: number
+  lobbyPlayers: Array<{ socketId: string; name: string; gameDuration: number }>
+  onLogin: () => void
+  onLogout: () => void
+  onEnter: () => void
+  onOpenLobby: () => void
+  onBackFromLobby: () => void
+  onRefreshLobby: () => void
+  onSelectOpponent: (opponentSocketId: string) => void
+}
+
+function MatchmakingAuthPanel({
+  matchState,
+  isInMiniApp,
+  isConnected,
+  isMatching,
+  isRefreshingLobby,
+  selectedGameDuration,
+  lobbyPlayers,
+  onLogin,
+  onLogout,
+  onEnter,
+  onOpenLobby,
+  onBackFromLobby,
+  onRefreshLobby,
+  onSelectOpponent,
+}: MatchmakingAuthPanelProps) {
+  const formatDuration = (ms: number) => `${ms / 60000}MIN`
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="min-h-[200px] w-full max-w-md">
+        <AnimatePresence mode="wait">
+          {matchState === 'login' && (
+            <m.div
+              key="login"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              layout
+              className="flex flex-col items-center gap-4"
+            >
+              <p className="text-gray-400 text-sm tracking-wider">
+                {isInMiniApp ? 'CONNECTING...' : 'CONNECT TO PLAY'}
+              </p>
+              {!isInMiniApp && (
+                <ActionButton onClick={onLogin} color="cyan">
+                  LOGIN WITH GOOGLE
+                </ActionButton>
+              )}
+            </m.div>
+          )}
+
+          {matchState === 'ready' && (
+            <m.div
+              key="ready"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              layout
+              className="flex flex-col items-center gap-3"
+            >
+              <p className="text-green-400 text-xs tracking-wider">READY TO PLAY</p>
+
+              <div className="flex flex-col gap-3 w-full min-w-[200px]">
+                <ActionButton onClick={onEnter} disabled={!isConnected || isMatching} color="cyan">
+                  {isMatching ? 'ENTERING...' : 'AUTO-MATCH'}
+                </ActionButton>
+                <ActionButton onClick={onOpenLobby} disabled={!isConnected} color="cyan">
+                  SELECT OPPONENT
+                </ActionButton>
+              </div>
+
+              {!isInMiniApp && (
+                <button
+                  onClick={onLogout}
+                  className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
+                >
+                  LOGOUT
+                </button>
+              )}
+            </m.div>
+          )}
+
+          {matchState === 'entering' && (
+            <m.div
+              key="entering"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              layout
+              className="flex flex-col items-center gap-3"
+            >
+              <p className="text-cyan-400 text-xs tracking-wider animate-pulse">
+                FINDING OPPONENT...
+              </p>
+            </m.div>
+          )}
+
+          {matchState === 'lobby' && (
+            <m.div
+              key="lobby"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              layout
+              className="flex flex-col items-center gap-4 w-full max-w-md"
+            >
+              <button
+                onClick={onBackFromLobby}
+                className="text-cyan-400/60 hover:text-cyan-400 transition-colors text-xs"
+              >
+                ← BACK
+              </button>
+
+              <p className="text-cyan-400/70 text-[10px] tracking-[0.25em]">AVAILABLE OPPONENTS</p>
+
+              {lobbyPlayers.length === 0 ? (
+                <p className="text-cyan-400/60 text-xs">NO PLAYERS WAITING</p>
+              ) : (
+                <div className="flex flex-col gap-2 w-full">
+                  <AnimatePresence mode="popLayout">
+                    {lobbyPlayers.map((player) => {
+                      const hasMatchingSettings = player.gameDuration === selectedGameDuration
+
+                      return (
+                        <m.button
+                          key={player.socketId}
+                          onClick={() => onSelectOpponent(player.socketId)}
+                          disabled={isMatching}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={cn(
+                            'relative px-4 py-3 bg-black/40 border rounded-lg overflow-hidden scale-pulse-button min-w-[200px]',
+                            hasMatchingSettings
+                              ? 'border-cyan-400/40 hover:border-cyan-400/60'
+                              : 'border-cyan-400/20 hover:border-cyan-400/40 opacity-60'
+                          )}
+                        >
+                          <div className="relative z-10 flex flex-col items-center gap-1">
+                            <PlayerName username={player.name} className="text-sm" />
+                            <div className="flex items-center gap-2 text-[9px] tracking-wider">
+                              <span
+                                className={
+                                  hasMatchingSettings ? 'text-cyan-400' : 'text-cyan-400/50'
+                                }
+                              >
+                                {formatDuration(player.gameDuration)}
+                              </span>
+                            </div>
+                          </div>
+                        </m.button>
+                      )
+                    })}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              <ActionButton
+                onClick={onRefreshLobby}
+                isLoading={isRefreshingLobby}
+                disabled={isMatching}
+                color="cyan"
+              >
+                REFRESH
+              </ActionButton>
+            </m.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
+function MatchmakingBottomDots() {
+  return (
+    <div className="fixed bottom-12 left-0 right-0 z-20 flex justify-center gap-2">
+      {BOTTOM_DOT_STEPS.map((step) => (
+        <m.div
+          key={`dot-${step}`}
+          className="w-0.5 h-0.5 bg-cyan-400/40"
+          animate={{ opacity: [0.2, 1, 0.2], scaleY: [1, 2, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity, delay: step * 0.15, ease: 'easeInOut' }}
+        />
+      ))}
+    </div>
+  )
+}
 
 export function MatchmakingScreen() {
   const router = useRouter()
@@ -43,60 +314,48 @@ export function MatchmakingScreen() {
     setSelectedGameDuration,
   } = useTradingStore()
 
-  // User-initiated state (lobby, entering)
   const [userState, setUserState] = useState<UserMatchState | null>(null)
 
-  // Resolve Base Name for Mini App users
   const { name: baseName, isLoading: isBaseNameLoading } = useBaseName(
     isInMiniApp ? miniAppWallet : undefined
   )
 
-  // Get display name based on auth method
   const getDisplayName = useCallback(() => {
     if (isInMiniApp) {
-      // Base Mini App: Use Base Name or fallback to Farcaster username
       if (baseName) return baseName
       if (miniAppUser?.username) return miniAppUser.username
       if (miniAppUser?.fid) return `fid:${miniAppUser.fid}`
       if (miniAppWallet) return miniAppWallet
       return null
-    } else {
-      // Web/Privy: Use Google display name
-      const googleName = (user as any)?.google?.name
-      if (googleName) return googleName
-      if (user?.wallet?.address) return user.wallet.address
-      return null
     }
+
+    const googleName = (user as { google?: { name?: string } } | null)?.google?.name
+    if (googleName) return googleName
+    if (user?.wallet?.address) return user.wallet.address
+    return null
   }, [isInMiniApp, baseName, miniAppUser, miniAppWallet, user])
 
   const displayName = getDisplayName()
 
-  // Derive auth state from props (no useEffect needed)
   const authState = useMemo((): AuthMatchState => {
     if (isInMiniApp) {
-      // Base App path: Use Farcaster identity, skip Privy entirely
       if (miniAppConnected && miniAppUser && !isBaseNameLoading) {
         return 'ready'
       }
       return 'login'
-    } else {
-      // Web browser path: Privy flow
-      if (authenticated && user?.wallet) {
-        return 'ready'
-      }
-      return 'login'
     }
+
+    if (authenticated && user?.wallet) {
+      return 'ready'
+    }
+    return 'login'
   }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, authenticated, user?.wallet])
 
-  // Final match state: user state takes precedence, otherwise use auth state
   const matchState = userState || authState
 
-  // Initial lobby fetch when entering lobby state
   useEffect(() => {
     if (matchState === 'lobby') {
-      // Determine wallet address based on auth method
       const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
-      // Join waiting pool first so we can be seen by others
       if (displayName && walletAddress) {
         joinWaitingPool(displayName, walletAddress)
       }
@@ -112,36 +371,35 @@ export function MatchmakingScreen() {
     miniAppWallet,
   ])
 
-  const handleEnter = async () => {
+  const handleEnter = useCallback(() => {
     if (!isConnected || isMatching) return
 
-    // Determine wallet address based on auth method
     const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
     if (!walletAddress) return
 
     setUserState('entering')
 
-    // CRITICAL: Unlock mobile audio before entering game
-    // Mobile browsers require user gesture to resume AudioContext
-    if (typeof window !== 'undefined' && (window as any).phaserEvents) {
-      ;(window as any).phaserEvents.emit('unlock_audio')
+    if (
+      typeof window !== 'undefined' &&
+      (window as { phaserEvents?: { emit: (event: string) => void } }).phaserEvents
+    ) {
+      ;(window as { phaserEvents?: { emit: (event: string) => void } }).phaserEvents?.emit(
+        'unlock_audio'
+      )
     }
 
-    // Proceed with matchmaking - pass username or wallet address
     const playerName = displayName || walletAddress
     findMatch(playerName, walletAddress)
-  }
+  }, [displayName, findMatch, isConnected, isInMiniApp, isMatching, miniAppWallet, user?.wallet])
 
   const handleSelectOpponent = useCallback(
     (opponentSocketId: string) => {
       if (!isConnected || isMatching) return
 
-      // Determine wallet address based on auth method
       const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
       if (!walletAddress) return
 
       setUserState('entering')
-
       selectOpponent(opponentSocketId)
     },
     [isConnected, isMatching, isInMiniApp, miniAppWallet, user?.wallet, selectOpponent]
@@ -151,13 +409,13 @@ export function MatchmakingScreen() {
     return (
       <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
         <GridScanBackground />
-        <motion.p
+        <m.p
           className="relative z-20 font-[family-name:var(--font-orbitron)] text-cyan-400 tracking-widest"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           INITIALIZING...
-        </motion.p>
+        </m.p>
       </div>
     )
   }
@@ -166,16 +424,14 @@ export function MatchmakingScreen() {
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
       <GridScanBackground />
 
-      {/* Scanline overlay */}
       <div className="fixed inset-0 pointer-events-none z-10 opacity-15">
-        <motion.div
+        <m.div
           className="w-full h-px bg-cyan-400"
           animate={{ y: ['-10%', '110%'] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
         />
       </div>
 
-      {/* Back Button */}
       <button
         onClick={() => router.push('/')}
         className="fixed top-4 left-4 z-30 px-3 py-2 text-xs text-cyan-400/70 hover:text-cyan-400 transition-colors border border-cyan-400/30 hover:border-cyan-400/60 rounded-lg bg-black/40 backdrop-blur-sm"
@@ -183,91 +439,33 @@ export function MatchmakingScreen() {
         ← BACK
       </button>
 
-      {/* Main Content */}
       <div className="relative z-20 flex flex-col items-center gap-12 px-6">
-        {/* Title */}
         <div className="text-center">
-          <motion.h1
+          <m.h1
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6 }}
             className="font-[family-name:var(--font-orbitron)] text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-[0.25em] text-white"
           >
             ENTER THE GRID
-          </motion.h1>
-          <motion.h2
+          </m.h1>
+          <m.h2
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-[0.2em] text-cyan-400 glow-text-grid"
           >
             GRID
-          </motion.h2>
+          </m.h2>
 
-          {/* Reserved space for "PLAYING AS" section (100px min-height prevents layout shift) */}
-          <div className="mt-4 min-h-[100px]">
-            <AnimatePresence>
-              {displayName && matchState !== 'login' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex flex-col items-center"
-                >
-                  {/* Enhanced label row with better visibility */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <motion.p className="text-cyan-400/70 text-[10px] tracking-[0.25em] font-medium glow-text-label">
-                      PLAYING AS
-                    </motion.p>
-                  </div>
-
-                  {/* Username display with Farcaster profile for Base App */}
-                  <motion.div
-                    className="relative flex flex-col items-center gap-3"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  >
-                    {/* Farcaster avatar for Base App - positioned above name */}
-                    {isInMiniApp && miniAppUser?.pfpUrl && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.4, delay: 0.1 }}
-                        className="relative"
-                      >
-                        {/* Outer glow ring */}
-                        <div className="absolute -inset-1 rounded-full bg-cyan-400/20 blur-md" />
-                        {/* Animated pulse ring */}
-                        <motion.div
-                          className="absolute -inset-2 rounded-full border border-cyan-400/40"
-                          animate={{
-                            scale: [1, 1.1, 1],
-                            opacity: [0.4, 0.2, 0.4],
-                          }}
-                          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                        />
-                        <Image
-                          src={miniAppUser.pfpUrl}
-                          alt=""
-                          width={56}
-                          height={56}
-                          unoptimized
-                          className="relative rounded-full border-2 border-cyan-400/50 object-cover"
-                        />
-                      </motion.div>
-                    )}
-                    <PlayerName
-                      username={displayName}
-                      className="text-2xl tracking-wider relative z-10"
-                    />
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <PlayingAsPanel
+            displayName={displayName}
+            matchState={matchState}
+            isInMiniApp={isInMiniApp}
+            miniAppPfpUrl={miniAppUser?.pfpUrl}
+          />
         </div>
 
-        {/* Game Settings Selector - Show when authenticated */}
         {matchState !== 'login' && (
           <GameSettingsSelector
             selectedDuration={selectedGameDuration}
@@ -276,191 +474,31 @@ export function MatchmakingScreen() {
           />
         )}
 
-        {/* Auth Section - reserved space (200px min-height) prevents layout shift */}
-        <div className="flex flex-col items-center">
-          <div className="min-h-[200px] w-full max-w-md">
-            <AnimatePresence mode="wait">
-              {matchState === 'login' && (
-                <motion.div
-                  key="login"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4 }}
-                  layout
-                  className="flex flex-col items-center gap-4"
-                >
-                  <p className="text-gray-400 text-sm tracking-wider">
-                    {isInMiniApp ? 'CONNECTING...' : 'CONNECT TO PLAY'}
-                  </p>
-                  {!isInMiniApp && (
-                    <ActionButton onClick={login} color="cyan">
-                      LOGIN WITH GOOGLE
-                    </ActionButton>
-                  )}
-                </motion.div>
-              )}
-
-              {matchState === 'ready' && (
-                <motion.div
-                  key="ready"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4 }}
-                  layout
-                  className="flex flex-col items-center gap-3"
-                >
-                  <p className="text-green-400 text-xs tracking-wider">READY TO PLAY</p>
-
-                  <div className="flex flex-col gap-3 w-full min-w-[200px]">
-                    <ActionButton
-                      onClick={handleEnter}
-                      disabled={!isConnected || isMatching}
-                      color="cyan"
-                    >
-                      {isMatching ? 'ENTERING...' : 'AUTO-MATCH'}
-                    </ActionButton>
-                    <ActionButton
-                      onClick={() => {
-                        getLobbyPlayers()
-                        setUserState('lobby')
-                      }}
-                      disabled={!isConnected}
-                      color="cyan"
-                    >
-                      SELECT OPPONENT
-                    </ActionButton>
-                  </div>
-
-                  {/* Logout button - only for Privy users */}
-                  {!isInMiniApp && (
-                    <button
-                      onClick={logout}
-                      className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                    >
-                      LOGOUT
-                    </button>
-                  )}
-                </motion.div>
-              )}
-
-              {matchState === 'entering' && (
-                <motion.div
-                  key="entering"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4 }}
-                  layout
-                  className="flex flex-col items-center gap-3"
-                >
-                  <p className="text-cyan-400 text-xs tracking-wider animate-pulse">
-                    FINDING OPPONENT...
-                  </p>
-                </motion.div>
-              )}
-
-              {matchState === 'lobby' && (
-                <motion.div
-                  key="lobby"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4 }}
-                  layout
-                  className="flex flex-col items-center gap-4 w-full max-w-md"
-                >
-                  <button
-                    onClick={() => {
-                      leaveWaitingPool()
-                      setUserState(null) // Reset to auth-derived state
-                    }}
-                    className="text-cyan-400/60 hover:text-cyan-400 transition-colors text-xs"
-                  >
-                    ← BACK
-                  </button>
-
-                  <p className="text-cyan-400/70 text-[10px] tracking-[0.25em]">
-                    AVAILABLE OPPONENTS
-                  </p>
-
-                  {lobbyPlayers.length === 0 ? (
-                    <p className="text-cyan-400/60 text-xs">NO PLAYERS WAITING</p>
-                  ) : (
-                    <div className="flex flex-col gap-2 w-full">
-                      <AnimatePresence mode="popLayout">
-                        {lobbyPlayers.map((player) => {
-                          // Format duration for display
-                          const formatDuration = (ms: number) => {
-                            const mins = ms / 60000
-                            return `${mins}MIN`
-                          }
-
-                          // Check if player has matching game duration
-                          const hasMatchingSettings = player.gameDuration === selectedGameDuration
-
-                          return (
-                            <motion.button
-                              key={player.socketId}
-                              onClick={() => handleSelectOpponent(player.socketId)}
-                              disabled={isMatching}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                              className={cn(
-                                'relative px-4 py-3 bg-black/40 border rounded-lg overflow-hidden scale-pulse-button min-w-[200px]',
-                                hasMatchingSettings
-                                  ? 'border-cyan-400/40 hover:border-cyan-400/60'
-                                  : 'border-cyan-400/20 hover:border-cyan-400/40 opacity-60'
-                              )}
-                            >
-                              <div className="relative z-10 flex flex-col items-center gap-1">
-                                <PlayerName username={player.name} className="text-sm" />
-                                <div className="flex items-center gap-2 text-[9px] tracking-wider">
-                                  <span
-                                    className={
-                                      player.gameDuration === selectedGameDuration
-                                        ? 'text-cyan-400'
-                                        : 'text-cyan-400/50'
-                                    }
-                                  >
-                                    {formatDuration(player.gameDuration)}
-                                  </span>
-                                </div>
-                              </div>
-                            </motion.button>
-                          )
-                        })}
-                      </AnimatePresence>
-                    </div>
-                  )}
-
-                  <ActionButton
-                    onClick={getLobbyPlayers}
-                    isLoading={isRefreshingLobby}
-                    disabled={isMatching}
-                    color="cyan"
-                  >
-                    REFRESH
-                  </ActionButton>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+        <MatchmakingAuthPanel
+          matchState={matchState}
+          isInMiniApp={isInMiniApp}
+          isConnected={isConnected}
+          isMatching={isMatching}
+          isRefreshingLobby={isRefreshingLobby}
+          selectedGameDuration={selectedGameDuration}
+          lobbyPlayers={lobbyPlayers}
+          onLogin={login}
+          onLogout={logout}
+          onEnter={handleEnter}
+          onOpenLobby={() => {
+            getLobbyPlayers()
+            setUserState('lobby')
+          }}
+          onBackFromLobby={() => {
+            leaveWaitingPool()
+            setUserState(null)
+          }}
+          onRefreshLobby={getLobbyPlayers}
+          onSelectOpponent={handleSelectOpponent}
+        />
       </div>
 
-      {/* Bottom dots */}
-      <div className="fixed bottom-12 left-0 right-0 z-20 flex justify-center gap-2">
-        {[...Array(BOTTOM_DOTS_COUNT)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="w-0.5 h-0.5 bg-cyan-400/40"
-            animate={{ opacity: [0.2, 1, 0.2], scaleY: [1, 2, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
-          />
-        ))}
-      </div>
+      <MatchmakingBottomDots />
     </div>
   )
 }

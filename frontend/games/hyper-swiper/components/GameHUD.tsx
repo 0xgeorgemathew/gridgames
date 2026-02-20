@@ -4,11 +4,13 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useTradingStore } from '../game/stores/trading-store'
 import { HowToPlayModal } from './HowToPlayModal'
 import { SettlementFlash } from './SettlementFlash'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 
 // Import extracted components
 import {
   CompactPriceRow,
+  LeverageSelector,
+  PriceLoadingState,
   SinglePlayerHealth,
   containerVariants,
 } from './GameHUD-modules'
@@ -54,14 +56,14 @@ export const GameHUD = React.memo(function GameHUD() {
       {/* Price Feed Loading Overlay - Full screen when connecting */}
       <AnimatePresence>
         {isPlaying && isShowingLoading && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-none"
           >
             <div className="text-center">
-              <motion.div
+              <m.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.2 }}
@@ -70,37 +72,22 @@ export const GameHUD = React.memo(function GameHUD() {
                   boxShadow: '0 0 40px rgba(0,243,255,0.2), inset 0 0 40px rgba(0,243,255,0.05)',
                 }}
               >
-                <div className="flex flex-col items-center gap-4">
-                  {/* Simple loading indicator */}
-                  <motion.div
-                    className="w-12 h-12 rounded-full border-4 border-tron-cyan/20 border-t-tron-cyan"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                  />
-
-                  <motion.p
-                    className="text-sm text-tron-cyan font-medium tracking-wider"
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    CONNECTING TO MARKET...
-                  </motion.p>
-                </div>
-              </motion.div>
+                <PriceLoadingState />
+              </m.div>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       {/* Bottom Navigation HUD */}
-      <motion.div
+      <m.div
         className="fixed bottom-0 left-0 right-0 z-30 pt-3 pb-safe pb-6 bottom-nav-container"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         <div>
-          <motion.div
+          <m.div
             className="glass-panel-vibrant rounded-t-xl overflow-hidden"
             animate={{
               boxShadow: [
@@ -129,7 +116,7 @@ export const GameHUD = React.memo(function GameHUD() {
 
             {/* Divider */}
             {isGameReady && (
-              <motion.div
+              <m.div
                 className="h-px bg-gradient-to-r from-transparent via-tron-cyan/50 to-transparent"
                 animate={{ opacity: [0.3, 0.6, 0.3] }}
                 transition={{ duration: 2, repeat: Infinity }}
@@ -140,19 +127,20 @@ export const GameHUD = React.memo(function GameHUD() {
             {isGameReady && localPlayer && (
               <div className="p-2 sm:p-3">
                 <SinglePlayerHealth dollars={localPlayer.dollars} />
+                <LeverageSelector />
               </div>
             )}
 
             {/* Game Over - Play Again Button */}
             <AnimatePresence>
               {isGameOver && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   className="flex justify-center p-3"
                 >
-                  <motion.button
+                  <m.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={playAgain}
@@ -161,13 +149,13 @@ export const GameHUD = React.memo(function GameHUD() {
                     <span className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.15em] text-tron-cyan font-medium">
                       PLAY AGAIN
                     </span>
-                  </motion.button>
-                </motion.div>
+                  </m.button>
+                </m.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </m.div>
         </div>
-      </motion.div>
+      </m.div>
     </>
   )
 })

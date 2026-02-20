@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import { useTradingStore } from '../game/stores/trading-store'
 import { cn } from '@/lib/utils'
 import { formatPrice } from '@/lib/formatPrice'
@@ -36,7 +36,7 @@ export function PositionIndicator() {
                 : 'border-2 border-red-500/60 shadow-[0_0_18px_rgba(248,113,113,0.35)]'
 
             return (
-              <motion.div
+              <m.div
                 key={position.id}
                 initial={{ y: 80, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -49,7 +49,7 @@ export function PositionIndicator() {
               >
                 {/* Animated glow effect for profit/loss */}
                 {!isNearZero && (
-                  <motion.div
+                  <m.div
                     className="absolute inset-0 pointer-events-none"
                     animate={{
                       opacity: [0.08, 0.16, 0.08],
@@ -70,7 +70,7 @@ export function PositionIndicator() {
                   {/* Left: Entry Point & Direction */}
                   <div className="flex items-center gap-2">
                     {/* Direction indicator */}
-                    <motion.div
+                    <m.div
                       className={cn(
                         'w-8 h-8 rounded-lg flex items-center justify-center relative',
                         position.isLong ? 'bg-green-500/20' : 'bg-red-500/20'
@@ -85,7 +85,7 @@ export function PositionIndicator() {
                       )}
 
                       {/* Pulse ring */}
-                      <motion.div
+                      <m.div
                         className={cn(
                           'absolute inset-0 rounded-lg',
                           position.isLong ? 'border border-green-400' : 'border border-red-400'
@@ -99,7 +99,7 @@ export function PositionIndicator() {
                           repeat: Infinity,
                         }}
                       />
-                    </motion.div>
+                    </m.div>
 
                     {/* Entry price with current price */}
                     <div className="flex flex-col">
@@ -111,7 +111,7 @@ export function PositionIndicator() {
                           ${formatPrice(position.openPrice)}
                         </span>
                         {/* Current price */}
-                        <motion.span
+                        <m.span
                           className={cn(
                             'text-[10px] font-mono font-medium',
                             isInProfit
@@ -131,7 +131,7 @@ export function PositionIndicator() {
                           transition={{ duration: 1, repeat: Infinity }}
                         >
                           {isInProfit ? '↑' : isNearZero ? '→' : '↓'}
-                        </motion.span>
+                        </m.span>
                         <span
                           className={cn(
                             'text-xs font-mono',
@@ -150,7 +150,7 @@ export function PositionIndicator() {
 
                   {/* Center: Real-time PnL (percentage only) */}
                   <div className="flex-1 flex items-center justify-center">
-                    <motion.div
+                    <m.div
                       className={cn(
                         'flex items-center gap-1.5 px-3 py-1 rounded-lg',
                         isNearZero
@@ -181,14 +181,14 @@ export function PositionIndicator() {
                         {isInProfit ? '+' : ''}
                         {pnlPercent.toFixed(1)}%
                       </span>
-                    </motion.div>
+                    </m.div>
                   </div>
 
                   {/* Right: Position type badge with leverage */}
                   <div className="flex items-center gap-1">
                     {/* Leverage badge */}
                     {position.leverage > 1 && (
-                      <motion.div
+                      <m.div
                         className={cn(
                           'px-1.5 py-0.5 rounded text-[9px] font-bold',
                           position.leverage === 2 &&
@@ -210,7 +210,7 @@ export function PositionIndicator() {
                         }}
                       >
                         {position.leverage}X
-                      </motion.div>
+                      </m.div>
                     )}
 
                     <div
@@ -225,7 +225,7 @@ export function PositionIndicator() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             )
           })}
         </AnimatePresence>

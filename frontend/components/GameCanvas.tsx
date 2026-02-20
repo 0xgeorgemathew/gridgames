@@ -8,7 +8,7 @@ const GameCanvasClient = dynamic(() => import('./GameCanvasClient').then((mod) =
   ssr: false,
 })
 
-export interface GameCanvasProps {
+interface GameCanvasProps {
   scene?: SceneType
 }
 

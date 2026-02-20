@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -14,7 +14,7 @@ export interface Toast {
   duration?: number
 }
 
-export interface ToastNotificationsProps {
+interface ToastNotificationsProps {
   toasts: Toast[]
   onRemove: (id: string) => void
 }
@@ -34,7 +34,7 @@ export const ToastNotifications = React.memo(function ToastNotifications({
     <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
       <AnimatePresence>
         {toasts.map((toast) => (
-          <motion.div
+          <m.div
             key={toast.id}
             initial={{ opacity: 0, y: -20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -53,7 +53,7 @@ export const ToastNotifications = React.memo(function ToastNotifications({
             >
               <X className="w-4 h-4" />
             </button>
-          </motion.div>
+          </m.div>
         ))}
       </AnimatePresence>
     </div>

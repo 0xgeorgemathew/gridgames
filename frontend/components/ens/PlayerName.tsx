@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 
 interface PlayerNameProps {
   username?: string | null
@@ -37,7 +37,7 @@ export function PlayerName({
       // Base Name with .base.eth styling
       if (parsedName.isBaseName && parsedName.suffix) {
         return enableGlow ? (
-          <motion.span
+          <m.span
             className="font-[family-name:var(--font-orbitron)] inline-flex items-baseline"
             animate={{
               textShadow: [
@@ -48,7 +48,7 @@ export function PlayerName({
             }}
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <motion.span
+            <m.span
               className={className || 'text-white'}
               animate={{
                 textShadow: [
@@ -60,8 +60,8 @@ export function PlayerName({
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
               {parsedName.prefix}
-            </motion.span>
-            <motion.span
+            </m.span>
+            <m.span
               className="text-cyan-400"
               animate={{
                 textShadow: [
@@ -73,8 +73,8 @@ export function PlayerName({
               transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
             >
               {parsedName.suffix}
-            </motion.span>
-          </motion.span>
+            </m.span>
+          </m.span>
         ) : (
           <span
             className={`font-[family-name:var(--font-orbitron)] inline-flex items-baseline ${className || 'text-white'}`}
@@ -87,7 +87,7 @@ export function PlayerName({
 
       // Non-Base Name (regular display)
       return enableGlow ? (
-        <motion.span
+        <m.span
           className="font-[family-name:var(--font-orbitron)] inline-block"
           animate={{
             textShadow: [
@@ -98,7 +98,7 @@ export function PlayerName({
           }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <motion.span
+          <m.span
             className={className || 'text-white'}
             animate={{
               textShadow: [
@@ -110,8 +110,8 @@ export function PlayerName({
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           >
             {displayName}
-          </motion.span>
-        </motion.span>
+          </m.span>
+        </m.span>
       ) : (
         <span className={`font-[family-name:var(--font-orbitron)] ${className || 'text-white'}`}>
           {displayName}

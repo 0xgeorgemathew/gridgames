@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { useTradingStore } from '../game/stores/trading-store'
 import { cn } from '@/lib/utils'
 import { PlayerName } from '@/components/ens/PlayerName'
@@ -59,25 +59,25 @@ export const GameOverModal = React.memo(function GameOverModal() {
     gameSettlement?.positions?.filter((p) => p.playerId === localPlayerId) ?? []
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center"
     >
-      <motion.div
+      <m.div
         initial={{ scale: 0.8, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 24 }}
         className="glass-panel-vibrant rounded-2xl p-8 max-w-lg mx-4 text-center max-h-[90vh] overflow-y-auto"
       >
         {/* Victory/Defeat Header */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
+        <m.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2, type: 'spring', stiffness: 400 }}
           className="mb-6"
         >
-          <motion.h2
+          <m.h2
             className={cn(
               'font-[family-name:var(--font-orbitron)] text-4xl sm:text-5xl font-black tracking-[0.15em]',
               isTie ? 'text-white' : isWinner ? 'text-tron-cyan' : 'text-tron-orange'
@@ -86,7 +86,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
             transition={GLOW_ANIMATION.transition}
           >
             {isTie ? "IT'S A TIE" : isWinner ? 'VICTORY' : 'DEFEAT'}
-          </motion.h2>
+          </m.h2>
           {isTie ? (
             <div className="text-white/70 mt-2 text-sm tracking-[0.2em]">GAME ENDED IN A TIE</div>
           ) : (
@@ -107,11 +107,11 @@ export const GameOverModal = React.memo(function GameOverModal() {
               <span>WINS BY TOTAL PNL</span>
             </div>
           )}
-        </motion.div>
+        </m.div>
 
         {/* Final Price */}
         {gameSettlement && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
@@ -121,11 +121,11 @@ export const GameOverModal = React.memo(function GameOverModal() {
             <div className="text-xl font-mono font-bold text-tron-cyan">
               ${formatPrice(gameSettlement.closePrice)}
             </div>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Player Results */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
@@ -139,7 +139,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
           </p>
           <div className="grid grid-cols-2 gap-4">
             {/* Local Player */}
-            <motion.div
+            <m.div
               whileHover={{ scale: 1.02 }}
               className={cn(
                 'relative flex flex-col items-center p-3 rounded-lg border backdrop-blur-sm overflow-hidden group',
@@ -157,7 +157,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
               >
                 YOU
               </span>
-              <motion.span
+              <m.span
                 className={cn(
                   'font-[family-name:var(--font-orbitron)] text-xl font-bold tracking-[0.2em] relative z-10',
                   isWinner ? 'text-tron-cyan' : 'text-tron-orange'
@@ -178,7 +178,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               >
                 {localTotalPnl >= 0 ? '+' : ''}${localTotalPnl.toFixed(2)}
-              </motion.span>
+              </m.span>
               <div className="flex flex-col items-center mt-1 relative z-10">
                 <span
                   className={cn(
@@ -192,10 +192,10 @@ export const GameOverModal = React.memo(function GameOverModal() {
                   {localPositionCount} position{localPositionCount !== 1 ? 's' : ''}
                 </span>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Opponent */}
-            <motion.div
+            <m.div
               whileHover={{ scale: 1.02 }}
               className={cn(
                 'relative flex flex-col items-center p-3 rounded-lg border backdrop-blur-sm overflow-hidden group',
@@ -221,7 +221,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                   'OPPONENT'
                 )}
               </span>
-              <motion.span
+              <m.span
                 className={cn(
                   'font-[family-name:var(--font-orbitron)] text-xl font-bold tracking-[0.2em] relative z-10',
                   isWinner ? 'text-tron-orange' : 'text-tron-cyan'
@@ -242,7 +242,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               >
                 {opponentTotalPnl >= 0 ? '+' : ''}${opponentTotalPnl.toFixed(2)}
-              </motion.span>
+              </m.span>
               <div className="flex flex-col items-center mt-1 relative z-10">
                 <span
                   className={cn(
@@ -256,13 +256,13 @@ export const GameOverModal = React.memo(function GameOverModal() {
                   {opponentPositionCount} position{opponentPositionCount !== 1 ? 's' : ''}
                 </span>
               </div>
-            </motion.div>
+            </m.div>
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Your Positions Summary */}
         {localPositions.length > 0 && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
@@ -306,11 +306,11 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
 
         {/* PLAY AGAIN Button */}
-        <motion.button
+        <m.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={playAgain}
@@ -319,7 +319,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <motion.div
+          <m.div
             className="absolute inset-0 rounded-lg"
             animate={{
               boxShadow: [
@@ -331,7 +331,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div className="relative px-12 py-3 bg-black/40 backdrop-blur-md border border-cyan-400/30 rounded">
-            <motion.span
+            <m.span
               className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.2em] font-medium block text-tron-cyan"
               animate={{
                 textShadow: [
@@ -343,9 +343,9 @@ export const GameOverModal = React.memo(function GameOverModal() {
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
               PLAY AGAIN
-            </motion.span>
+            </m.span>
           </div>
-          <motion.div
+          <m.div
             className="absolute inset-0 rounded-lg"
             initial={{ opacity: 0 }}
             whileHover={{ opacity: 1 }}
@@ -354,8 +354,8 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 'radial-gradient(ellipse at center, rgba(0,217,255,0.15) 0%, transparent 70%)',
             }}
           />
-        </motion.button>
-      </motion.div>
-    </motion.div>
+        </m.button>
+      </m.div>
+    </m.div>
   )
 })

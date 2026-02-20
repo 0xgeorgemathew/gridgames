@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 
 const BUTTON_TRANSITION = { duration: 2, repeat: Infinity, ease: 'easeInOut' as const }
 
@@ -12,9 +12,9 @@ const COLOR_CONFIG = {
   purple: { border: 'border-purple-400/30', text: 'text-purple-300', glow: 'rgba(168,85,247,0.6)' },
 }
 
-export type ActionButtonColor = keyof typeof COLOR_CONFIG
+type ActionButtonColor = keyof typeof COLOR_CONFIG
 
-export type ActionButtonProps = {
+type ActionButtonProps = {
   children: React.ReactNode
   onClick: () => void
   color: ActionButtonColor
@@ -38,14 +38,14 @@ export function ActionButton({
   const textSize = size === 'sm' ? 'text-[9px]' : 'text-[10px]'
 
   return (
-    <motion.button
+    <m.button
       onClick={onClick}
       disabled={disabled || isLoading}
       className="relative group"
       whileHover={isInteractive ? { scale: 1.02 } : undefined}
       whileTap={isInteractive ? { scale: 0.98 } : undefined}
     >
-      <motion.div
+      <m.div
         className="absolute inset-0 rounded-lg"
         animate={{
           boxShadow: isInteractive
@@ -57,7 +57,7 @@ export function ActionButton({
       <div
         className={`relative ${paddingClass} bg-black/40 backdrop-blur-md border ${config.border} rounded`}
       >
-        <motion.span
+        <m.span
           className={`font-[family-name:var(--font-orbitron)] ${textSize} tracking-[0.3em] font-medium block ${config.text}`}
           animate={
             isInteractive
@@ -73,8 +73,8 @@ export function ActionButton({
           transition={BUTTON_TRANSITION}
         >
           {children}
-        </motion.span>
+        </m.span>
       </div>
-    </motion.button>
+    </m.button>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 /**
@@ -46,7 +46,7 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
   }, [])
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -62,15 +62,13 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
 
         {/* Duration Selection */}
         <div>
-          <p className="text-cyan-400/50 text-[9px] tracking-[0.2em] mb-2 text-center">
-            DURATION
-          </p>
+          <p className="text-cyan-400/50 text-[9px] tracking-[0.2em] mb-2 text-center">DURATION</p>
           <div className="flex items-center justify-center gap-2">
             {TIME_OPTIONS.map((option) => {
               const isSelected = selectedDuration === option.value
 
               return (
-                <motion.button
+                <m.button
                   key={option.value}
                   onClick={() => !disabled && onDurationChange(option.value)}
                   disabled={disabled}
@@ -92,7 +90,7 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
                   title={`${option.description} - ${option.label}`}
                 >
                   {isSelected && (
-                    <motion.div
+                    <m.div
                       className="absolute inset-0 rounded-lg"
                       initial={{ opacity: 0.3 }}
                       animate={{ opacity: [0.3, 0.5, 0.3] }}
@@ -103,12 +101,12 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
                     />
                   )}
                   <span className="relative z-10">{option.label}</span>
-                </motion.button>
+                </m.button>
               )
             })}
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   )
 })
