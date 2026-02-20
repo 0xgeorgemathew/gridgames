@@ -1,8 +1,4 @@
 import { AUTO } from 'phaser'
-import { GAME_CONFIG } from './constants'
-
-// Re-export for convenience
-export { GAME_CONFIG }
 
 // Grid dimensions
 export interface GridConfig {
@@ -18,22 +14,26 @@ export const DEFAULT_GRID: GridConfig = {
 }
 
 // Trading scene dimensions (fixed for consistent gameplay)
-export const TRADING_DIMENSIONS = {
+const TRADING_DIMENSIONS = {
   width: 600,
   height: 800,
 } as const
 
-// Mobile-aware scale helpers
-export function getMobileScaleMultiplier(): number {
-  if (typeof window === 'undefined') return 1
-  const width = window.innerWidth
-  // Scale down more aggressively for screens smaller than 600px
-  // Minimum 0.5 scale (50% size) for very small screens
-  return Math.max(0.5, Math.min(1, width / 600))
-}
+function getTargetFrameRate(): number {
+  if (typeof window === 'undefined') return 90
 
-export function getCoinConfigScale(): number {
-  return getMobileScaleMultiplier()
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (prefersReducedMotion) return 60
+
+  const cores = navigator.hardwareConcurrency ?? 4
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4
+  const isMobile =
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+    window.matchMedia('(pointer: coarse)').matches
+
+  if (isMobile && cores >= 8 && memory >= 6) return 120
+  if (isMobile && cores >= 6 && memory >= 4) return 90
+  return 60
 }
 
 // Visual theme colors (consolidated magic numbers)
@@ -59,9 +59,9 @@ export const RENDER = {
 } as const
 
 // Common physics config (zero gravity for top-down games)
-const PHYSICS_CONFIG = {
+const PHYSICS_CONFIG_BASE = {
   default: 'arcade',
-  arcade: { gravity: { x: 0, y: 0 }, fps: 45 },
+  arcade: { gravity: { x: 0, y: 0 }, fps: 60 },
 } as const
 
 // Input config moved to factory function (evaluated when DOM exists)
@@ -73,8 +73,9 @@ interface PhaserConfigOptions {
   fitToScreen?: boolean
 }
 
-export function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.GameConfig {
+function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.GameConfig {
   const { scene, width, height, fitToScreen = false } = options
+  const targetFrameRate = getTargetFrameRate()
 
   // Create input config fresh each time (DOM element exists now)
   // Moving from module-level to factory fixes null target issue
@@ -92,10 +93,16 @@ export function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.C
     pixelArt: false, // Smooth scaling (not pixelated)
     antialias: true, // Anti-aliased rendering
     fps: {
-      target: 60, // Increase from 45 to 60 for smoother gameplay
+      target: targetFrameRate,
       forceSetTimeOut: false,
     },
-    physics: PHYSICS_CONFIG,
+    physics: {
+      ...PHYSICS_CONFIG_BASE,
+      arcade: {
+        ...PHYSICS_CONFIG_BASE.arcade,
+        fps: targetFrameRate,
+      },
+    },
     input: inputConfig, // Add input config
     scene: [scene],
   }

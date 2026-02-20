@@ -1,7 +1,7 @@
 import { Scene, GameObjects, Physics, Tweens } from 'phaser'
 import type { CoinType } from '../types/trading'
 
-export interface CoinConfig {
+interface CoinConfig {
   color: number
   edgeColor: number // Darker shade for milled edge/rim
   radius: number
