@@ -1,13 +1,11 @@
-'use client'
+import type { Metadata } from 'next'
+import { HomeClient } from './HomeClient'
 
-import { GameSelectionScreen } from '@/components/GameSelectionScreen'
-import { useEffect } from 'react'
-import { sdk } from '@farcaster/miniapp-sdk'
+export const metadata: Metadata = {
+  title: 'Grid Games | Choose a Game',
+  description: 'Pick a game mode and enter the Grid Games arena on Base Mini App.',
+}
 
 export default function Home() {
-  useEffect(() => {
-    sdk.actions.ready().catch(console.error)
-  }, [])
-
-  return <GameSelectionScreen />
+  return <HomeClient />
 }
