@@ -14,6 +14,7 @@ import type {
   LobbyUpdatedEvent,
   Position,
   GameSettlementEvent,
+  LiquidationEvent,
 } from '../../types/trading'
 import type { Toast } from '@/components/ToastNotifications'
 
@@ -76,7 +77,13 @@ export interface GameState {
   openPositions: Map<string, Position> // Open positions (no settlement timer)
   gameSettlement: GameSettlementEvent | null // Settlement data at game end
   toasts: Toast[]
-  leverage: number // Manual leverage selector (1, 2, 5, 10)
+  leverage: number // In-game leverage (fixed at 100X)
+}
+
+// Matchmaking settings slice
+export interface MatchmakingSettingsState {
+  selectedGameDuration: number // Game duration in ms (60000, 120000, 180000)
+  selectedLeverage: number // Leverage for matchmaking (fixed at 100X)
 }
 
 // Audio state slice
@@ -108,7 +115,8 @@ export interface TradingState
     TimerState,
     GameState,
     AudioState,
-    PriceFeedState {
+    PriceFeedState,
+    MatchmakingSettingsState {
   // Actions
   connect: () => void
   disconnect: () => void
@@ -116,9 +124,12 @@ export interface TradingState
   spawnCoin: (coin: CoinSpawnEvent) => void
   sliceCoin: (coinId: string, coinType: CoinType) => void
   setLeverage: (leverage: number) => void
+  setSelectedGameDuration: (duration: number) => void
+  setSelectedLeverage: (leverage: number) => void
   handleSlice: (slice: SliceEvent) => void
   handlePositionOpened: (position: PositionOpenedEvent) => void
   handleGameSettlement: (settlement: GameSettlementEvent) => void
+  handlePositionLiquidated: (liquidation: LiquidationEvent) => void
   handleGameStart: (data: GameStartEvent) => void
   handleGameOver: (data: GameOverEvent) => void
   handlePlayerHit: (data: { playerId: string; damage: number; reason: string }) => void
@@ -154,4 +165,5 @@ export type {
   LobbyUpdatedEvent,
   Position,
   GameSettlementEvent,
+  LiquidationEvent,
 }

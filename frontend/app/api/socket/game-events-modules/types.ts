@@ -16,7 +16,8 @@ export interface WaitingPlayer {
   sceneWidth?: number
   sceneHeight?: number
   walletAddress?: string
-  leverage: number // ENS leverage for matchmaking (2, 5, 10, 20)
+  leverage: number // Fixed leverage for matchmaking (100X)
+  gameDuration: number // Game duration in ms (60000, 120000, 180000)
 }
 
 // Server-side coin
@@ -53,6 +54,7 @@ export interface PositionSettlementResult {
   closePrice: number
   realizedPnl: number
   isProfitable: boolean
+  isLiquidated: boolean
 }
 
 // Player settlement summary at game end
@@ -62,7 +64,7 @@ export interface PlayerSettlementResult {
   totalPnl: number
   positionCount: number
   winningPositions: number
-  finalBalance: number
+  finalBalance: number // STARTING_CASH + totalPnl (floored at 0)
 }
 
 // Game settlement event data
@@ -82,6 +84,20 @@ export interface SpawnedCoin {
   id: string
   type: 'long' | 'short'
   xNormalized: number
+}
+
+// Liquidation event when position is force-closed due to low collateral health
+export interface LiquidationEvent {
+  positionId: string
+  playerId: string
+  playerName: string
+  isLong: boolean
+  leverage: number
+  collateral: number
+  openPrice: number
+  liquidationPrice: number
+  healthRatio: number // Collateral health ratio at liquidation (<= 80%)
+  pnlAtLiquidation: number // Unrealized PnL at time of liquidation
 }
 
 // Re-export types from trading for convenience

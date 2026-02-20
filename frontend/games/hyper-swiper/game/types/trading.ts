@@ -23,7 +23,7 @@ export type Player = {
   score: number
   sceneWidth: number // Player's device width for coin spawning
   sceneHeight: number // Player's device height for coin spawning
-  leverage: number // ENS leverage multiplier (2, 5, 10, 20) - cached at match time
+  leverage: number // Fixed leverage multiplier (100X)
 }
 
 /**
@@ -138,7 +138,8 @@ export type LobbyPlayer = {
   socketId: string
   name: string
   joinedAt: number
-  leverage: number // ENS leverage multiplier for fair matchmaking
+  leverage: number // Fixed leverage multiplier for matchmaking (100X)
+  gameDuration: number // Game duration in ms for fair matchmaking
 }
 
 /**
@@ -188,7 +189,7 @@ export interface Position {
 
   // Position details
   isLong: boolean // Direction: true=LONG, false=SHORT
-  leverage: number // Leverage multiplier (2, 5, 10, 20)
+  leverage: number // Leverage multiplier (fixed at 100X)
   collateral: number // Fixed at $1 per position
 
   // Price tracking
@@ -232,6 +233,7 @@ export interface PositionSettlementResult {
   closePrice: number
   realizedPnl: number // Calculated PnL
   isProfitable: boolean
+  isLiquidated: boolean
 }
 
 /**
@@ -257,5 +259,22 @@ export interface GameSettlementEvent {
     playerId: string
     playerName: string
     winningBalance: number
-  }
+  } | null
+}
+
+/**
+ * Liquidation event - emitted when position is force-closed due to low collateral health
+ * Following Avantis Docs: positions are liquidated when collateral health ratio <= 80%
+ */
+export interface LiquidationEvent {
+  positionId: string
+  playerId: string
+  playerName: string
+  isLong: boolean
+  leverage: number
+  collateral: number
+  openPrice: number
+  liquidationPrice: number // Price at which position was liquidated
+  healthRatio: number // Collateral health ratio at liquidation (<= 0.80)
+  pnlAtLiquidation: number // Unrealized PnL at time of liquidation
 }
