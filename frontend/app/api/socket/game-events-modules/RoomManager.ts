@@ -32,6 +32,10 @@ export class RoomManager {
     return this.rooms.size
   }
 
+  getAllRooms(): GameRoom[] {
+    return Array.from(this.rooms.values())
+  }
+
   deleteRoom(roomId: string): void {
     const room = this.rooms.get(roomId)
     if (!room) return
