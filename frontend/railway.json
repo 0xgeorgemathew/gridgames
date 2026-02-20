@@ -9,8 +9,6 @@
     "numReplicas": 1,
     "sleepApplication": true,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10,
-    "healthcheckPath": "/api/health",
-    "healthcheckGracePeriod": 30000
+    "restartPolicyMaxRetries": 10
   }
 }
