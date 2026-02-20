@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { useTradingStore } from '@/game/stores/trading-store'
 import { cn } from '@/lib/utils'
 import { PlayerName } from '@/components/ens/PlayerName'
+import { formatPrice } from '@/lib/formatPrice'
 
 const GLOW_ANIMATION = {
   textShadow: [
@@ -16,7 +17,7 @@ const GLOW_ANIMATION = {
 } as const
 
 export const GameOverModal = React.memo(function GameOverModal() {
-  const { isGameOver, gameOverData, localPlayerId, playAgain, players } = useTradingStore()
+  const { isGameOver, gameOverData, localPlayerId, playAgain, players, gameSettlement } = useTradingStore()
   const [showModal, setShowModal] = React.useState(false)
 
   // Show modal after short delay
@@ -36,17 +37,24 @@ export const GameOverModal = React.memo(function GameOverModal() {
   const isWinner = gameOverData.winnerId === localPlayerId
   const isTie = gameOverData.winnerId === null
 
-  // Prefer playerResults from gameOverData (authoritative), fallback to players array
-  const localPlayerResult = gameOverData.playerResults?.find((r) => r.playerId === localPlayerId)
-  const opponentResult = gameOverData.playerResults?.find((r) => r.playerId !== localPlayerId)
+  // Use gameSettlement for detailed results
+  const localPlayerResult = gameSettlement?.playerResults?.find((r) => r.playerId === localPlayerId)
+  const opponentResult = gameSettlement?.playerResults?.find((r) => r.playerId !== localPlayerId)
 
-  // Fallback to players array if playerResults not available
+  // Fallback to players array if gameSettlement not available
   const localPlayer = players.find((p) => p.id === localPlayerId)
   const opponent = players.find((p) => p.id !== localPlayerId)
 
-  // Use final balance from settlement results, or fallback to current dollars
+  // Use settlement results or fallback
   const localFinalBalance = localPlayerResult?.finalBalance ?? localPlayer?.dollars ?? 0
   const opponentFinalBalance = opponentResult?.finalBalance ?? opponent?.dollars ?? 0
+  const localTotalPnl = localPlayerResult?.totalPnl ?? 0
+  const opponentTotalPnl = opponentResult?.totalPnl ?? 0
+  const localPositionCount = localPlayerResult?.positionCount ?? 0
+  const opponentPositionCount = opponentResult?.positionCount ?? 0
+
+  // Get local player's positions from settlement
+  const localPositions = gameSettlement?.positions?.filter((p) => p.playerId === localPlayerId) ?? []
 
   return (
     <motion.div
@@ -60,7 +68,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
         transition={{ type: 'spring', stiffness: 300, damping: 24 }}
         className="glass-panel-vibrant rounded-2xl p-8 max-w-lg mx-4 text-center max-h-[90vh] overflow-y-auto"
       >
-        {/* Victory/Defeat Header - Orbitron with Glow */}
+        {/* Victory/Defeat Header */}
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -95,7 +103,22 @@ export const GameOverModal = React.memo(function GameOverModal() {
           </div>
         </motion.div>
 
-        {/* Final Tally Section */}
+        {/* Final Price */}
+        {gameSettlement && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-4 bg-black/40 border border-white/10 rounded-lg p-3"
+          >
+            <span className="text-[10px] text-white/50 tracking-[0.2em]">FINAL BTC PRICE</span>
+            <div className="text-xl font-mono font-bold text-tron-cyan">
+              ${formatPrice(gameSettlement.closePrice)}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Player Results */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -103,10 +126,10 @@ export const GameOverModal = React.memo(function GameOverModal() {
           className="mb-6 bg-black/40 border border-white/10 rounded-xl p-4"
         >
           <h3 className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-white/50 mb-3 uppercase">
-            Final Tally
+            Final Results
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            {/* Local Player Tally */}
+            {/* Local Player */}
             <motion.div
               whileHover={{ scale: 1.02 }}
               className={cn(
@@ -116,20 +139,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                   : 'border-orange-400/30 bg-orange-950/20'
               )}
             >
-              {/* Grid background overlay */}
               <div className="absolute inset-0 opacity-10 tron-grid pointer-events-none" />
-              {/* Scanline effect on hover */}
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-              >
-                <motion.div
-                  className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                  animate={{ y: ['0%', '100%'] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                />
-              </motion.div>
               <span
                 className={cn(
                   'text-[10px] mb-1 tracking-[0.2em] relative z-10',
@@ -157,11 +167,23 @@ export const GameOverModal = React.memo(function GameOverModal() {
                       ],
                 }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-               >
+              >
                 ${localFinalBalance}
               </motion.span>
+              <div className="flex flex-col items-center mt-1 relative z-10">
+                <span className={cn(
+                  'text-[10px] font-mono',
+                  localTotalPnl >= 0 ? 'text-green-400' : 'text-red-400'
+                )}>
+                  {localTotalPnl >= 0 ? '+' : ''}{localTotalPnl.toFixed(2)}% PnL
+                </span>
+                <span className="text-[9px] text-white/40">
+                  {localPositionCount} position{localPositionCount !== 1 ? 's' : ''}
+                </span>
+              </div>
             </motion.div>
-            {/* Opponent Tally */}
+
+            {/* Opponent */}
             <motion.div
               whileHover={{ scale: 1.02 }}
               className={cn(
@@ -171,20 +193,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                   : 'border-cyan-400/30 bg-cyan-950/20'
               )}
             >
-              {/* Grid background overlay */}
               <div className="absolute inset-0 opacity-10 tron-grid pointer-events-none" />
-              {/* Scanline effect on hover */}
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-              >
-                <motion.div
-                  className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                  animate={{ y: ['0%', '100%'] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                />
-              </motion.div>
               <span
                 className={cn(
                   'text-[10px] mb-1 tracking-[0.2em] flex items-center gap-2 relative z-10',
@@ -220,14 +229,70 @@ export const GameOverModal = React.memo(function GameOverModal() {
                       ],
                 }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-               >
+              >
                 ${opponentFinalBalance}
               </motion.span>
+              <div className="flex flex-col items-center mt-1 relative z-10">
+                <span className={cn(
+                  'text-[10px] font-mono',
+                  opponentTotalPnl >= 0 ? 'text-green-400' : 'text-red-400'
+                )}>
+                  {opponentTotalPnl >= 0 ? '+' : ''}{opponentTotalPnl.toFixed(2)}% PnL
+                </span>
+                <span className="text-[9px] text-white/40">
+                  {opponentPositionCount} position{opponentPositionCount !== 1 ? 's' : ''}
+                </span>
+              </div>
             </motion.div>
           </div>
         </motion.div>
 
-        {/* PLAY AGAIN Button - Tron Style */}
+        {/* Your Positions Summary */}
+        {localPositions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mb-6 bg-black/40 border border-white/10 rounded-xl p-3"
+          >
+            <h3 className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-white/50 mb-2 uppercase">
+              Your Positions
+            </h3>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {localPositions.map((pos) => (
+                <div
+                  key={pos.positionId}
+                  className={cn(
+                    'flex items-center justify-between p-2 rounded-lg text-xs',
+                    pos.isProfitable ? 'bg-green-500/10' : 'bg-red-500/10'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={pos.isLong ? 'text-green-400' : 'text-red-400'}>
+                      {pos.isLong ? '▲ LONG' : '▼ SHORT'}
+                    </span>
+                    <span className="text-white/50">{pos.leverage}X</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-tron-cyan font-mono">${formatPrice(pos.openPrice)}</span>
+                    <span className="text-white/30">→</span>
+                    <span className="text-white font-mono">${formatPrice(pos.closePrice)}</span>
+                  </div>
+                  <span
+                    className={cn(
+                      'font-bold font-mono',
+                      pos.isProfitable ? 'text-green-400' : 'text-red-400'
+                    )}
+                  >
+                    {pos.realizedPnl >= 0 ? '+' : ''}{pos.realizedPnl.toFixed(2)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* PLAY AGAIN Button */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -263,7 +328,6 @@ export const GameOverModal = React.memo(function GameOverModal() {
               PLAY AGAIN
             </motion.span>
           </div>
-          {/* Hover inner glow */}
           <motion.div
             className="absolute inset-0 rounded-lg"
             initial={{ opacity: 0 }}
