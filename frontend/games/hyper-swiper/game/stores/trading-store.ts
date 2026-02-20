@@ -1,0 +1,23 @@
+/**
+ * Trading Store - Main entry point for HFT Battle game state.
+ *
+ * This file re-exports from the modular trading-store/ directory.
+ * See trading-store/ for individual module implementations.
+ */
+
+export {
+  useTradingStore,
+  // Types
+  type TradingState,
+  type ConnectionState,
+  type LobbyState,
+  type RoomState,
+  type TimerState,
+  type GameState,
+  type AudioState,
+  type PriceFeedState,
+  type CryptoSymbol,
+  type PhaserEventBridge,
+  // Constants
+  STANDARD_DAMAGE,
+} from './trading-store-modules'

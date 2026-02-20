@@ -1,0 +1,151 @@
+import { Scene } from 'phaser'
+import type { CoinType } from '../types/trading'
+
+// Coin configuration for visual rendering (Classic Casino Token theme)
+// Colors: Muted, metallic tones with thick dark edges for milled rim effect
+// Hitbox multipliers adjust slice difficulty: larger = easier, smaller = harder
+export const COIN_CONFIG = {
+  long: {
+    color: 0x4a7c59, // Muted Forest Green
+    edgeColor: 0x2d4a35, // Dark Green (milled edge)
+    radius: 12,
+    hitboxMultiplier: 1.4, // 40% larger hitbox - easier to slice
+  },
+  short: {
+    color: 0x8b3a3a, // Muted Burgundy
+    edgeColor: 0x4a1f1f, // Dark Burgundy (milled edge)
+    radius: 12,
+    hitboxMultiplier: 1.4, // 40% larger hitbox - easier to slice
+  },
+} as const
+
+export class CoinRenderer {
+  private scene: Scene
+
+  constructor(scene: Scene) {
+    this.scene = scene
+  }
+
+  /**
+   * Helper function to adjust color brightness
+   * Used for creating metallic gradient effects on casino tokens
+   */
+  private adjustBrightness(hexColor: number, factor: number): number {
+    const color = Phaser.Display.Color.ValueToColor(hexColor)
+    color.red = Math.floor(Math.min(255, color.red * factor))
+    color.green = Math.floor(Math.min(255, color.green * factor))
+    color.blue = Math.floor(Math.min(255, color.blue * factor))
+    return Phaser.Display.Color.GetColor(color.red, color.green, color.blue)
+  }
+
+  /**
+   * Generate all cached coin textures
+   */
+  generateCachedTextures(): void {
+    const textureKeys: Array<CoinType> = ['long', 'short']
+
+    textureKeys.forEach((type) => {
+      const config = COIN_CONFIG[type]
+
+      // Quadruple the texture size for smooth gradients
+      const scale = 4
+      const diameter = (config.radius * 2 + 4) * scale
+
+      // Create a container to hold all elements
+      const container = this.scene.add.container(0, 0)
+
+      // Create graphics for coin body
+      const graphics = this.scene.add.graphics()
+      const scaledRadius = config.radius * scale
+
+      // =========================================================================
+      // CLASSIC CASINO TOKEN LAYERED STRUCTURE (from bottom to top)
+      // =========================================================================
+
+      // 1. OUTER RIM / MILLED EDGE (thick dark border)
+      graphics.fillStyle(config.edgeColor, 1)
+      graphics.fillCircle(0, 0, scaledRadius)
+
+      // 2. MAIN BODY with radial gradient (metallic 3D effect)
+      for (let r = scaledRadius * 0.95; r >= scaledRadius * 0.2; r -= 0.5) {
+        const t = r / scaledRadius
+        const brightness = 1 - t * 0.4
+        const shadeColor = this.adjustBrightness(config.color, brightness)
+        graphics.fillStyle(shadeColor, 1)
+        graphics.fillCircle(0, 0, r)
+      }
+
+      // 3. INNER RING (bright border at ~70% radius)
+      const innerRingRadius = scaledRadius * 0.7
+      graphics.lineStyle(2 * scale, 0xffffff, 0.6)
+      graphics.strokeCircle(0, 0, innerRingRadius)
+
+      // 4. RIDGE DETAILS (decorative tick marks around inner ring)
+      graphics.lineStyle(1 * scale, config.edgeColor, 0.4)
+      const numRidges = 24
+      for (let i = 0; i < numRidges; i++) {
+        const angle = (i / numRidges) * Math.PI * 2
+        const innerR = innerRingRadius - 3 * scale
+        const outerR = innerRingRadius + 3 * scale
+        graphics.beginPath()
+        graphics.moveTo(Math.cos(angle) * innerR, Math.sin(angle) * innerR)
+        graphics.lineTo(Math.cos(angle) * outerR, Math.sin(angle) * outerR)
+        graphics.strokePath()
+      }
+
+      // 5. CENTER AREA (slightly raised platform)
+      const centerShade = this.adjustBrightness(config.color, 1.1)
+      graphics.fillStyle(centerShade, 1)
+      graphics.fillCircle(0, 0, scaledRadius * 0.65)
+
+      container.add(graphics)
+
+      // =========================================================================
+      // SYMBOL RENDERING (with raised appearance - drop shadow)
+      // =========================================================================
+
+      // Call/Put: BTC ₿ symbol
+      const symbol = '₿'
+      const symbolScale = config.radius * 0.8 * scale
+
+      // Add text symbol with drop shadow for raised appearance
+      const shadowText = this.scene.add
+        .text(2 * scale, 2 * scale, symbol, {
+          fontSize: `${symbolScale}px`,
+          fontStyle: 'bold',
+          fontFamily: 'Arial',
+          color: '#000000',
+        })
+        .setOrigin(0.5)
+
+      const mainText = this.scene.add
+        .text(0, 0, symbol, {
+          fontSize: `${symbolScale}px`,
+          fontStyle: 'bold',
+          fontFamily: 'Arial',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 2 * scale,
+        })
+        .setOrigin(0.5)
+
+      container.add(shadowText)
+      container.add(mainText)
+
+      // =========================================================================
+      // GENERATE TEXTURE FROM CONTAINER
+      // =========================================================================
+      const renderTexture = this.scene.make.renderTexture(
+        { width: diameter, height: diameter },
+        false
+      )
+      renderTexture.draw(container, diameter / 2, diameter / 2)
+      renderTexture.saveTexture(`texture_${type}`)
+
+      this.scene.textures.get(`texture_${type}`).setFilter(Phaser.Textures.FilterMode.LINEAR)
+
+      renderTexture.destroy()
+      container.destroy()
+    })
+  }
+}

@@ -1,0 +1,1 @@
+export { hyperSwiperConfig } from './config'
