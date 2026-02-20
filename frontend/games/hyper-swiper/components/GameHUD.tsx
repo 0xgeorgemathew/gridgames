@@ -9,7 +9,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 // Import extracted components
 import {
   CompactPriceRow,
-  LeverageSelector,
   SinglePlayerHealth,
   containerVariants,
 } from './GameHUD-modules'
@@ -133,18 +132,6 @@ export const GameHUD = React.memo(function GameHUD() {
               <motion.div
                 className="h-px bg-gradient-to-r from-transparent via-tron-cyan/50 to-transparent"
                 animate={{ opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
-
-            {/* Leverage Selector - Only when game is ready */}
-            {isGameReady && <LeverageSelector />}
-
-            {/* Divider */}
-            {isGameReady && (
-              <motion.div
-                className="h-px bg-gradient-to-r from-transparent via-tron-cyan/30 to-transparent mx-2"
-                animate={{ opacity: [0.2, 0.5, 0.2] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
             )}

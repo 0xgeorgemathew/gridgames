@@ -196,7 +196,9 @@ export function PositionIndicator() {
                           position.leverage === 5 &&
                             'bg-yellow-500/30 border border-yellow-500/50 text-yellow-300',
                           position.leverage === 10 &&
-                            'bg-red-500/30 border border-red-500/50 text-red-300'
+                            'bg-red-500/30 border border-red-500/50 text-red-300',
+                          ![2, 5, 10].includes(position.leverage) &&
+                            'bg-cyan-500/30 border border-cyan-500/50 text-cyan-200'
                         )}
                         animate={{
                           scale: [1, 1.1, 1],
