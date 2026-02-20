@@ -1,4 +1,4 @@
-import { Player } from '@/game/types/trading'
+import { Player } from '@/games/hyper-swiper/game/types/trading'
 
 // Price broadcast data for clients
 export interface PriceBroadcastData {

@@ -1,5 +1,5 @@
-import { Player } from '@/game/types/trading'
-import { GAME_CONFIG } from '@/game/constants'
+import { Player } from '@/games/hyper-swiper/game/types/trading'
+import { GAME_CONFIG } from '@/games/hyper-swiper/game/constants'
 import { CoinSequence } from './CoinSequence'
 import type { Coin, OpenPosition } from './types'
 

@@ -2,9 +2,13 @@
 
 import { useEffect, useRef } from 'react'
 import { Game } from 'phaser'
-import { GridScene } from '@/game/scenes/GridScene'
-import { TradingScene } from '@/game/scenes/TradingScene'
-import { createGridPhaserConfig, createTradingPhaserConfig, DEFAULT_GRID } from '@/game/config'
+import { GridScene } from '@/games/hyper-swiper/game/scenes/GridScene'
+import { TradingScene } from '@/games/hyper-swiper/game/scenes/TradingScene'
+import {
+  createGridPhaserConfig,
+  createTradingPhaserConfig,
+  DEFAULT_GRID,
+} from '@/games/hyper-swiper/game/config'
 
 export type SceneType = 'GridScene' | 'TradingScene'
 

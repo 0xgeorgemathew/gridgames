@@ -1,6 +1,6 @@
 import { Server as SocketIOServer } from 'socket.io'
 import { Socket } from 'socket.io'
-import { GAME_CONFIG } from '@/game/constants'
+import { GAME_CONFIG } from '@/games/hyper-swiper/game/constants'
 
 // Module imports
 import { priceFeed } from './PriceFeedManager'
@@ -92,10 +92,7 @@ function calculatePositionPnl(
 // Game End Settlement Logic
 // =============================================================================
 
-function settleAllPositions(
-  io: SocketIOServer,
-  room: GameRoom
-): GameSettlementData {
+function settleAllPositions(io: SocketIOServer, room: GameRoom): GameSettlementData {
   const closePrice = priceFeed.getLatestPrice()
   const settlements: PositionSettlementResult[] = []
 
