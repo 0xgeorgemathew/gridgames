@@ -559,7 +559,9 @@ export class TradingScene extends Scene {
   }
 
   private sliceCoin(coinId: string, coin: Token): void {
+    console.log('[Phaser:sliceCoin] Called with coinId:', coinId)
     const type = coin.getData('type') as CoinType
+    console.log('[Phaser:sliceCoin] Coin type:', type)
     const config = COIN_CONFIG[type]
     const store = useTradingStore.getState()
 
@@ -573,6 +575,7 @@ export class TradingScene extends Scene {
 
     // Server uses its own price feed for order creation (single source of truth)
     store.sliceCoin(coinId, type)
+    console.log('[Phaser:sliceCoin] Called store.sliceCoin')
 
     this.removeCoin(coinId)
   }
