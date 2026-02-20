@@ -87,22 +87,26 @@ export const GameOverModal = React.memo(function GameOverModal() {
           >
             {isTie ? "IT'S A TIE" : isWinner ? 'VICTORY' : 'DEFEAT'}
           </motion.h2>
-          <div className="text-white/70 mt-2 text-sm tracking-[0.2em] flex items-center justify-center gap-2">
-            {gameOverData.winnerName ? (
-              <PlayerName
-                username={
-                  !gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
-                }
-                address={
-                  gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
-                }
-                className="text-white"
-              />
-            ) : (
-              <span>UNKNOWN</span>
-            )}
-            <span>{isTie ? 'GAME ENDED IN A TIE' : 'WINS THE GAME'}</span>
-          </div>
+          {isTie ? (
+            <div className="text-white/70 mt-2 text-sm tracking-[0.2em]">GAME ENDED IN A TIE</div>
+          ) : (
+            <div className="text-white/70 mt-2 text-sm tracking-[0.2em] flex items-center justify-center gap-2">
+              {gameOverData.winnerName ? (
+                <PlayerName
+                  username={
+                    !gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
+                  }
+                  address={
+                    gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
+                  }
+                  className="text-white"
+                />
+              ) : (
+                <span>UNKNOWN</span>
+              )}
+              <span>WINS BY TOTAL PNL</span>
+            </div>
+          )}
         </motion.div>
 
         {/* Final Price */}
@@ -130,6 +134,9 @@ export const GameOverModal = React.memo(function GameOverModal() {
           <h3 className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-white/50 mb-3 uppercase">
             Final Results
           </h3>
+          <p className="text-[9px] tracking-[0.14em] text-white/45 mb-3 uppercase">
+            Winner is decided by total realized PnL
+          </p>
           <div className="grid grid-cols-2 gap-4">
             {/* Local Player */}
             <motion.div
@@ -170,17 +177,16 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               >
-                ${localFinalBalance}
+                {localTotalPnl >= 0 ? '+' : ''}${localTotalPnl.toFixed(2)}
               </motion.span>
               <div className="flex flex-col items-center mt-1 relative z-10">
                 <span
                   className={cn(
                     'text-[10px] font-mono',
-                    localTotalPnl >= 0 ? 'text-green-400' : 'text-red-400'
+                    isWinner ? 'text-cyan-300' : 'text-orange-300'
                   )}
                 >
-                  {localTotalPnl >= 0 ? '+' : ''}
-                  {localTotalPnl.toFixed(2)}% PnL
+                  Final Balance: ${localFinalBalance.toFixed(2)}
                 </span>
                 <span className="text-[9px] text-white/40">
                   {localPositionCount} position{localPositionCount !== 1 ? 's' : ''}
@@ -235,17 +241,16 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               >
-                ${opponentFinalBalance}
+                {opponentTotalPnl >= 0 ? '+' : ''}${opponentTotalPnl.toFixed(2)}
               </motion.span>
               <div className="flex flex-col items-center mt-1 relative z-10">
                 <span
                   className={cn(
                     'text-[10px] font-mono',
-                    opponentTotalPnl >= 0 ? 'text-green-400' : 'text-red-400'
+                    isWinner ? 'text-orange-300' : 'text-cyan-300'
                   )}
                 >
-                  {opponentTotalPnl >= 0 ? '+' : ''}
-                  {opponentTotalPnl.toFixed(2)}% PnL
+                  Final Balance: ${opponentFinalBalance.toFixed(2)}
                 </span>
                 <span className="text-[9px] text-white/40">
                   {opponentPositionCount} position{opponentPositionCount !== 1 ? 's' : ''}
@@ -279,7 +284,11 @@ export const GameOverModal = React.memo(function GameOverModal() {
                     <span className={pos.isLong ? 'text-green-400' : 'text-red-400'}>
                       {pos.isLong ? '▲ LONG' : '▼ SHORT'}
                     </span>
-                    <span className="text-white/50">{pos.leverage}X</span>
+                    {pos.isLiquidated && (
+                      <span className="text-[9px] px-1 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-400/40">
+                        LIQ
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-tron-cyan font-mono">${formatPrice(pos.openPrice)}</span>
@@ -292,8 +301,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                       pos.isProfitable ? 'text-green-400' : 'text-red-400'
                     )}
                   >
-                    {pos.realizedPnl >= 0 ? '+' : ''}
-                    {pos.realizedPnl.toFixed(2)}%
+                    {pos.realizedPnl >= 0 ? '+' : ''}${pos.realizedPnl.toFixed(2)}
                   </span>
                 </div>
               ))}
