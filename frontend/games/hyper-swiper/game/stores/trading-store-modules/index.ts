@@ -26,10 +26,12 @@ import type {
   BalanceUpdatedEvent,
   Position,
   GameSettlementEvent,
+  LiquidationEvent,
 } from '../../types/trading'
 
 // Re-export types
 export * from './types'
+const FIXED_LEVERAGE = 100
 
 export const useTradingStore = create<TradingState>((set, get) => ({
   // Connection state
@@ -60,7 +62,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   openPositions: new Map<string, Position>(), // Open positions (no settlement timer)
   gameSettlement: null, // Settlement data at game end
   toasts: [],
-  leverage: 2, // Manual leverage selector (1, 2, 5, 10)
+  leverage: 100, // Fixed leverage at 100X
+
+  // Matchmaking settings (pre-game)
+  selectedGameDuration: 60000, // Default 1 minute
+  selectedLeverage: 100, // Fixed at 100X
 
   // Audio state
   isSoundMuted: false,
@@ -164,6 +170,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('game_settlement', (settlement: GameSettlementEvent) =>
       get().handleGameSettlement(settlement)
     )
+    // Liquidation events - position force-closed due to low collateral health
+    nextSocket.on('position_liquidated', (data: LiquidationEvent) => {
+      console.log('[Socket] position_liquidated event received:', data)
+      get().handlePositionLiquidated(data)
+    })
     nextSocket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
     nextSocket.on('game_over', (data: GameOverEvent) => get().handleGameOver(data))
 
@@ -230,16 +241,20 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   // ==========================================================================
 
   findMatch: (playerName: string, walletAddress?: string) => {
-    const { socket } = get()
+    const { socket, selectedGameDuration } = get()
     const sceneWidth = window.sceneDimensions?.width || window.innerWidth
     const sceneHeight = window.sceneDimensions?.height || window.innerHeight
+
+    // Leverage is fixed at 100X
+    set({ leverage: FIXED_LEVERAGE })
 
     socket?.emit('find_match', {
       playerName,
       sceneWidth,
       sceneHeight,
       walletAddress,
-      leverage: 2,
+      leverage: FIXED_LEVERAGE,
+      gameDuration: selectedGameDuration,
     })
     set({ isMatching: true })
   },
@@ -260,13 +275,45 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const { socket, localPlayerId, players } = get()
     if (!socket || !localPlayerId) return
 
+    const nextLeverage = FIXED_LEVERAGE
+    if (leverage !== FIXED_LEVERAGE) {
+      console.warn(
+        `[Store] Ignoring requested leverage ${leverage}x, fixed at ${FIXED_LEVERAGE}x`
+      )
+    }
+
     // Update local state immediately
-    set({ leverage })
-    const newPlayers = players.map((p) => (p.id === localPlayerId ? { ...p, leverage } : p))
+    set({ leverage: nextLeverage })
+    const newPlayers = players.map((p) =>
+      p.id === localPlayerId ? { ...p, leverage: nextLeverage } : p
+    )
     set({ players: newPlayers })
 
     // Emit to server for opponent sync
-    socket.emit('set_leverage', { leverage })
+    socket.emit('set_leverage', { leverage: nextLeverage })
+  },
+
+  // Matchmaking settings actions
+  setSelectedGameDuration: (duration: number) => {
+    set({ selectedGameDuration: duration })
+    // Persist to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hyperSwiper_gameDuration', String(duration))
+    }
+  },
+
+  setSelectedLeverage: (leverage: number) => {
+    const nextLeverage = FIXED_LEVERAGE
+    if (leverage !== FIXED_LEVERAGE) {
+      console.warn(
+        `[Store] Ignoring selected leverage ${leverage}x, fixed at ${FIXED_LEVERAGE}x`
+      )
+    }
+    set({ selectedLeverage: nextLeverage })
+    // Persist to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hyperSwiper_leverage', String(nextLeverage))
+    }
   },
 
   handleSlice: (slice) => {
@@ -328,6 +375,33 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     })
   },
 
+  // Position liquidated - force-closed due to low collateral health (<= 80%)
+  handlePositionLiquidated: (liquidationEvent) => {
+    console.log('[Store] position_liquidated received:', liquidationEvent)
+    const { openPositions, localPlayerId } = get()
+
+    // Remove the liquidated position from open positions
+    const newPositions = new Map(openPositions)
+    newPositions.delete(liquidationEvent.positionId)
+    set({ openPositions: newPositions })
+
+    // Show toast notification for the liquidated position
+    const isOwnPosition = liquidationEvent.playerId === localPlayerId
+    const direction = liquidationEvent.isLong ? 'LONG' : 'SHORT'
+    const healthPercent = (liquidationEvent.healthRatio * 100).toFixed(1)
+    
+    get().addToast({
+      message: isOwnPosition
+        ? `Your ${direction} position was LIQUIDATED at ${healthPercent}% health!`
+        : `Opponent's ${direction} position was liquidated at ${healthPercent}% health`,
+      type: 'error',
+      duration: 5000,
+    })
+
+    // Emit event for Phaser scene to handle visual effects
+    window.phaserEvents?.emit('position_liquidated', liquidationEvent)
+  },
+
   handleGameStart: (data) => {
     const { gameTimerInterval } = get()
 
@@ -386,7 +460,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       gameSettlement: null,
       isPlaying: false,
       isMatching: false,
-      leverage: 2, // Reset to default leverage
+      leverage: FIXED_LEVERAGE, // Reset to fixed leverage
+      selectedLeverage: FIXED_LEVERAGE,
       gameTimeRemaining: 0,
       gameTimerInterval: null,
       // Reset price state for clean reconnection in next game
@@ -445,18 +520,22 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   joinWaitingPool: (playerName: string, walletAddress?: string) => {
-    const { socket } = get()
+    const { socket, selectedGameDuration } = get()
     if (!socket) return
 
     const sceneWidth = window.sceneDimensions?.width || window.innerWidth
     const sceneHeight = window.sceneDimensions?.height || window.innerHeight
+
+    // Leverage is fixed at 100X
+    set({ leverage: FIXED_LEVERAGE })
 
     socket.emit('join_waiting_pool', {
       playerName,
       sceneWidth,
       sceneHeight,
       walletAddress,
-      leverage: 2,
+      leverage: FIXED_LEVERAGE,
+      gameDuration: selectedGameDuration,
     })
   },
 

@@ -14,6 +14,7 @@ import type {
   PositionSettlementResult,
   PlayerSettlementResult,
   GameSettlementData,
+  LiquidationEvent,
 } from './types'
 
 // Re-export types and modules for external use
@@ -32,16 +33,27 @@ export type {
   PositionSettlementResult,
   PlayerSettlementResult,
   GameSettlementData,
+  LiquidationEvent,
 } from './types'
 
 // Price feed state
 let priceFeedConnected = false
+const FIXED_LEVERAGE = 100
+const TIE_EPSILON = 1e-9
 
 // =============================================================================
 // Price Feed Management
 // =============================================================================
 
-function ensurePriceFeedConnected(io: SocketIOServer): void {
+// Store reference to RoomManager for liquidation checks
+let roomManagerRef: RoomManager | null = null
+
+function ensurePriceFeedConnected(io: SocketIOServer, manager?: RoomManager): void {
+  // Store manager reference for liquidation checks
+  if (manager) {
+    roomManagerRef = manager
+  }
+
   // Check if already connected and the WebSocket is actually open
   if (priceFeedConnected && priceFeed.isConnected()) return
 
@@ -53,6 +65,11 @@ function ensurePriceFeedConnected(io: SocketIOServer): void {
 
   priceFeed.setBroadcastCallback((data) => {
     io.emit('btc_price', data)
+    
+    // Check all active rooms for liquidations on each price update
+    if (roomManagerRef) {
+      checkLiquidations(io, roomManagerRef, data.price)
+    }
   })
 
   priceFeed.connect('btcusdt')
@@ -63,7 +80,89 @@ function disconnectPriceFeedIfIdle(manager: RoomManager): void {
   if (manager.getRoomCount() === 0 && priceFeedConnected) {
     priceFeed.disconnect()
     priceFeedConnected = false
+    roomManagerRef = null
   }
+}
+
+// =============================================================================
+// Liquidation Logic
+// =============================================================================
+
+/**
+ * Check all open positions across active rooms for liquidation
+ * Called on every price update from the feed
+ */
+function checkLiquidations(
+  io: SocketIOServer,
+  manager: RoomManager,
+  currentPrice: number
+): void {
+  for (const room of manager.getAllRooms()) {
+    // Skip rooms that are closing or shutdown
+    if (room.getIsClosing() || room.isShutdown) continue
+    
+    // Check each open position in the room
+    for (const [, position] of room.openPositions) {
+      if (shouldLiquidate(position, currentPrice)) {
+        liquidatePosition(io, room, position, currentPrice)
+      }
+    }
+  }
+}
+
+/**
+ * Liquidate a position and notify players
+ * Position is force-closed when collateral health ratio <= 80%
+ */
+function liquidatePosition(
+  io: SocketIOServer,
+  room: GameRoom,
+  position: OpenPosition,
+  currentPrice: number
+): void {
+  const { pnl, isProfitable } = calculatePositionPnl(position, currentPrice)
+  const healthRatio = calculateCollateralHealthRatio(position, currentPrice)
+
+  // Record liquidation as a realized settlement so winner and PnL totals stay accurate.
+  room.addClosedPosition({
+    positionId: position.id,
+    playerId: position.playerId,
+    playerName: position.playerName,
+    isLong: position.coinType === 'long',
+    leverage: position.leverage,
+    collateral: position.collateral,
+    openPrice: position.priceAtOrder,
+    closePrice: currentPrice,
+    realizedPnl: pnl,
+    isProfitable,
+    isLiquidated: true,
+  })
+  
+  // Create liquidation event
+  const liquidationEvent: LiquidationEvent = {
+    positionId: position.id,
+    playerId: position.playerId,
+    playerName: position.playerName,
+    isLong: position.coinType === 'long',
+    leverage: position.leverage,
+    collateral: position.collateral,
+    openPrice: position.priceAtOrder,
+    liquidationPrice: currentPrice,
+    healthRatio,
+    pnlAtLiquidation: pnl,
+  }
+  
+  // Remove position from open positions
+  room.removeOpenPosition(position.id)
+  
+  // Emit liquidation event to room
+  io.to(room.id).emit('position_liquidated', liquidationEvent)
+  
+  console.log(
+    `[Liquidation] Position ${position.id} liquidated for player ${position.playerName} ` +
+    `at health ratio ${(healthRatio * 100).toFixed(1)}% ` +
+    `(PnL: $${pnl.toFixed(4)}, Price: $${currentPrice.toFixed(2)})`
+  )
 }
 
 // =============================================================================
@@ -78,14 +177,45 @@ function calculatePositionPnl(
   const priceChange = (closePrice - position.priceAtOrder) / position.priceAtOrder
   const isLong = position.coinType === 'long'
 
-  // PnL = collateral * leverage * price_change_percent * direction * 100
+  // PnL = collateral * leverage * price_change_percent * direction
   // For LONG: profit when price goes up
   // For SHORT: profit when price goes down
   const directionMultiplier = isLong ? 1 : -1
-  const pnl = position.collateral * position.leverage * priceChange * directionMultiplier * 100
+  const pnl = position.collateral * position.leverage * priceChange * directionMultiplier
   const isProfitable = pnl > 0
 
   return { pnl, isProfitable }
+}
+
+/**
+ * Calculate collateral health ratio for a position
+ * Health Ratio = (Net Collateral + PnL) / Net Collateral
+ * Liquidation at <= 80%
+ * 
+ * Following Avantis Docs:
+ * Collateral Health Ratio = (Net Collateral + PnL - accumulated margin fee - closing fee) / Net Collateral
+ * Since we have no fees, this simplifies to: (Net Collateral + PnL) / Net Collateral
+ */
+function calculateCollateralHealthRatio(
+  position: OpenPosition,
+  currentPrice: number
+): number {
+  const { pnl } = calculatePositionPnl(position, currentPrice)
+  const netCollateral = position.collateral // No opening fee, so net = original collateral
+  
+  return (netCollateral + pnl) / netCollateral
+}
+
+/**
+ * Check if a position should be liquidated
+ * Returns true if health ratio <= 80%
+ */
+function shouldLiquidate(
+  position: OpenPosition,
+  currentPrice: number
+): boolean {
+  const healthRatio = calculateCollateralHealthRatio(position, currentPrice)
+  return healthRatio <= GAME_CONFIG.LIQUIDATION_HEALTH_RATIO
 }
 
 // =============================================================================
@@ -94,7 +224,7 @@ function calculatePositionPnl(
 
 function settleAllPositions(io: SocketIOServer, room: GameRoom): GameSettlementData {
   const closePrice = priceFeed.getLatestPrice()
-  const settlements: PositionSettlementResult[] = []
+  const settlements: PositionSettlementResult[] = [...room.closedPositions]
 
   // Calculate PnL for each position
   for (const [positionId, position] of room.openPositions) {
@@ -112,6 +242,7 @@ function settleAllPositions(io: SocketIOServer, room: GameRoom): GameSettlementD
       closePrice,
       realizedPnl: pnl,
       isProfitable,
+      isLiquidated: false,
     })
   }
 
@@ -148,7 +279,7 @@ function calculatePlayerResults(
       totalPnl: 0,
       positionCount: 0,
       winningPositions: 0,
-      finalBalance: player.dollars,
+      finalBalance: 0,
     })
   }
 
@@ -164,6 +295,11 @@ function calculatePlayerResults(
     }
   }
 
+  // Equity-style final balance aligned with total realized PnL.
+  for (const playerResult of playerMap.values()) {
+    playerResult.finalBalance = Math.max(0, GAME_CONFIG.STARTING_CASH + playerResult.totalPnl)
+  }
+
   return Array.from(playerMap.values())
 }
 
@@ -173,6 +309,12 @@ function determineWinner(
   if (playerResults.length === 0) return null
 
   const sorted = [...playerResults].sort((a, b) => b.totalPnl - a.totalPnl)
+  if (
+    sorted.length > 1 &&
+    Math.abs(sorted[0].totalPnl - sorted[1].totalPnl) <= TIE_EPSILON
+  ) {
+    return null
+  }
   const winner = sorted[0]
 
   return {
@@ -342,12 +484,13 @@ async function createMatch(
   sceneWidth2: number,
   sceneHeight2: number,
   leverage1: number,
-  leverage2: number
+  leverage2: number,
+  gameDuration: number = 60000
 ): Promise<void> {
-  ensurePriceFeedConnected(io)
+  ensurePriceFeedConnected(io, manager)
 
   const roomId = `room-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
-  const room = manager.createRoom(roomId)
+  const room = manager.createRoom(roomId, gameDuration)
 
   room.addPlayer(playerId1, name1, sceneWidth1, sceneHeight1, leverage1)
   room.addPlayer(playerId2, name2, sceneWidth2, sceneHeight2, leverage2)
@@ -399,6 +542,7 @@ async function createMatch(
       name: player.name,
       joinedAt: player.joinedAt,
       leverage: player.leverage,
+      gameDuration: player.gameDuration,
     })
   )
   io.emit('lobby_updated', { players: allWaitingPlayers })
@@ -548,13 +692,14 @@ export function setupGameEvents(io: SocketIOServer): {
         sceneWidth,
         sceneHeight,
         walletAddress,
-        leverage,
+        gameDuration,
       }: {
         playerName: string
         sceneWidth?: number
         sceneHeight?: number
         walletAddress?: string
         leverage?: number
+        gameDuration?: number
       }) => {
         try {
           const validatedName = validatePlayerName(playerName)
@@ -562,9 +707,10 @@ export function setupGameEvents(io: SocketIOServer): {
           const p1Width = sceneWidth || 500
           const p1Height = sceneHeight || 800
           const p1Wallet = walletAddress
-          const p1Leverage = leverage ?? 2
+          const p1Leverage = FIXED_LEVERAGE
+          const p1GameDuration = gameDuration ?? 60000
 
-          manager.addWaitingPlayer(socket.id, validatedName, p1Leverage)
+          manager.addWaitingPlayer(socket.id, validatedName, p1Leverage, p1GameDuration)
           const waitingPlayer = manager.getWaitingPlayer(socket.id)
           if (waitingPlayer) {
             if (sceneWidth && sceneHeight) {
@@ -582,20 +728,22 @@ export function setupGameEvents(io: SocketIOServer): {
               name: player.name,
               joinedAt: player.joinedAt,
               leverage: player.leverage,
+              gameDuration: player.gameDuration,
             })
           )
           io.emit('lobby_updated', { players: allWaitingPlayers })
 
           for (const [waitingId, waiting] of manager.getWaitingPlayers()) {
             if (waitingId !== socket.id) {
-              if (waiting.leverage !== p1Leverage) continue
+              // Match only if gameDuration matches (leverage is fixed at 100X)
+              if (waiting.gameDuration !== p1GameDuration) continue
 
               const waitingSocket = io.of('/').sockets.get(waitingId)
               if (waitingSocket?.connected && waitingSocket.id === waitingId) {
                 const p2Width = waiting.sceneWidth || 500
                 const p2Height = waiting.sceneHeight || 800
                 const p2Wallet = waiting.walletAddress
-                const p2Leverage = waiting.leverage
+                const p2Leverage = FIXED_LEVERAGE
 
                 createMatch(
                   io,
@@ -611,7 +759,8 @@ export function setupGameEvents(io: SocketIOServer): {
                   p2Width,
                   p2Height,
                   p1Leverage,
-                  p2Leverage
+                  p2Leverage,
+                  p1GameDuration
                 ).catch((error) => {
                   console.error('[Match] Failed to create match:', error)
                 })
@@ -623,6 +772,7 @@ export function setupGameEvents(io: SocketIOServer): {
                     name: player.name,
                     joinedAt: player.joinedAt,
                     leverage: player.leverage,
+                    gameDuration: player.gameDuration,
                   }))
                 io.emit('lobby_updated', { players: remainingPlayers })
 
@@ -649,13 +799,14 @@ export function setupGameEvents(io: SocketIOServer): {
         sceneWidth,
         sceneHeight,
         walletAddress,
-        leverage,
+        gameDuration,
       }: {
         playerName: string
         sceneWidth?: number
         sceneHeight?: number
         walletAddress?: string
         leverage?: number
+        gameDuration?: number
       }) => {
         try {
           const validatedName = validatePlayerName(playerName)
@@ -665,7 +816,12 @@ export function setupGameEvents(io: SocketIOServer): {
             return
           }
 
-          manager.addWaitingPlayer(socket.id, validatedName, leverage ?? 2)
+          manager.addWaitingPlayer(
+            socket.id,
+            validatedName,
+            FIXED_LEVERAGE,
+            gameDuration ?? 60000
+          )
           const waitingPlayer = manager.getWaitingPlayer(socket.id)
           if (waitingPlayer) {
             if (sceneWidth && sceneHeight) {
@@ -683,6 +839,7 @@ export function setupGameEvents(io: SocketIOServer): {
               name: player.name,
               joinedAt: player.joinedAt,
               leverage: player.leverage,
+              gameDuration: player.gameDuration,
             })
           )
           io.emit('lobby_updated', { players: allWaitingPlayers })
@@ -703,6 +860,7 @@ export function setupGameEvents(io: SocketIOServer): {
           name: player.name,
           joinedAt: player.joinedAt,
           leverage: player.leverage,
+          gameDuration: player.gameDuration,
         })
       )
       io.emit('lobby_updated', { players: allWaitingPlayers })
@@ -774,6 +932,7 @@ export function setupGameEvents(io: SocketIOServer): {
           name: player.name,
           joinedAt: player.joinedAt,
           leverage: player.leverage,
+          gameDuration: player.gameDuration,
         }))
       socket.emit('lobby_players', players)
     })
@@ -791,8 +950,8 @@ export function setupGameEvents(io: SocketIOServer): {
         return
       }
 
-      if (localPlayer.leverage !== opponent.leverage) {
-        socket.emit('error', { message: 'Cannot match: different leverage settings' })
+      if (localPlayer.gameDuration !== opponent.gameDuration) {
+        socket.emit('error', { message: 'Cannot match: different game duration settings' })
         return
       }
 
@@ -817,28 +976,29 @@ export function setupGameEvents(io: SocketIOServer): {
         opponent.sceneWidth || 500,
         opponent.sceneHeight || 800,
         localPlayer.leverage,
-        opponent.leverage
+        opponent.leverage,
+        localPlayer.gameDuration
       ).catch((error) => {
         console.error('[Match] Failed to create selected match:', error)
         socket.emit('error', { message: 'Failed to start match' })
       })
     })
 
-    socket.on('set_leverage', ({ leverage }: { leverage: number }) => {
+    socket.on('set_leverage', (_data: { leverage: number }) => {
       const roomId = manager.getPlayerRoomId(socket.id)
       if (!roomId) return
 
       const room = manager.getRoom(roomId)
       if (!room) return
 
-      // Update the player's leverage (affects future orders only)
-      room.setPlayerLeverage(socket.id, leverage)
+      // Leverage is fixed at 100X for all players.
+      room.setPlayerLeverage(socket.id, FIXED_LEVERAGE)
 
       // Broadcast to room so opponent sees the change
       io.to(room.id).emit('player_leverage_changed', {
         playerId: socket.id,
         playerName: room.players.get(socket.id)?.name || 'Unknown',
-        leverage,
+        leverage: FIXED_LEVERAGE,
       })
     })
 
@@ -851,6 +1011,7 @@ export function setupGameEvents(io: SocketIOServer): {
           name: player.name,
           joinedAt: player.joinedAt,
           leverage: player.leverage,
+          gameDuration: player.gameDuration,
         })
       )
       io.emit('lobby_updated', { players: allWaitingPlayers })

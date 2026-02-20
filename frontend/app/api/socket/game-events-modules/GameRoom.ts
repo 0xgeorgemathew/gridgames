@@ -1,7 +1,7 @@
 import { Player } from '@/games/hyper-swiper/game/types/trading'
 import { GAME_CONFIG } from '@/games/hyper-swiper/game/constants'
 import { CoinSequence } from './CoinSequence'
-import type { Coin, OpenPosition } from './types'
+import type { Coin, OpenPosition, PositionSettlementResult } from './types'
 
 /**
  * GameRoom - Encapsulates room state and lifecycle.
@@ -14,6 +14,7 @@ export class GameRoom {
   readonly players: Map<string, Player>
   readonly coins: Map<string, Coin>
   readonly openPositions: Map<string, OpenPosition>
+  readonly closedPositions: PositionSettlementResult[]
   private isClosing = false
   isShutdown = false // Prevents settlement timeouts from operating on deleted rooms
 
@@ -22,7 +23,7 @@ export class GameRoom {
 
   // Fruit Ninja-style spawn mechanics
   readonly gameStartTime: number
-  readonly GAME_DURATION = GAME_CONFIG.GAME_DURATION_MS // 2.5 minutes (150000ms)
+  readonly GAME_DURATION: number // Configurable game duration (default 60000ms = 1 min)
 
   // Deterministic coin sequence
   private coinSequence: CoinSequence | null = null
@@ -44,12 +45,14 @@ export class GameRoom {
   // Game timeout tracker
   gameTimeout: NodeJS.Timeout | null = null
 
-  constructor(roomId: string) {
+  constructor(roomId: string, gameDuration: number = 60000) {
     this.id = roomId
     this.players = new Map()
     this.coins = new Map()
     this.openPositions = new Map()
+    this.closedPositions = []
     this.gameStartTime = Date.now()
+    this.GAME_DURATION = gameDuration
   }
 
   // Set player's leverage (called from HUD selector)
@@ -62,9 +65,9 @@ export class GameRoom {
     }
   }
 
-  // Get player's current leverage (defaults to 2x)
+  // Get player's current leverage (defaults to 100x)
   getLeverageForPlayer(playerId: string): number {
-    return this.playerLeverage.get(playerId) ?? 2
+    return this.playerLeverage.get(playerId) ?? 100
   }
 
   // Helper to get wallet address for player
@@ -89,7 +92,7 @@ export class GameRoom {
     name: string,
     sceneWidth: number,
     sceneHeight: number,
-    leverage: number = 2
+    leverage: number = 100
   ): void {
     this.players.set(id, {
       id,
@@ -135,6 +138,10 @@ export class GameRoom {
 
   removeOpenPosition(positionId: string): void {
     this.openPositions.delete(positionId)
+  }
+
+  addClosedPosition(settlement: PositionSettlementResult): void {
+    this.closedPositions.push(settlement)
   }
 
   // Track intervals/timeout for cleanup
