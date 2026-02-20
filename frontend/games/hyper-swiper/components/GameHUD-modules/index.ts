@@ -1,4 +1,3 @@
-export { ConnectionStatusDot } from './ConnectionStatusDot'
 export { SinglePlayerHealth } from './PlayerHealthBar'
 export { CompactPriceRow } from './CompactPriceRow'
 export { PriceLoadingState } from './PriceLoadingState'
