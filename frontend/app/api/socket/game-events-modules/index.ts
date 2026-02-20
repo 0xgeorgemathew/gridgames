@@ -93,15 +93,35 @@ function settleOrder(io: SocketIOServer, room: GameRoom, order: PendingOrder): v
     const isCorrect = order.coinType === 'call' ? priceChange > 0 : priceChange < 0
     const impact = order.multiplier
 
-    const actualTransfer = transferFunds(
-      room,
-      isCorrect ? order.playerId : playerIds.find((id) => id !== order.playerId)!,
-      isCorrect ? playerIds.find((id) => id !== order.playerId)! : order.playerId,
-      impact
-    )
+    const winnerId = isCorrect ? order.playerId : playerIds.find((id) => id !== order.playerId)!
+    const loserId = isCorrect ? playerIds.find((id) => id !== order.playerId)! : order.playerId
+
+    const actualTransfer = transferFunds(room, winnerId, loserId, impact)
 
     room.tugOfWar += order.isPlayer1 ? -impact : impact
     room.removePendingOrder(order.id)
+
+    // Emit balance updates to both players
+    const winner = room.players.get(winnerId)
+    const loser = room.players.get(loserId)
+    if (winner) {
+      io.to(room.id).emit('balance_updated', {
+        playerId: winnerId,
+        newBalance: winner.dollars,
+        reason: 'position_closed',
+        positionId: order.id,
+        collateral: actualTransfer,
+      })
+    }
+    if (loser) {
+      io.to(room.id).emit('balance_updated', {
+        playerId: loserId,
+        newBalance: loser.dollars,
+        reason: 'position_closed',
+        positionId: order.id,
+        collateral: actualTransfer,
+      })
+    }
 
     io.to(room.id).emit('order_settled', {
       orderId: order.id,

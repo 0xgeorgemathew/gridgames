@@ -29,6 +29,7 @@ import type {
   CoinType,
   LobbyPlayersEvent,
   LobbyUpdatedEvent,
+  BalanceUpdatedEvent,
 } from '../../types/trading'
 
 // Re-export types and helpers
@@ -165,6 +166,15 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     socket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
     socket.on('game_over', (data: GameOverEvent) => get().handleGameOver(data))
     socket.on('player_hit', (data) => get().handlePlayerHit(data))
+
+    // Balance updates during gameplay (collateral deduction)
+    socket.on('balance_updated', (data: BalanceUpdatedEvent) => {
+      const { players } = get()
+      const newPlayers = players.map((p) =>
+        p.id === data.playerId ? { ...p, dollars: data.newBalance } : p
+      )
+      set({ players: newPlayers })
+    })
 
     socket.on('opponent_disconnected', () => {
       get().addToast({ message: 'Opponent disconnected.', type: 'warning', duration: 5000 })
