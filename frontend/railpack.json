@@ -11,6 +11,6 @@
     }
   },
   "deploy": {
-    "startCommand": "HOSTNAME=0.0.0.0 PORT=${PORT:-3000} bun run start"
+    "startCommand": "NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=${PORT:-3000} bun run start"
   }
 }

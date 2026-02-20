@@ -503,7 +503,21 @@ export function setupGameEvents(io: SocketIOServer): {
 } {
   const manager = new RoomManager()
 
-  const cleanupInterval = setInterval(() => manager.cleanupStaleWaitingPlayers(), 30000)
+  const cleanupInterval = setInterval(() => {
+    manager.cleanupStaleWaitingPlayers()
+
+    // If no clients are connected, hard-clean all rooms to avoid stale room leaks
+    // keeping the price feed websocket alive indefinitely.
+    if (io.of('/').sockets.size === 0) {
+      for (const room of manager.getAllRooms()) {
+        manager.deleteRoom(room.id)
+      }
+    }
+
+    // Opportunistic idle disconnect in case room state has reached zero.
+    disconnectPriceFeedIfIdle(manager)
+  }, 30000)
+  cleanupInterval.unref?.()
 
   const cleanup = () => {
     clearInterval(cleanupInterval)
