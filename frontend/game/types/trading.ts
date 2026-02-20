@@ -100,6 +100,20 @@ export type GameOverEvent = {
   winnerId: string
   winnerName: string
   reason?: 'time_limit' | 'knockout' | 'forfeit'
+  // Add player results for final balances
+  playerResults?: PlayerSettlementResult[]
+}
+
+/**
+ * Balance updated event from server
+ * Emitted when a player's balance changes during gameplay (e.g., collateral deduction)
+ */
+export type BalanceUpdatedEvent = {
+  playerId: string
+  newBalance: number
+  reason: 'position_opened' | 'position_closed'
+  positionId?: string
+  collateral?: number
 }
 
 /**
@@ -139,4 +153,111 @@ export type LobbyPlayersEvent = LobbyPlayer[]
  */
 export type LobbyUpdatedEvent = {
   players: LobbyPlayer[]
+}
+
+// =============================================================================
+// AVANTIS-ALIGNED TYPES
+// These types align with Avantis Protocol SDK for future integration
+// =============================================================================
+
+/**
+ * Position direction - aligned with Avantis is_long
+ * true = LONG (profit when price goes up)
+ * false = SHORT (profit when price goes down)
+ */
+export type PositionDirection = boolean // isLong
+
+/**
+ * Position status
+ * - OPEN: Position is active, waiting for game end
+ * - SETTLED: Position closed at game end with realized PnL
+ */
+export type PositionStatus = 'open' | 'settled'
+
+/**
+ * Position - Aligned with Avantis TradeInput/TradeExtendedResponse
+ * Represents a single trading position opened by slicing a coin
+ *
+ * Positions stay OPEN until game end, then all are settled at once.
+ */
+export interface Position {
+  // Identity
+  id: string // Unique position ID
+  playerId: string // Player who opened the position
+  playerName: string // Display name
+
+  // Avantis-aligned fields
+  pairIndex: number // Trading pair index (0 = BTC/USD)
+  isLong: boolean // Direction: true=LONG, false=SHORT
+  leverage: number // Leverage multiplier (2, 5, 10, 20)
+  collateral: number // Fixed at $1 per position
+
+  // Price tracking
+  openPrice: number // Entry price (was priceAtOrder)
+  closePrice: number | null // Exit price (set at game end)
+
+  // PnL tracking (calculated at game end)
+  realizedPnl: number // Realized PnL (0 until settled)
+
+  // Timing
+  openedAt: number // Timestamp when position opened
+  settledAt: number | null // Game end timestamp
+  status: PositionStatus // 'open' | 'settled'
+}
+
+/**
+ * Position opened event - emitted when player slices a coin
+ * Position stays open until game end
+ */
+export interface PositionOpenedEvent {
+  positionId: string
+  playerId: string
+  playerName: string
+  pairIndex: number
+  isLong: boolean
+  leverage: number
+  collateral: number // Fixed at $1
+  openPrice: number
+}
+
+/**
+ * Individual position result at game settlement
+ */
+export interface PositionSettlementResult {
+  positionId: string
+  playerId: string
+  playerName: string
+  isLong: boolean
+  leverage: number
+  collateral: number
+  openPrice: number
+  closePrice: number
+  realizedPnl: number // Calculated PnL
+  isProfitable: boolean
+}
+
+/**
+ * Player result at game settlement
+ */
+export interface PlayerSettlementResult {
+  playerId: string
+  playerName: string
+  totalPnl: number // Sum of all position PnLs
+  finalBalance: number // Starting balance + totalPnl (floored at 0)
+  positionCount: number
+}
+
+/**
+ * Game settlement event - emitted at game end with all position results
+ * ALL positions are settled at game end (no 5-second rule)
+ */
+export interface GameSettlementEvent {
+  closePrice: number // Final BTC price at game end
+  positions: PositionSettlementResult[]
+  playerResults: PlayerSettlementResult[]
+  winner: {
+    playerId: string
+    playerName: string
+    winningBalance: number
+  }
 }
