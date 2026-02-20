@@ -36,9 +36,17 @@ export const GameOverModal = React.memo(function GameOverModal() {
   const isWinner = gameOverData.winnerId === localPlayerId
   const isTie = gameOverData.winnerId === null
 
-  // Get final wallet balances
+  // Prefer playerResults from gameOverData (authoritative), fallback to players array
+  const localPlayerResult = gameOverData.playerResults?.find((r) => r.playerId === localPlayerId)
+  const opponentResult = gameOverData.playerResults?.find((r) => r.playerId !== localPlayerId)
+
+  // Fallback to players array if playerResults not available
   const localPlayer = players.find((p) => p.id === localPlayerId)
   const opponent = players.find((p) => p.id !== localPlayerId)
+
+  // Use final balance from settlement results, or fallback to current dollars
+  const localFinalBalance = localPlayerResult?.finalBalance ?? localPlayer?.dollars ?? 0
+  const opponentFinalBalance = opponentResult?.finalBalance ?? opponent?.dollars ?? 0
 
   return (
     <motion.div
@@ -149,8 +157,8 @@ export const GameOverModal = React.memo(function GameOverModal() {
                       ],
                 }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                ${localPlayer?.dollars ?? 0}
+               >
+                ${localFinalBalance}
               </motion.span>
             </motion.div>
             {/* Opponent Tally */}
@@ -212,8 +220,8 @@ export const GameOverModal = React.memo(function GameOverModal() {
                       ],
                 }}
                 transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                ${opponent?.dollars ?? 0}
+               >
+                ${opponentFinalBalance}
               </motion.span>
             </motion.div>
           </div>
