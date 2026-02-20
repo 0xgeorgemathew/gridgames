@@ -1,4 +1,4 @@
-export type CoinType = 'call' | 'put'
+export type CoinType = 'long' | 'short'
 
 /**
  * Coin visual and physics configuration
@@ -97,10 +97,10 @@ export type GameStartEvent = {
  * Emitted when game ends (time limit, knockout, or forfeit)
  */
 export type GameOverEvent = {
-  winnerId: string
-  winnerName: string
+  winnerId: string | null
+  winnerName: string | null
   reason?: 'time_limit' | 'knockout' | 'forfeit'
-  // Add player results for final balances
+  // Player results from settlement - includes final balances and PnL
   playerResults?: PlayerSettlementResult[]
 }
 
@@ -186,8 +186,7 @@ export interface Position {
   playerId: string // Player who opened the position
   playerName: string // Display name
 
-  // Avantis-aligned fields
-  pairIndex: number // Trading pair index (0 = BTC/USD)
+  // Position details
   isLong: boolean // Direction: true=LONG, false=SHORT
   leverage: number // Leverage multiplier (2, 5, 10, 20)
   collateral: number // Fixed at $1 per position
@@ -213,7 +212,6 @@ export interface PositionOpenedEvent {
   positionId: string
   playerId: string
   playerName: string
-  pairIndex: number
   isLong: boolean
   leverage: number
   collateral: number // Fixed at $1

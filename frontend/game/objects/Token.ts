@@ -21,7 +21,7 @@ export class Token extends GameObjects.Container {
     super(scene, 0, 0)
 
     // Create image (texture set in spawn())
-    this.image = scene.add.image(0, 0, 'texture_call')
+    this.image = scene.add.image(0, 0, 'texture_long')
     this.add(this.image)
 
     // Default config (will be overridden in spawn())
@@ -61,8 +61,8 @@ export class Token extends GameObjects.Container {
     // Update texture with validation
     const textureKey = `texture_${type}`
     if (!this.scene.textures.exists(textureKey)) {
-      console.error(`Missing texture: ${textureKey}, falling back to texture_call`)
-      this.image.setTexture('texture_call')
+      console.error(`Missing texture: ${textureKey}, falling back to texture_long`)
+      this.image.setTexture('texture_long')
     } else {
       this.image.setTexture(textureKey)
     }
@@ -76,13 +76,13 @@ export class Token extends GameObjects.Container {
     this.setData('type', type)
 
     // Determine rotation behavior based on coin type
-    let rotationSpeed = 0.5 // Default clockwise for CALL
+    let rotationSpeed = 0.5 // Default clockwise for LONG
 
     switch (type) {
-      case 'call':
+      case 'long':
         rotationSpeed = 0.5 // Clockwise
         break
-      case 'put':
+      case 'short':
         rotationSpeed = -0.5 // Counter-clockwise
         break
     }

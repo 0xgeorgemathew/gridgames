@@ -138,10 +138,10 @@ export class VisualEffects {
     let fontSize = this.isMobile ? '34px' : '28px' // Larger for prominence
 
     // Determine text based on coin type
-    if (coinType === 'call') {
-      text = 'LONG - BTC'
-    } else if (coinType === 'put') {
-      text = 'Short BTC'
+    if (coinType === 'long') {
+      text = 'LONG BTC'
+    } else if (coinType === 'short') {
+      text = 'SHORT BTC'
     } else {
       // Fallback (shouldn't happen)
       text = '?'

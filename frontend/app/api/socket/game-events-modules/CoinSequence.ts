@@ -7,12 +7,12 @@ import { SeededRandom } from './SeededRandom'
  * Only screen positions differ based on device dimensions.
  */
 export class CoinSequence {
-  private sequence: Array<{ type: 'call' | 'put'; xNormalized: number }> = []
+  private sequence: Array<{ type: 'long' | 'short'; xNormalized: number }> = []
   private index = 0
 
   constructor(durationMs: number, minIntervalMs: number, maxIntervalMs: number, seed: number) {
     const rng = new SeededRandom(seed)
-    const types: Array<'call' | 'put'> = ['call', 'call', 'put', 'put']
+    const types: Array<'long' | 'short'> = ['long', 'long', 'short', 'short']
 
     const estimatedSpawns = Math.ceil(durationMs / minIntervalMs) + 10 // Extra for burst spawns
     for (let i = 0; i < estimatedSpawns; i++) {
@@ -23,7 +23,7 @@ export class CoinSequence {
     }
   }
 
-  next(): { type: 'call' | 'put'; xNormalized: number } | null {
+  next(): { type: 'long' | 'short'; xNormalized: number } | null {
     if (this.index >= this.sequence.length) return null
     return this.sequence[this.index++]
   }
@@ -32,7 +32,7 @@ export class CoinSequence {
     return this.index < this.sequence.length
   }
 
-  peek(): { type: 'call' | 'put'; xNormalized: number } | null {
+  peek(): { type: 'long' | 'short'; xNormalized: number } | null {
     if (this.index >= this.sequence.length) return null
     return this.sequence[this.index]
   }

@@ -5,13 +5,13 @@ import type { CoinType } from '../types/trading'
 // Colors: Muted, metallic tones with thick dark edges for milled rim effect
 // Hitbox multipliers adjust slice difficulty: larger = easier, smaller = harder
 export const COIN_CONFIG = {
-  call: {
+  long: {
     color: 0x4a7c59, // Muted Forest Green
     edgeColor: 0x2d4a35, // Dark Green (milled edge)
     radius: 12,
     hitboxMultiplier: 1.4, // 40% larger hitbox - easier to slice
   },
-  put: {
+  short: {
     color: 0x8b3a3a, // Muted Burgundy
     edgeColor: 0x4a1f1f, // Dark Burgundy (milled edge)
     radius: 12,
@@ -42,7 +42,7 @@ export class CoinRenderer {
    * Generate all cached coin textures
    */
   generateCachedTextures(): void {
-    const textureKeys: Array<CoinType> = ['call', 'put']
+    const textureKeys: Array<CoinType> = ['long', 'short']
 
     textureKeys.forEach((type) => {
       const config = COIN_CONFIG[type]
