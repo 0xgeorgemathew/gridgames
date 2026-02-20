@@ -31,7 +31,6 @@ export function MatchmakingScreen() {
     isConnected,
     isMatching,
     findMatch,
-    connect,
     lobbyPlayers,
     isRefreshingLobby,
     getLobbyPlayers,
@@ -47,11 +46,6 @@ export function MatchmakingScreen() {
   const { name: baseName, isLoading: isBaseNameLoading } = useBaseName(
     isInMiniApp ? miniAppWallet : undefined
   )
-
-  // Connect to Socket.IO when component mounts
-  useEffect(() => {
-    connect()
-  }, [connect])
 
   // Get display name based on auth method
   const getDisplayName = useCallback(() => {

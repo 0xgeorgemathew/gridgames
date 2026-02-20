@@ -83,22 +83,29 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   // ==========================================================================
 
   connect: () => {
-    const { socketCleanupFunctions } = get()
+    const { socket, socketCleanupFunctions } = get()
     socketCleanupFunctions.forEach((fn) => fn())
+    set({ socketCleanupFunctions: [] })
+
+    // Defensive teardown: avoids duplicate live sockets if connect() is called twice
+    if (socket) {
+      socket.removeAllListeners()
+      socket.disconnect()
+    }
 
     const socketUrl = process.env.NEXT_PUBLIC_URL || ''
-    const socket = io(socketUrl, {
+    const nextSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
     })
 
     const newCleanupFunctions: Array<() => void> = []
 
-    socket.on('connect', () => {
-      set({ isConnected: true, localPlayerId: socket.id })
+    nextSocket.on('connect', () => {
+      set({ isConnected: true, localPlayerId: nextSocket.id })
       // No cleanup interval needed for perp-style positions
     })
 
-    socket.on(
+    nextSocket.on(
       'btc_price',
       (data: { price: number; change: number; changePercent: number; timestamp: number }) => {
         const { firstPrice: currentFirstPrice } = get()
@@ -127,17 +134,17 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       }
     )
 
-    socket.on('disconnect', () => {
+    nextSocket.on('disconnect', () => {
       set({ isConnected: false })
       const { socketCleanupFunctions } = get()
       socketCleanupFunctions.forEach((fn) => fn())
       set({ socketCleanupFunctions: [] })
     })
 
-    socket.on('waiting_for_match', () => set({ isMatching: true }))
+    nextSocket.on('waiting_for_match', () => set({ isMatching: true }))
 
-    socket.on('match_found', (data: MatchFoundEvent) => {
-      const isPlayer1 = data.players[0]?.id === socket.id || false
+    nextSocket.on('match_found', (data: MatchFoundEvent) => {
+      const isPlayer1 = data.players[0]?.id === nextSocket.id || false
       set({
         isMatching: false,
         isPlaying: true,
@@ -147,21 +154,21 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       })
     })
 
-    socket.on('coin_spawn', (coin: CoinSpawnEvent) => get().spawnCoin(coin))
-    socket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
+    nextSocket.on('coin_spawn', (coin: CoinSpawnEvent) => get().spawnCoin(coin))
+    nextSocket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
     // Perp-style position events
-    socket.on('position_opened', (position: PositionOpenedEvent) => {
+    nextSocket.on('position_opened', (position: PositionOpenedEvent) => {
       console.log('[Socket] position_opened event received:', position)
       get().handlePositionOpened(position)
     })
-    socket.on('game_settlement', (settlement: GameSettlementEvent) =>
+    nextSocket.on('game_settlement', (settlement: GameSettlementEvent) =>
       get().handleGameSettlement(settlement)
     )
-    socket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
-    socket.on('game_over', (data: GameOverEvent) => get().handleGameOver(data))
+    nextSocket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
+    nextSocket.on('game_over', (data: GameOverEvent) => get().handleGameOver(data))
 
     // Balance updates during gameplay (collateral deduction)
-    socket.on('balance_updated', (data: BalanceUpdatedEvent) => {
+    nextSocket.on('balance_updated', (data: BalanceUpdatedEvent) => {
       const { players } = get()
       const newPlayers = players.map((p) =>
         p.id === data.playerId ? { ...p, dollars: data.newBalance } : p
@@ -169,12 +176,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       set({ players: newPlayers })
     })
 
-    socket.on('opponent_disconnected', () => {
+    nextSocket.on('opponent_disconnected', () => {
       get().addToast({ message: 'Opponent disconnected.', type: 'warning', duration: 5000 })
       get().resetGame()
     })
 
-    socket.on('player_leverage_changed', (data: { playerId: string; leverage: number }) => {
+    nextSocket.on('player_leverage_changed', (data: { playerId: string; leverage: number }) => {
       const { players } = get()
       const newPlayers = players.map((p) =>
         p.id === data.playerId ? { ...p, leverage: data.leverage } : p
@@ -182,26 +189,26 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       set({ players: newPlayers })
     })
 
-    socket.on('lobby_players', (players: LobbyPlayersEvent) => {
+    nextSocket.on('lobby_players', (players: LobbyPlayersEvent) => {
       set({ lobbyPlayers: players, isRefreshingLobby: false })
     })
 
-    socket.on('lobby_updated', (data: LobbyUpdatedEvent) => {
+    nextSocket.on('lobby_updated', (data: LobbyUpdatedEvent) => {
       const { localPlayerId } = get()
       const filteredPlayers = data.players.filter((p) => p.socketId !== localPlayerId)
       set({ lobbyPlayers: filteredPlayers })
     })
 
-    socket.on('joined_waiting_pool', () => {})
-    socket.on('already_in_pool', () => {})
+    nextSocket.on('joined_waiting_pool', () => {})
+    nextSocket.on('already_in_pool', () => {})
 
-    socket.on('error', (error: { message: string }) => {
+    nextSocket.on('error', (error: { message: string }) => {
       console.error('[Socket] Server error:', error.message)
       get().addToast({ message: error.message, type: 'error', duration: 5000 })
       set({ isMatching: false })
     })
 
-    set({ socket, socketCleanupFunctions: newCleanupFunctions })
+    set({ socket: nextSocket, socketCleanupFunctions: newCleanupFunctions })
   },
 
   disconnect: () => {

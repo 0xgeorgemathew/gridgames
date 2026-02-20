@@ -14,8 +14,7 @@ import { useEffect } from 'react'
 import { sdk } from '@farcaster/miniapp-sdk'
 
 export default function HyperSwiperPage() {
-  const { isPlaying, connect, resetGame, disconnectPriceFeed, toasts, removeToast } =
-    useTradingStore()
+  const { isPlaying, connect, disconnect, toasts, removeToast } = useTradingStore()
 
   useEffect(() => {
     sdk.actions.ready().catch(console.error)
@@ -23,10 +22,9 @@ export default function HyperSwiperPage() {
     connect()
 
     return () => {
-      resetGame()
-      disconnectPriceFeed()
+      disconnect()
     }
-  }, [connect, resetGame, disconnectPriceFeed])
+  }, [connect, disconnect])
 
   return (
     <div className="h-dvh w-screen bg-tron-black relative overflow-hidden">
