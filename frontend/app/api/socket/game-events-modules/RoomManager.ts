@@ -14,8 +14,8 @@ export class RoomManager {
   private playerToRoom = new Map<string, string>()
 
   // Room operations
-  createRoom(roomId: string): GameRoom {
-    const room = new GameRoom(roomId)
+  createRoom(roomId: string, gameDuration: number = 60000): GameRoom {
+    const room = new GameRoom(roomId, gameDuration)
     this.rooms.set(roomId, room)
     return room
   }
@@ -72,17 +72,24 @@ export class RoomManager {
   }
 
   // Waiting players
-  addWaitingPlayer(socketId: string, name: string, leverage: number = 2): void {
+  addWaitingPlayer(
+    socketId: string,
+    name: string,
+    leverage: number = 100,
+    gameDuration: number = 60000
+  ): void {
     const existing = this.waitingPlayers.get(socketId)
     if (existing) {
       existing.name = name
       existing.leverage = leverage
+      existing.gameDuration = gameDuration
     } else {
       this.waitingPlayers.set(socketId, {
         name,
         socketId,
         joinedAt: Date.now(),
         leverage,
+        gameDuration,
       })
     }
   }

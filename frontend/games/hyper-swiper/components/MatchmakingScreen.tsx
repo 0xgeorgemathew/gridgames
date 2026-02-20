@@ -11,6 +11,8 @@ import { ActionButton } from '@/components/ui/ActionButton'
 import { PlayerName } from '@/components/ens/PlayerName'
 import { useBaseMiniAppAuth } from '@/hooks/useBaseMiniAppAuth'
 import { useBaseName } from '@/hooks/useBaseName'
+import { GameSettingsSelector } from './GameSettingsSelector'
+import { cn } from '@/lib/utils'
 
 const BOTTOM_DOTS_COUNT = 7
 
@@ -37,6 +39,8 @@ export function MatchmakingScreen() {
     joinWaitingPool,
     leaveWaitingPool,
     selectOpponent,
+    selectedGameDuration,
+    setSelectedGameDuration,
   } = useTradingStore()
 
   // User-initiated state (lobby, entering)
@@ -263,6 +267,15 @@ export function MatchmakingScreen() {
           </div>
         </div>
 
+        {/* Game Settings Selector - Show when authenticated */}
+        {matchState !== 'login' && (
+          <GameSettingsSelector
+            selectedDuration={selectedGameDuration}
+            onDurationChange={setSelectedGameDuration}
+            disabled={isMatching}
+          />
+        )}
+
         {/* Auth Section - reserved space (200px min-height) prevents layout shift */}
         <div className="flex flex-col items-center">
           <div className="min-h-[200px] w-full max-w-md">
@@ -377,20 +390,47 @@ export function MatchmakingScreen() {
                   ) : (
                     <div className="flex flex-col gap-2 w-full">
                       <AnimatePresence mode="popLayout">
-                        {lobbyPlayers.map((player) => (
-                          <motion.button
-                            key={player.socketId}
-                            onClick={() => handleSelectOpponent(player.socketId)}
-                            disabled={isMatching}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className="relative px-4 py-3 bg-black/40 border border-cyan-400/20 hover:border-cyan-400/40 rounded-lg overflow-hidden scale-pulse-button min-w-[200px]"
-                          >
-                            <div className="relative z-10 flex items-center justify-center gap-2">
-                              <PlayerName username={player.name} className="text-sm" />
-                            </div>
-                          </motion.button>
-                        ))}
+                        {lobbyPlayers.map((player) => {
+                          // Format duration for display
+                          const formatDuration = (ms: number) => {
+                            const mins = ms / 60000
+                            return `${mins}MIN`
+                          }
+
+                          // Check if player has matching game duration
+                          const hasMatchingSettings = player.gameDuration === selectedGameDuration
+
+                          return (
+                            <motion.button
+                              key={player.socketId}
+                              onClick={() => handleSelectOpponent(player.socketId)}
+                              disabled={isMatching}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className={cn(
+                                'relative px-4 py-3 bg-black/40 border rounded-lg overflow-hidden scale-pulse-button min-w-[200px]',
+                                hasMatchingSettings
+                                  ? 'border-cyan-400/40 hover:border-cyan-400/60'
+                                  : 'border-cyan-400/20 hover:border-cyan-400/40 opacity-60'
+                              )}
+                            >
+                              <div className="relative z-10 flex flex-col items-center gap-1">
+                                <PlayerName username={player.name} className="text-sm" />
+                                <div className="flex items-center gap-2 text-[9px] tracking-wider">
+                                  <span
+                                    className={
+                                      player.gameDuration === selectedGameDuration
+                                        ? 'text-cyan-400'
+                                        : 'text-cyan-400/50'
+                                    }
+                                  >
+                                    {formatDuration(player.gameDuration)}
+                                  </span>
+                                </div>
+                              </div>
+                            </motion.button>
+                          )
+                        })}
                       </AnimatePresence>
                     </div>
                   )}
