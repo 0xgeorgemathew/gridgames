@@ -9,10 +9,7 @@
 export {
   // Core exports
   setupGameEvents,
-  ORDER_SETTLEMENT_DURATION_MS,
   // Classes
-  SettlementGuard,
-  settlementGuard,
   SeededRandom,
   CoinSequence,
   PriceFeedManager,
@@ -24,8 +21,11 @@ export {
   validateCoinType,
   // Types
   type WaitingPlayer,
-  type PendingOrder,
+  type OpenPosition,
   type SpawnedCoin,
   type Coin,
   type PriceBroadcastData,
+  type PositionSettlementResult,
+  type PlayerSettlementResult,
+  type GameSettlementData,
 } from './game-events-modules'

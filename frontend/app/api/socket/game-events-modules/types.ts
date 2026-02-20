@@ -22,27 +22,65 @@ export interface WaitingPlayer {
 // Server-side coin
 export interface Coin {
   id: string
-  type: 'call' | 'put'
+  type: 'long' | 'short'
   x: number
   y: number
 }
 
-// Server-side order type (same structure as client OrderPlacedEvent)
-export interface PendingOrder {
+// Perp-style open position (replaces PendingOrder)
+// Positions stay open until game end - no 5-second settlement
+export interface OpenPosition {
   id: string
   playerId: string
   playerName: string
-  coinType: 'call' | 'put'
-  priceAtOrder: number
-  settlesAt: number
-  isPlayer1: boolean // Stored at order creation to avoid lookup issues at settlement
-  multiplier: number // Leverage multiplier stored at order creation time
+  coinType: 'long' | 'short' // Maps to isLong: long=true, short=false
+  priceAtOrder: number // Entry price
+  leverage: number // Leverage multiplier
+  collateral: number // Fixed at $1 per position
+  openedAt: number // Timestamp when position opened
+  isPlayer1: boolean // For compatibility with existing game logic
+}
+
+// Position settlement result at game end
+export interface PositionSettlementResult {
+  positionId: string
+  playerId: string
+  playerName: string
+  isLong: boolean
+  leverage: number
+  collateral: number
+  openPrice: number
+  closePrice: number
+  realizedPnl: number
+  isProfitable: boolean
+}
+
+// Player settlement summary at game end
+export interface PlayerSettlementResult {
+  playerId: string
+  playerName: string
+  totalPnl: number
+  positionCount: number
+  winningPositions: number
+  finalBalance: number
+}
+
+// Game settlement event data
+export interface GameSettlementData {
+  closePrice: number
+  positions: PositionSettlementResult[]
+  playerResults: PlayerSettlementResult[]
+  winner: {
+    playerId: string
+    playerName: string
+    winningBalance: number
+  } | null
 }
 
 // Spawned coin data for network transmission
 export interface SpawnedCoin {
   id: string
-  type: 'call' | 'put'
+  type: 'long' | 'short'
   xNormalized: number
 }
 

@@ -1,20 +1,19 @@
 import { Player } from '@/game/types/trading'
 import { GAME_CONFIG } from '@/game/constants'
 import { CoinSequence } from './CoinSequence'
-import type { Coin, PendingOrder } from './types'
+import type { Coin, OpenPosition } from './types'
 
 /**
  * GameRoom - Encapsulates room state and lifecycle.
  *
- * Manages players, coins, orders, timers, and game state.
+ * Manages players, coins, positions, timers, and game state.
  * Includes timer tracking for proper cleanup to prevent memory leaks.
  */
 export class GameRoom {
   readonly id: string
   readonly players: Map<string, Player>
   readonly coins: Map<string, Coin>
-  readonly pendingOrders: Map<string, PendingOrder>
-  tugOfWar = 0
+  readonly openPositions: Map<string, OpenPosition>
   private isClosing = false
   isShutdown = false // Prevents settlement timeouts from operating on deleted rooms
 
@@ -49,7 +48,7 @@ export class GameRoom {
     this.id = roomId
     this.players = new Map()
     this.coins = new Map()
-    this.pendingOrders = new Map()
+    this.openPositions = new Map()
     this.gameStartTime = Date.now()
   }
 
@@ -130,12 +129,12 @@ export class GameRoom {
     this.coins.delete(coinId)
   }
 
-  addPendingOrder(order: PendingOrder): void {
-    this.pendingOrders.set(order.id, order)
+  addOpenPosition(position: OpenPosition): void {
+    this.openPositions.set(position.id, position)
   }
 
-  removePendingOrder(orderId: string): void {
-    this.pendingOrders.delete(orderId)
+  removeOpenPosition(positionId: string): void {
+    this.openPositions.delete(positionId)
   }
 
   // Track intervals/timeout for cleanup
@@ -242,12 +241,12 @@ export class GameRoom {
   }
 
   // Get next coin from deterministic sequence
-  getNextCoinData(): { type: 'call' | 'put'; xNormalized: number } | null {
+  getNextCoinData(): { type: 'long' | 'short'; xNormalized: number } | null {
     return this.coinSequence?.next() ?? null
   }
 
   // Peek at next coin without consuming it
-  peekNextCoinData(): { type: 'call' | 'put'; xNormalized: number } | null {
+  peekNextCoinData(): { type: 'long' | 'short'; xNormalized: number } | null {
     return this.coinSequence?.peek() ?? null
   }
 }

@@ -3,8 +3,7 @@ import type {
   Player,
   CoinSpawnEvent,
   SliceEvent,
-  OrderPlacedEvent,
-  SettlementEvent,
+  PositionOpenedEvent,
   MatchFoundEvent,
   GameOverEvent,
   GameStartEvent,
@@ -13,8 +12,18 @@ import type {
   LobbyPlayer,
   LobbyPlayersEvent,
   LobbyUpdatedEvent,
+  Position,
+  GameSettlementEvent,
 } from '../../types/trading'
 import type { Toast } from '@/components/ToastNotifications'
+
+// Extend window interface for Phaser event bridge
+declare global {
+  interface Window {
+    phaserEvents?: PhaserEventBridge
+    sceneDimensions?: { width: number; height: number }
+  }
+}
 
 // CryptoSymbol type for price feed
 export type CryptoSymbol = 'btcusdt'
@@ -29,8 +38,6 @@ export interface PhaserEventBridge {
 
 // Game constants
 export const STANDARD_DAMAGE = 1
-export const TUG_OF_WAR_MIN = -100
-export const TUG_OF_WAR_MAX = 100
 
 // Connection state slice
 export interface ConnectionState {
@@ -64,12 +71,10 @@ export interface TimerState {
   gameTimerInterval: number | null
 }
 
-// Game state slice
+// Game state slice - Perp-style positions
 export interface GameState {
-  tugOfWar: number
-  activeOrders: Map<string, OrderPlacedEvent>
-  pendingOrders: Map<string, SettlementEvent>
-  latestSettlement: SettlementEvent | null
+  openPositions: Map<string, Position> // Open positions (no settlement timer)
+  gameSettlement: GameSettlementEvent | null // Settlement data at game end
   toasts: Toast[]
   leverage: number // Manual leverage selector (1, 2, 5, 10)
 }
@@ -112,18 +117,15 @@ export interface TradingState
   sliceCoin: (coinId: string, coinType: CoinType) => void
   setLeverage: (leverage: number) => void
   handleSlice: (slice: SliceEvent) => void
-  handleOrderPlaced: (order: OrderPlacedEvent) => void
-  handleSettlement: (settlement: SettlementEvent) => void
+  handlePositionOpened: (position: PositionOpenedEvent) => void
+  handleGameSettlement: (settlement: GameSettlementEvent) => void
   handleGameStart: (data: GameStartEvent) => void
   handleGameOver: (data: GameOverEvent) => void
   handlePlayerHit: (data: { playerId: string; damage: number; reason: string }) => void
-  removeActiveOrder: (orderId: string) => void
-  cleanupOrphanedOrders: () => void
   connectPriceFeed: (symbol: CryptoSymbol) => void
   disconnectPriceFeed: () => void
   manualReconnect: () => void
   resetGame: () => void
-  clearLatestSettlement: () => void
   addToast: (toast: Omit<Toast, 'id'>) => void
   removeToast: (id: string) => void
   clearToasts: () => void
@@ -141,8 +143,7 @@ export type {
   Player,
   CoinSpawnEvent,
   SliceEvent,
-  OrderPlacedEvent,
-  SettlementEvent,
+  PositionOpenedEvent,
   MatchFoundEvent,
   GameOverEvent,
   GameStartEvent,
@@ -151,4 +152,6 @@ export type {
   LobbyPlayer,
   LobbyPlayersEvent,
   LobbyUpdatedEvent,
+  Position,
+  GameSettlementEvent,
 }

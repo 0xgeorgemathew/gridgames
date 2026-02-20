@@ -4,25 +4,19 @@
  * Uses the Slices Pattern for modularity while maintaining
  * inter-slice communication via the get() function.
  *
+ * Perp-Style Positions: Positions stay open until game end with real-time PnL
+ *
  * @see https://github.com/pmndrs/zustand/blob/main/docs/guides/slices-pattern.md
  */
 
 import { create } from 'zustand'
 import { io } from 'socket.io-client'
 import type { TradingState, CryptoSymbol } from './types'
-import {
-  getDamageForCoinType,
-  calculateTugOfWarDelta,
-  transferFunds,
-  clampTugOfWar,
-  logFundTransfer,
-} from './helpers'
 import type {
   Player,
   CoinSpawnEvent,
   SliceEvent,
-  OrderPlacedEvent,
-  SettlementEvent,
+  PositionOpenedEvent,
   MatchFoundEvent,
   GameOverEvent,
   GameStartEvent,
@@ -30,11 +24,12 @@ import type {
   LobbyPlayersEvent,
   LobbyUpdatedEvent,
   BalanceUpdatedEvent,
+  Position,
+  GameSettlementEvent,
 } from '../../types/trading'
 
-// Re-export types and helpers
+// Re-export types
 export * from './types'
-export * from './helpers'
 
 export const useTradingStore = create<TradingState>((set, get) => ({
   // Connection state
@@ -61,11 +56,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   gameTimeRemaining: 0,
   gameTimerInterval: null,
 
-  // Game state
-  tugOfWar: 0,
-  activeOrders: new Map(),
-  pendingOrders: new Map(),
-  latestSettlement: null,
+  // Game state - Perp-style positions
+  openPositions: new Map<string, Position>(), // Open positions (no settlement timer)
+  gameSettlement: null, // Settlement data at game end
   toasts: [],
   leverage: 2, // Manual leverage selector (1, 2, 5, 10)
 
@@ -102,12 +95,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     socket.on('connect', () => {
       set({ isConnected: true, localPlayerId: socket.id })
-
-      const cleanupInterval = setInterval(() => {
-        get().cleanupOrphanedOrders()
-      }, 5000)
-
-      newCleanupFunctions.push(() => clearInterval(cleanupInterval))
+      // No cleanup interval needed for perp-style positions
     })
 
     socket.on(
@@ -161,11 +149,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     socket.on('coin_spawn', (coin: CoinSpawnEvent) => get().spawnCoin(coin))
     socket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
-    socket.on('order_placed', (order: OrderPlacedEvent) => get().handleOrderPlaced(order))
-    socket.on('order_settled', (settlement: SettlementEvent) => get().handleSettlement(settlement))
+    // Perp-style position events
+    socket.on('position_opened', (position: PositionOpenedEvent) => {
+      console.log('[Socket] position_opened event received:', position)
+      get().handlePositionOpened(position)
+    })
+    socket.on('game_settlement', (settlement: GameSettlementEvent) => get().handleGameSettlement(settlement))
     socket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
     socket.on('game_over', (data: GameOverEvent) => get().handleGameOver(data))
-    socket.on('player_hit', (data) => get().handlePlayerHit(data))
 
     // Balance updates during gameplay (collateral deduction)
     socket.on('balance_updated', (data: BalanceUpdatedEvent) => {
@@ -275,87 +266,56 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     window.phaserEvents?.emit('opponent_slice', slice)
   },
 
-  handleOrderPlaced: (order) => {
-    const { activeOrders } = get()
-    const newActiveOrders = new Map(activeOrders)
-    newActiveOrders.set(order.orderId, order)
-    set({ activeOrders: newActiveOrders })
-  },
+  // Perp-style position opened - no settlement timer
+  handlePositionOpened: (positionEvent) => {
+    console.log('[Store] position_opened received:', positionEvent)
+    console.log('[Store] localPlayerId:', get().localPlayerId)
 
-  handleSettlement: (settlement) => {
-    const { isPlayer1, players, pendingOrders, tugOfWar, activeOrders } = get()
-    const amount = settlement.amountTransferred ?? getDamageForCoinType()
-
-    const winnerId = settlement.isCorrect
-      ? settlement.playerId
-      : players.find((p) => p.id !== settlement.playerId)?.id
-    const loserId = settlement.isCorrect
-      ? players.find((p) => p.id !== settlement.playerId)?.id
-      : settlement.playerId
-
-    const newPlayers =
-      winnerId && loserId ? transferFunds(players, winnerId, loserId, amount) : players
-
-    if (winnerId && loserId) {
-      logFundTransfer(
-        players,
-        newPlayers,
-        winnerId,
-        loserId,
-        amount,
-        'Settlement',
-        `${settlement.coinType.toUpperCase()} ${settlement.playerName} ${settlement.isCorrect ? 'WON' : 'LOST'}`
-      )
+    const { openPositions } = get()
+    const newPosition: Position = {
+      id: positionEvent.positionId,
+      playerId: positionEvent.playerId,
+      playerName: positionEvent.playerName,
+      isLong: positionEvent.isLong,
+      leverage: positionEvent.leverage,
+      collateral: positionEvent.collateral,
+      openPrice: positionEvent.openPrice,
+      closePrice: null,
+      realizedPnl: 0,
+      openedAt: Date.now(),
+      settledAt: null,
+      status: 'open',
     }
 
-    const tugOfWarDelta = calculateTugOfWarDelta(isPlayer1, settlement.isCorrect, amount)
+    console.log('[Store] New position:', newPosition)
+    console.log('[Store] playerId match:', newPosition.playerId === get().localPlayerId)
 
-    const newActiveOrders = new Map(activeOrders)
-    const newPendingOrders = new Map(pendingOrders)
-    newActiveOrders.delete(settlement.orderId)
-    newPendingOrders.set(settlement.orderId, settlement)
+    const newPositions = new Map(openPositions)
+    newPositions.set(positionEvent.positionId, newPosition)
+    set({ openPositions: newPositions })
 
-    const MAX_SETTLEMENT_HISTORY = 50
-    if (newPendingOrders.size > MAX_SETTLEMENT_HISTORY) {
-      newPendingOrders.delete(newPendingOrders.keys().next().value)
+    console.log('[Store] openPositions size after update:', newPositions.size)
+  },
+
+  // Game settlement - all positions settled at game end
+  handleGameSettlement: (settlement) => {
+    const { openPositions } = get()
+
+    // Update all positions with settlement data
+    const newPositions = new Map(openPositions)
+    for (const settledPos of settlement.positions) {
+      const position = newPositions.get(settledPos.positionId)
+      if (position) {
+        position.closePrice = settledPos.closePrice
+        position.realizedPnl = settledPos.realizedPnl
+        position.settledAt = Date.now()
+        position.status = 'settled'
+      }
     }
 
     set({
-      activeOrders: newActiveOrders,
-      pendingOrders: newPendingOrders,
-      tugOfWar: clampTugOfWar(tugOfWar + tugOfWarDelta),
-      players: newPlayers,
-      latestSettlement: settlement,
-    })
-  },
-
-  handlePlayerHit: (data) => {
-    const { isPlayer1, players, tugOfWar } = get()
-
-    const loserId = data.playerId
-    const winnerId = players.find((p) => p.id !== data.playerId)?.id
-
-    const newPlayers =
-      winnerId && loserId ? transferFunds(players, winnerId, loserId, data.damage) : players
-
-    if (winnerId && loserId) {
-      const loser = newPlayers.find((p) => p.id === loserId)
-      logFundTransfer(
-        players,
-        newPlayers,
-        winnerId,
-        loserId,
-        data.damage,
-        'PlayerHit',
-        `${loser?.name || 'Unknown'} hit by ${data.reason}: $${data.damage} penalty`
-      )
-    }
-
-    const tugOfWarDelta = calculateTugOfWarDelta(isPlayer1, false, data.damage)
-
-    set({
-      players: newPlayers,
-      tugOfWar: clampTugOfWar(tugOfWar + tugOfWarDelta),
+      openPositions: newPositions,
+      gameSettlement: settlement,
     })
   },
 
@@ -395,28 +355,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ isGameOver: true, gameOverData: data })
   },
 
-  removeActiveOrder: (orderId) => {
-    const { activeOrders } = get()
-    const newActiveOrders = new Map(activeOrders)
-    newActiveOrders.delete(orderId)
-    set({ activeOrders: newActiveOrders })
-  },
-
-  cleanupOrphanedOrders: () => {
-    const { activeOrders } = get()
-    const now = Date.now()
-
-    const newActiveOrders = new Map(activeOrders)
-    for (const [orderId, order] of newActiveOrders) {
-      if (now - order.settlesAt > 3000) {
-        newActiveOrders.delete(orderId)
-      }
-    }
-
-    if (newActiveOrders.size !== activeOrders.size) {
-      set({ activeOrders: newActiveOrders })
-    }
-  },
+  // No-op: Perp-style positions don't use player hits
+  handlePlayerHit: () => {},
 
   connectPriceFeed: (symbol: CryptoSymbol) => {
     set({ selectedCrypto: symbol })
@@ -433,12 +373,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({
       roomId: null,
       players: [],
-      tugOfWar: 0,
-      activeOrders: new Map(),
-      pendingOrders: new Map(),
+      openPositions: new Map(),
+      gameSettlement: null,
       isPlaying: false,
       isMatching: false,
-      latestSettlement: null,
       leverage: 2, // Reset to default leverage
       gameTimeRemaining: 0,
       gameTimerInterval: null,
@@ -450,8 +388,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       lastPriceUpdate: 0,
     })
   },
-
-  clearLatestSettlement: () => set({ latestSettlement: null }),
 
   manualReconnect: () => {
     const { selectedCrypto } = get()

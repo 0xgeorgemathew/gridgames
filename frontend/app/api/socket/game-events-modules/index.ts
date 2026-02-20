@@ -3,25 +3,36 @@ import { Socket } from 'socket.io'
 import { GAME_CONFIG } from '@/game/constants'
 
 // Module imports
-import { settlementGuard } from './SettlementGuard'
 import { priceFeed } from './PriceFeedManager'
 import { GameRoom } from './GameRoom'
 import { RoomManager } from './RoomManager'
 import { validatePlayerName, validateCoinType } from './validation'
-import type { WaitingPlayer, PendingOrder, SpawnedCoin } from './types'
+import type {
+  WaitingPlayer,
+  OpenPosition,
+  SpawnedCoin,
+  PositionSettlementResult,
+  PlayerSettlementResult,
+  GameSettlementData,
+} from './types'
 
 // Re-export types and modules for external use
-export { SettlementGuard, settlementGuard } from './SettlementGuard'
 export { SeededRandom } from './SeededRandom'
 export { CoinSequence } from './CoinSequence'
 export { PriceFeedManager, priceFeed } from './PriceFeedManager'
 export { GameRoom } from './GameRoom'
 export { RoomManager } from './RoomManager'
 export { validatePlayerName, validateCoinType } from './validation'
-export type { WaitingPlayer, PendingOrder, SpawnedCoin, Coin, PriceBroadcastData } from './types'
-
-// Order settlement duration
-export const ORDER_SETTLEMENT_DURATION_MS = GAME_CONFIG.ORDER_SETTLEMENT_DURATION_MS
+export type {
+  WaitingPlayer,
+  OpenPosition,
+  SpawnedCoin,
+  Coin,
+  PriceBroadcastData,
+  PositionSettlementResult,
+  PlayerSettlementResult,
+  GameSettlementData,
+} from './types'
 
 // Price feed state
 let priceFeedConnected = false
@@ -59,82 +70,118 @@ function disconnectPriceFeedIfIdle(manager: RoomManager): void {
 // Helper Functions
 // =============================================================================
 
-function transferFunds(room: GameRoom, winnerId: string, loserId: string, amount: number): number {
-  const winner = room.players.get(winnerId)
-  const loser = room.players.get(loserId)
+// Calculate PnL for a position
+function calculatePositionPnl(
+  position: OpenPosition,
+  closePrice: number
+): { pnl: number; isProfitable: boolean } {
+  const priceChange = (closePrice - position.priceAtOrder) / position.priceAtOrder
+  const isLong = position.coinType === 'long'
 
-  const actualTransfer = Math.min(amount, loser?.dollars || 0)
+  // PnL = collateral * leverage * price_change_percent * direction * 100
+  // For LONG: profit when price goes up
+  // For SHORT: profit when price goes down
+  const directionMultiplier = isLong ? 1 : -1
+  const pnl = position.collateral * position.leverage * priceChange * directionMultiplier * 100
+  const isProfitable = pnl > 0
 
-  if (winner) winner.dollars += actualTransfer
-  if (loser) loser.dollars -= actualTransfer
-
-  return actualTransfer
+  return { pnl, isProfitable }
 }
 
 // =============================================================================
-// Settlement Logic
+// Game End Settlement Logic
 // =============================================================================
 
-function settleOrder(io: SocketIOServer, room: GameRoom, order: PendingOrder): void {
-  if (!settlementGuard.tryAcquire(order.id)) return
-  if (!room.pendingOrders.has(order.id)) {
-    settlementGuard.release(order.id)
-    return
+function settleAllPositions(
+  io: SocketIOServer,
+  room: GameRoom
+): GameSettlementData {
+  const closePrice = priceFeed.getLatestPrice()
+  const settlements: PositionSettlementResult[] = []
+
+  // Calculate PnL for each position
+  for (const [positionId, position] of room.openPositions) {
+    const { pnl, isProfitable } = calculatePositionPnl(position, closePrice)
+    const isLong = position.coinType === 'long'
+
+    settlements.push({
+      positionId,
+      playerId: position.playerId,
+      playerName: position.playerName,
+      isLong,
+      leverage: position.leverage,
+      collateral: position.collateral,
+      openPrice: position.priceAtOrder,
+      closePrice,
+      realizedPnl: pnl,
+      isProfitable,
+    })
   }
 
-  try {
-    if (room.players.size === 0) return
-    const playerIds = room.getPlayerIds()
-    if (playerIds.length < 2) return
+  // Calculate player totals
+  const playerResults = calculatePlayerResults(room, settlements)
 
-    const finalPrice = priceFeed.getLatestPrice()
-    const priceChange = (finalPrice - order.priceAtOrder) / order.priceAtOrder
+  // Determine winner by total PnL
+  const winner = determineWinner(playerResults)
 
-    const isCorrect = order.coinType === 'call' ? priceChange > 0 : priceChange < 0
-    const impact = order.multiplier
+  const settlementData: GameSettlementData = {
+    closePrice,
+    positions: settlements,
+    playerResults,
+    winner,
+  }
 
-    const winnerId = isCorrect ? order.playerId : playerIds.find((id) => id !== order.playerId)!
-    const loserId = isCorrect ? playerIds.find((id) => id !== order.playerId)! : order.playerId
+  // Emit game settlement event
+  io.to(room.id).emit('game_settlement', settlementData)
 
-    const actualTransfer = transferFunds(room, winnerId, loserId, impact)
+  return settlementData
+}
 
-    room.tugOfWar += order.isPlayer1 ? -impact : impact
-    room.removePendingOrder(order.id)
+function calculatePlayerResults(
+  room: GameRoom,
+  settlements: PositionSettlementResult[]
+): PlayerSettlementResult[] {
+  const playerMap = new Map<string, PlayerSettlementResult>()
 
-    // Emit balance updates to both players
-    const winner = room.players.get(winnerId)
-    const loser = room.players.get(loserId)
-    if (winner) {
-      io.to(room.id).emit('balance_updated', {
-        playerId: winnerId,
-        newBalance: winner.dollars,
-        reason: 'position_closed',
-        positionId: order.id,
-        collateral: actualTransfer,
-      })
-    }
-    if (loser) {
-      io.to(room.id).emit('balance_updated', {
-        playerId: loserId,
-        newBalance: loser.dollars,
-        reason: 'position_closed',
-        positionId: order.id,
-        collateral: actualTransfer,
-      })
-    }
-
-    io.to(room.id).emit('order_settled', {
-      orderId: order.id,
-      playerId: order.playerId,
-      playerName: order.playerName,
-      coinType: order.coinType,
-      isCorrect,
-      priceAtOrder: order.priceAtOrder,
-      finalPrice: finalPrice,
-      amountTransferred: actualTransfer,
+  // Initialize player results
+  for (const [playerId, player] of room.players) {
+    playerMap.set(playerId, {
+      playerId,
+      playerName: player.name,
+      totalPnl: 0,
+      positionCount: 0,
+      winningPositions: 0,
+      finalBalance: player.dollars,
     })
-  } finally {
-    settlementGuard.release(order.id)
+  }
+
+  // Aggregate position results
+  for (const settlement of settlements) {
+    const playerResult = playerMap.get(settlement.playerId)
+    if (playerResult) {
+      playerResult.totalPnl += settlement.realizedPnl
+      playerResult.positionCount += 1
+      if (settlement.isProfitable) {
+        playerResult.winningPositions += 1
+      }
+    }
+  }
+
+  return Array.from(playerMap.values())
+}
+
+function determineWinner(
+  playerResults: PlayerSettlementResult[]
+): { playerId: string; playerName: string; winningBalance: number } | null {
+  if (playerResults.length === 0) return null
+
+  const sorted = [...playerResults].sort((a, b) => b.totalPnl - a.totalPnl)
+  const winner = sorted[0]
+
+  return {
+    playerId: winner.playerId,
+    playerName: winner.playerName,
+    winningBalance: winner.finalBalance,
   }
 }
 
@@ -263,31 +310,21 @@ function endGame(
   if (room.getIsClosing()) return
   room.setClosing()
 
-  // Settle all pending orders
-  for (const [orderId, order] of room.pendingOrders) {
-    settleOrder(io, room, order)
-  }
+  // Settle ALL positions at game end
+  const settlementData = settleAllPositions(io, room)
 
-  const winner = room.getWinner()
+  // Use winner from settlement data (based on total PnL)
+  const winner = settlementData.winner
 
   io.to(room.id).emit('game_over', {
-    winnerId: winner?.id,
-    winnerName: winner?.name,
+    winnerId: winner?.playerId ?? null,
+    winnerName: winner?.playerName ?? null,
     reason,
+    playerResults: settlementData.playerResults,
   })
 
   setTimeout(() => manager.deleteRoom(room.id), 1000)
   setTimeout(() => disconnectPriceFeedIfIdle(manager), 1100)
-}
-
-// =============================================================================
-// Game Over Check (for knockout)
-// =============================================================================
-
-function checkGameOver(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
-  if (room.hasDeadPlayer()) {
-    endGame(io, manager, room, 'knockout')
-  }
 }
 
 // =============================================================================
@@ -373,7 +410,7 @@ async function createMatch(
 }
 
 // =============================================================================
-// Slice Handling
+// Slice Handling - Perp-Style Position Opening
 // =============================================================================
 
 async function handleSlice(
@@ -386,53 +423,77 @@ async function handleSlice(
   room.removeCoin(data.coinId)
 
   // Only call and put coins now - no gas or whale
-  if (!validateCoinType(data.coinType)) return
+  console.log('[Server] handleSlice called with coinType:', data.coinType)
+  if (!validateCoinType(data.coinType)) {
+    console.log('[Server] Invalid coin type, returning early')
+    return
+  }
+
+  const player = room.players.get(playerId)
+  console.log('[Server] Player found:', player?.name, 'balance:', player?.dollars)
+  if (!player) return
+
+  // Check if player has enough balance for collateral
+  if (player.dollars < GAME_CONFIG.POSITION_COLLATERAL) {
+    // Emit error - not enough balance
+    io.to(playerId).emit('error', { message: 'Insufficient balance to open position' })
+    return
+  }
 
   const playerIds = room.getPlayerIds()
   const isPlayer1 = playerId === playerIds[0]
-  const multiplier = room.getLeverageForPlayer(playerId)
+  const leverage = room.getLeverageForPlayer(playerId)
   const serverPrice = priceFeed.getLatestPrice()
 
-  // Type is now validated as 'call' | 'put'
-  const coinType: 'call' | 'put' = data.coinType
+  // Type is now validated as 'long' | 'short'
+  const coinType: 'long' | 'short' = data.coinType
 
-  const order: PendingOrder = {
-    id: `order-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+  // Create perp-style position (no settlement timer)
+  const position: OpenPosition = {
+    id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     playerId,
-    playerName: room.players.get(playerId)?.name || 'Unknown',
+    playerName: player.name,
     coinType,
     priceAtOrder: serverPrice,
-    settlesAt: Date.now() + ORDER_SETTLEMENT_DURATION_MS,
+    leverage,
+    collateral: GAME_CONFIG.POSITION_COLLATERAL,
+    openedAt: Date.now(),
     isPlayer1,
-    multiplier,
   }
 
-  room.addPendingOrder(order)
+  // Deduct collateral from player balance
+  player.dollars -= GAME_CONFIG.POSITION_COLLATERAL
 
-  io.to(room.id).emit('order_placed', {
-    orderId: order.id,
-    playerId: order.playerId,
-    playerName: order.playerName,
-    coinType: order.coinType,
-    priceAtOrder: order.priceAtOrder,
-    settlesAt: order.settlesAt,
+  // Add position to room
+  room.addOpenPosition(position)
+
+  // Emit position_opened event
+  console.log('[Server] Emitting position_opened to room:', room.id, 'positionId:', position.id)
+  io.to(room.id).emit('position_opened', {
+    positionId: position.id,
+    playerId: position.playerId,
+    playerName: position.playerName,
+    isLong: position.coinType === 'long',
+    leverage: position.leverage,
+    collateral: position.collateral,
+    openPrice: position.priceAtOrder,
   })
 
+  // Emit balance_updated event for collateral deduction
+  io.to(room.id).emit('balance_updated', {
+    playerId,
+    newBalance: player.dollars,
+    reason: 'position_opened',
+    positionId: position.id,
+    collateral: GAME_CONFIG.POSITION_COLLATERAL,
+  })
+
+  // Emit coin_sliced for visual feedback
   io.to(room.id).emit('coin_sliced', {
     playerId,
-    playerName: room.players.get(playerId)?.name,
+    playerName: player.name,
     coinType: data.coinType,
   })
-
-  const timeoutId = setTimeout(() => {
-    if (room.isShutdown || room.getIsClosing()) return
-    if (manager.hasRoom(room.id) && room.pendingOrders.has(order.id)) {
-      settleOrder(io, room, order)
-      checkGameOver(io, manager, room)
-    }
-  }, ORDER_SETTLEMENT_DURATION_MS)
-
-  room.trackTimeout(timeoutId)
 }
 
 // =============================================================================
@@ -443,15 +504,12 @@ export function setupGameEvents(io: SocketIOServer): {
   cleanup: () => void
   emergencyShutdown: () => void
 } {
-  settlementGuard.start()
-
   const manager = new RoomManager()
 
   const cleanupInterval = setInterval(() => manager.cleanupStaleWaitingPlayers(), 30000)
 
   const cleanup = () => {
     clearInterval(cleanupInterval)
-    settlementGuard.stop()
     if (priceFeedConnected) {
       priceFeed.disconnect()
       priceFeedConnected = false
@@ -459,9 +517,11 @@ export function setupGameEvents(io: SocketIOServer): {
   }
 
   const emergencyShutdown = () => {
-    manager.emergencyShutdown(io, (ioServer, room, orderId) => {
-      const order = room.pendingOrders.get(orderId)
-      if (order) settleOrder(ioServer, room, order)
+    manager.emergencyShutdown(io, (ioServer, room) => {
+      // With perp-style positions, we settle all positions at emergency shutdown
+      if (room.openPositions.size > 0) {
+        settleAllPositions(ioServer, room)
+      }
     })
   }
 
@@ -669,18 +729,27 @@ export function setupGameEvents(io: SocketIOServer): {
     socket.on(
       'slice_coin',
       async (data: { coinId: string; coinType: string; priceAtSlice: number }) => {
+        console.log('[Server] slice_coin event received from socket:', socket.id)
+        console.log('[Server] slice_coin data:', data)
         try {
           const roomId = manager.getPlayerRoomId(socket.id)
-          if (!roomId) return
+          console.log('[Server] roomId lookup result:', roomId ?? 'NULL')
+
+          if (!roomId) {
+            console.log('[Server] EARLY RETURN - roomId is null')
+            return
+          }
 
           const room = manager.getRoom(roomId)
           if (!room) {
+            console.log('[Server] EARLY RETURN - room not found for roomId:', roomId)
             manager.removePlayerFromRoom(socket.id)
             return
           }
 
           await handleSlice(io, manager, room, socket.id, data)
         } catch (error) {
+          console.log('[Server] slice_coin error:', error)
           socket.emit('error', { message: 'Failed to slice coin' })
         }
       }
@@ -781,7 +850,8 @@ export function setupGameEvents(io: SocketIOServer): {
         if (room?.hasPlayer(socket.id)) {
           io.to(roomId).emit('opponent_disconnected')
 
-          if (room.pendingOrders.size === 0) {
+          // With perp-style positions, clean up room on disconnect
+          if (room.openPositions.size === 0) {
             setTimeout(() => manager.deleteRoom(roomId), 5000)
             setTimeout(() => disconnectPriceFeedIfIdle(manager), 5100)
           }
