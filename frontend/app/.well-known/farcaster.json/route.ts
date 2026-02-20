@@ -1,49 +1,65 @@
 import { NextResponse } from 'next/server'
 
-/**
- * Farcaster Mini App Manifest
- * Required for Base Mini App integration
- *
- * Account association verified at: https://www.base.dev/preview?tab=account
- * Domain: gridgames.space
- */
+export const runtime = 'nodejs'
+
+function normalizeBaseUrl(value: string | undefined): string {
+  const raw = (value || 'https://gridgames.space').trim()
+  return raw.replace(/^["']|["']$/g, '').replace(/\/+$/, '')
+}
+
+function cleanToken(value: string | undefined): string {
+  return (value || '').trim().replace(/^["']|["']$/g, '')
+}
+
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_URL || 'https://gridgames.space'
+  const baseUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_URL)
+  const appName = 'Grid Games'
+  const appDescription = 'Real-time multiplayer games with blockchain settlement'
 
   const manifest = {
     accountAssociation: {
-      header:
-        'eyJmaWQiOjIwMjU3MzksInR5cGUiOiJhdXRoIiwia2V5IjoiMHg3OThmOTgxN2VmYzQzQ0Y2MzQzNDYwMDAyNzc2MWI5NDAyNDJBMTcwIn0',
-      payload: 'eyJkb21haW4iOiJncmlkZ2FtZXMuc3BhY2UifQ',
-      signature:
-        'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEEXa-DhA863fYTfpe8kGP225_XD3zZWIESn6HzyQKKqH2XbP07KWi_1hAJG27TMAPyt71XsKKOIdte92Cp-DoUHGwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      header: cleanToken(process.env.FC_HEADER),
+      payload: cleanToken(process.env.FC_PAYLOAD),
+      signature: cleanToken(process.env.FC_SIGNATURE),
     },
+    // Newer schema used by Base docs
     miniapp: {
       version: '1',
-      name: 'Grid Games',
+      name: appName,
       homeUrl: baseUrl,
       iconUrl: `${baseUrl}/icon.png`,
+      imageUrl: `${baseUrl}/og.png`,
+      buttonTitle: 'Play Now',
       splashImageUrl: `${baseUrl}/splash.png`,
       splashBackgroundColor: '#000000',
       webhookUrl: `${baseUrl}/api/webhook`,
-      subtitle: 'Real-time multiplayer trading',
-      description:
-        'Slice coins to predict BTC price movement. Challenge friends in real-time competitive trading.',
+      subtitle: 'Onchain PvP',
+      description: appDescription,
+      primaryCategory: 'games',
+      tags: ['games', 'multiplayer', 'base'],
       screenshotUrls: [
         `${baseUrl}/screenshots/game-1.png`,
         `${baseUrl}/screenshots/game-2.png`,
         `${baseUrl}/screenshots/game-3.png`,
       ],
-      primaryCategory: 'games',
-      tags: ['trading', 'multiplayer', 'realtime', 'blockchain', 'competitive'],
-      heroImageUrl: `${baseUrl}/og.png`,
-      tagline: 'Predict. Slice. Win.',
-      ogTitle: 'Grid Games - Real-time Trading Battles',
-      ogDescription: 'Challenge friends in fast-paced crypto trading battles.',
-      ogImageUrl: `${baseUrl}/og.png`,
-      noindex: false,
+    },
+    // Backward-compatible schema used by some preview tooling
+    frame: {
+      version: '1',
+      name: appName,
+      homeUrl: baseUrl,
+      iconUrl: `${baseUrl}/icon.png`,
+      imageUrl: `${baseUrl}/og.png`,
+      buttonTitle: 'Play Now',
+      splashImageUrl: `${baseUrl}/splash.png`,
+      splashBackgroundColor: '#000000',
+      webhookUrl: `${baseUrl}/api/webhook`,
     },
   }
 
-  return NextResponse.json(manifest)
+  return NextResponse.json(manifest, {
+    headers: {
+      'Cache-Control': 'public, max-age=300, s-maxage=300',
+    },
+  })
 }
