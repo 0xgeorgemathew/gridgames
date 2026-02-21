@@ -329,10 +329,9 @@ export function PositionIndicator() {
   const localPositions = Array.from(openPositions.values())
     .filter((pos) => pos.playerId === localPlayerId && pos.status === 'open')
     .sort((a, b) => b.openedAt - a.openedAt)
-    .slice(0, 5) // Show up to 5 positions
 
   return (
-    <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-56 pointer-events-none">
+    <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-32 pointer-events-none">
       <div className="max-w-2xl mx-auto flex flex-col items-end">
         <AnimatePresence mode="popLayout">
           {localPositions.map((position, index) => (
