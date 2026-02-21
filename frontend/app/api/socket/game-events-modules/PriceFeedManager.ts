@@ -19,7 +19,7 @@ class PriceFeedManager {
 
   // Price broadcast data for clients
   private lastBroadcastTime = 0
-  private readonly BROADCAST_THROTTLE_MS = 0 // Removed throttle for maximum reactivity
+  private readonly BROADCAST_THROTTLE_MS = 100 // 10 updates/sec for HFT-style reactivity
 
   connect(symbol: string = 'btcusdt'): void {
     // Exit if shutdown
@@ -54,7 +54,7 @@ class PriceFeedManager {
       this.latestPrice = price
       this.subscribers.forEach((cb) => cb(price))
 
-      // Throttled broadcast to clients (500ms)
+      // Throttled broadcast to clients (100ms)
       const now = Date.now()
       if (this.broadcastCallback && now - this.lastBroadcastTime >= this.BROADCAST_THROTTLE_MS) {
         this.lastBroadcastTime = now
