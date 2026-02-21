@@ -1,140 +1,324 @@
 # Position Indicator Animation Fix Plan
 
-## Problem Statement
+## Problem Summary
 
-The [`PositionIndicator.tsx`](frontend/games/hyper-swiper/components/PositionIndicator.tsx) component has a jerky collapse animation when transitioning from a pill shape to a circle. The user should feel like the pill smoothly morphs into a circle.
+The [`PositionIndicator.tsx`](frontend/games/hyper-swiper/components/PositionIndicator.tsx) component has a jumpy/uneven animation when transitioning from the large pill (expanded state) to the small pill (minimized state). The entrance animation is smooth, but the size transformation is not.
 
-## Current Issues
+## Root Cause Analysis
 
-1. **Instant width change**: CSS class swap from `w-full` to `w-14` happens instantly
-2. **Too fast**: Spring transition (`damping: 20, stiffness: 200`) is too snappy
-3. **No icon continuity**: Direction indicator (▲/▼) disappears and reappears
-4. **Minimal borderRadius change**: Only `26` → `28`, should be more dramatic
+### 1. CSS Width Toggle Without Animation (Primary Issue)
 
-## Solution Design
-
-### Animation Timeline
-
-```
-[0s]--------[0.5s]--------[1.0s]--------[1.5s]--------[2.0s]--------[3.5s]--------[4.5s]
-  |            |            |            |            |            |            |
-  Enter        Entry        Entry        Stable       Stable       Start        Complete
-  animation    done         glow         glow         idle         collapse     circle
-  starts       animating    effect       effect       state        morph        state
-```
-
-### Key Changes
-
-#### 1. Animate Width Directly in Framer Motion
-
-Replace CSS class-based width changes with animated width values:
+**Location:** [`PositionIndicator.tsx:84`](frontend/games/hyper-swiper/components/PositionIndicator.tsx:84)
 
 ```tsx
-// BEFORE: CSS class swap (instant)
+isMinimized ? 'w-[120px] h-[56px] p-0 ml-auto' : 'w-max max-w-full h-[56px] px-2 md:px-3 ml-auto'
+```
+
+The width changes via CSS class toggle from `w-max` (auto-sized) to a fixed `w-[120px]`. This is an **instant class swap**, not a Framer Motion animation. The `transition-shadow` class only animates shadows, not width.
+
+### 2. Content Swap Timing Mismatch
+
+**Full content exit:** [`PositionIndicator.tsx:113`](frontend/games/hyper-swiper/components/PositionIndicator.tsx:113)
+```tsx
+exit={{ opacity: 0, scale: 0.9, filter: 'blur(4px)' }}
+transition={{ duration: 0.25 }}
+```
+
+**Minimized content entry:** [`PositionIndicator.tsx:172-179`](frontend/games/hyper-swiper/components/PositionIndicator.tsx:172)
+```tsx
+initial={{ opacity: 0, scale: 0.6 }}
+transition={{ type: 'spring', stiffness: 100, damping: 15, delay: 0.1 }}
+```
+
+The exit uses a 250ms duration-based transition while entry uses a spring with 100ms delay. This creates a visual gap where the container snaps before content is ready.
+
+### 3. Inconsistent Spring Configurations
+
+- **Container morph:** `morphSpring` = `{ stiffness: 150, damping: 22 }`
+- **Minimized entry:** `{ stiffness: 100, damping: 15 }`
+
+Different spring configs cause timing desynchronization between container size change and content appearance.
+
+### 4. Layout Animation Limitation
+
+The `layout` prop on line 57 handles position changes well, but CSS class-based width changes don't trigger smooth layout animations in Framer Motion.
+
+---
+
+## Solution Architecture
+
+### Strategy: Unified Spring-Driven Animation
+
+Replace CSS class toggles with Framer Motion animated values for ALL properties that change during the transition.
+
+```mermaid
+flowchart TD
+    A[Position Card Container] --> B[Width Animation]
+    A --> C[Padding Animation]
+    A --> D[BorderRadius Animation]
+    
+    B --> E[m.div animate prop]
+    C --> E
+    D --> E
+    
+    E --> F[Unified morphSpring Config]
+    
+    G[Content Area] --> H[AnimatePresence mode=wait]
+    H --> I[Full Content - exit spring]
+    H --> J[Minimized Content - enter spring]
+    
+    I --> F
+    J --> F
+    
+    F --> K[Smooth Synchronized Transition]
+```
+
+---
+
+## Implementation Plan
+
+### Step 1: Create Unified Animation Configuration
+
+Define a single spring configuration used across all animated properties:
+
+```tsx
+const transitionConfig = {
+  type: 'spring' as const,
+  stiffness: 200,
+  damping: 25,
+  mass: 0.8,
+}
+```
+
+### Step 2: Animate Width via Framer Motion
+
+Replace CSS width classes with animated inline styles:
+
+```tsx
+// Before (CSS class toggle - instant)
 className={cn(
-  isMinimized ? 'w-14 h-14 p-0 ml-auto' : 'w-full p-2'
+  isMinimized ? 'w-[120px] ...' : 'w-max ...'
 )}
 
-// AFTER: Animated width via Framer Motion
+// After (Framer Motion animated)
 <m.div
+  layout
   animate={{
-    width: isMinimized ? 56 : '100%',
+    width: isMinimized ? 120 : 'auto',
   }}
+  transition={transitionConfig}
+>
+```
+
+### Step 3: Animate Padding via Framer Motion
+
+```tsx
+// Before (CSS class toggle)
+className={cn(
+  isMinimized ? 'p-0' : 'px-2 md:px-3'
+)}
+
+// After (Framer Motion animated)
+animate={{
+  paddingLeft: isMinimized ? 0 : 8,
+  paddingRight: isMinimized ? 0 : 12,
+}}
+```
+
+### Step 4: Synchronize Content Transitions
+
+Use `mode="wait"` in AnimatePresence and match timing:
+
+```tsx
+<AnimatePresence mode="wait">
+  {!isMinimized ? (
+    <m.div
+      key="full"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* Full content */}
+    </m.div>
+  ) : (
+    <m.div
+      key="minimized"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={transitionConfig}
+    >
+      {/* Minimized content */}
+    </m.div>
+  )}
+</AnimatePresence>
+```
+
+### Step 5: Remove Delay from Minimized Entry
+
+The `delay: 0.1` causes the content to appear after the container has already started shrinking:
+
+```tsx
+// Before
+transition={{ type: 'spring', stiffness: 100, damping: 15, delay: 0.1 }}
+
+// After - no delay, same spring as container
+transition={transitionConfig}
+```
+
+### Step 6: Add Width Constraint for Smooth Auto-to-Fixed Transition
+
+Framer Motion handles `width: 'auto'` → `width: 120` poorly. Use a measured approach:
+
+```tsx
+// Option A: Use max-width constraint
+animate={{
+  width: isMinimized ? 120 : undefined,
+  maxWidth: isMinimized ? 120 : 400,
+}}
+
+// Option B: Pre-calculate width and animate between fixed values
+const [fullWidth, setFullWidth] = useState(0)
+// Measure on mount, then animate from fullWidth to 120
+```
+
+---
+
+## Detailed Code Changes
+
+### File: [`PositionIndicator.tsx`](frontend/games/hyper-swiper/components/PositionIndicator.tsx)
+
+#### Change 1: Update Container Animation (Lines 56-86)
+
+```tsx
+<m.div
+  layout
+  key={position.id}
+  initial={{ y: 80, opacity: 0 }}
+  animate={{
+    y: 0,
+    opacity: 1,
+    width: isMinimized ? 120 : 'auto',
+    paddingLeft: isMinimized ? 0 : 8,
+    paddingRight: isMinimized ? 0 : 12,
+  }}
+  exit={{ y: 40, opacity: 0, scale: 0.9 }}
   transition={{
-    width: { type: 'spring', stiffness: 80, damping: 12 },
+    y: { type: 'spring', damping: 20, stiffness: 200 },
+    opacity: { duration: 0.3 },
+    width: morphSpring,
+    paddingLeft: morphSpring,
+    paddingRight: morphSpring,
+    layout: morphSpring,
   }}
-  className="relative overflow-hidden"
-  style={{ width: '100%' }}
+  className={cn(
+    'glass-panel-vibrant mb-2 relative overflow-hidden flex-shrink-0',
+    'pointer-events-auto cursor-pointer flex items-center h-[56px] ml-auto',
+    borderStyle,
+  )}
+  onClick={() => onClose(position.id)}
 >
 ```
 
-#### 2. Use Softer Spring Physics
+#### Change 2: Update morphSpring Configuration (Lines 46-53)
 
 ```tsx
-// BEFORE: Too snappy
-transition={{
-  layout: { type: 'spring', damping: 20, stiffness: 200 }
-}}
-
-// AFTER: Smoother, more organic feel
-transition={{
-  layout: { type: 'spring', stiffness: 80, damping: 12, mass: 1.2 },
-  borderRadius: { type: 'spring', stiffness: 60, damping: 10 },
-  width: { type: 'spring', stiffness: 80, damping: 12 }
-}}
+const morphSpring = {
+  type: 'spring' as const,
+  stiffness: 200,  // Increased from 150 for snappier feel
+  damping: 25,     // Increased from 22 for less oscillation
+  mass: 0.8,       // Added for smoother deceleration
+}
 ```
 
-#### 3. Add layoutId for Direction Indicator
-
-Create a shared element transition for the icon:
+#### Change 3: Update AnimatePresence Mode (Line 107)
 
 ```tsx
-// Full state icon
+<AnimatePresence mode="wait">
+```
+
+#### Change 4: Update Full Content Exit (Lines 109-114)
+
+```tsx
 <m.div
-  layoutId={`direction-icon-${position.id}`}
-  className="w-8 h-8 rounded-lg flex items-center justify-center"
+  key="full"
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  exit={{ opacity: 0, scale: 0.95 }}
+  transition={{ 
+    opacity: { duration: 0.15 },
+    scale: { duration: 0.15 },
+  }}
+  className="relative flex items-center justify-between gap-3 w-full h-full"
 >
-  {position.isLong ? <span>▲</span> : <span>▼</span>}
-</m.div>
-
-// Minimized state icon (smaller, same layoutId)
-<m.div
-  layoutId={`direction-icon-${position.id}`}
-  className="w-6 h-6 rounded-full flex items-center justify-center"
->
-  {position.isLong ? <span className="text-xs">▲</span> : <span className="text-xs">▼</span>}
-</m.div>
 ```
 
-#### 4. Synchronized Content Fade
-
-Use staggered timing so content fades out smoothly before collapse:
+#### Change 5: Update Minimized Content Entry (Lines 170-180)
 
 ```tsx
-// Full content exits first
-exit={{ 
-  opacity: 0, 
-  scale: 0.9,
-  transition: { duration: 0.25 }
-}}
-
-// Minimized content enters after slight delay
-initial={{ opacity: 0, scale: 0.5 }}
-animate={{ opacity: 1, scale: 1 }}
-transition={{ 
-  type: 'spring', 
-  stiffness: 100, 
-  damping: 15,
-  delay: 0.15 // Wait for collapse to begin
-}}
+<m.div
+  key="minimized"
+  initial={{ opacity: 0, scale: 0.95 }}
+  animate={{ opacity: 1, scale: 1 }}
+  exit={{ opacity: 0 }}
+  transition={{
+    opacity: { duration: 0.15 },
+    scale: morphSpring,
+  }}
+  className="flex items-center justify-center w-full h-full relative z-10 gap-1.5"
+>
 ```
 
-## Implementation Checklist
+---
 
-- [ ] Change outer container to animate width directly instead of CSS class swap
-- [ ] Update spring physics to softer values (stiffness: 80, damping: 12)
-- [ ] Add `layoutId` to direction indicator for shared element transition
-- [ ] Add smaller direction icon to minimized state
-- [ ] Adjust timing of content fade to synchronize with shape morph
-- [ ] Test the animation feels smooth and continuous
+## Animation Timing Diagram
 
-## Code Changes Summary
+```
+Timeline: 0ms ────────────────────────────────────────── 400ms
 
-### File: `frontend/games/hyper-swiper/components/PositionIndicator.tsx`
+Container Width:
+├──────────────────────────────────────────────────────┤
+│ ████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░ │ (auto → 120px)
+└──────────────────────────────────────────────────────┘
 
-1. **Lines 73-79**: Replace CSS width classes with animated width
-2. **Lines 51-72**: Update spring transition parameters
-3. **Lines 113-142**: Add `layoutId` to direction indicator
-4. **Lines 269-304**: Add smaller direction icon to minimized state with matching `layoutId`
-5. **Lines 100-106**: Adjust exit transition timing
-6. **Lines 271-274**: Adjust minimized entry transition timing
+Full Content Exit:
+├──────────────────────────────────────────────────────┤
+│ ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │ (opacity 1→0)
+└──────────────────────────────────────────────────────┘
 
-## Expected Result
+Minimized Content Enter:
+├──────────────────────────────────────────────────────┤
+│ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░████████████│ (opacity 0→1)
+└──────────────────────────────────────────────────────┘
 
-The user will see:
-1. Pill enters smoothly from bottom
-2. After 3.5 seconds, pill begins to gently contract
-3. Direction icon smoothly scales down (not disappears)
-4. Content fades as the shape contracts
-5. Final circle state appears with smaller icon still visible
-6. The entire morph feels like one continuous, organic transformation
+Result: Smooth crossfade with synchronized container shrink
+```
+
+---
+
+## Testing Checklist
+
+- [ ] Entrance animation remains smooth (y-translation + opacity)
+- [ ] Auto-minimize after 3.5s triggers smooth width transition
+- [ ] Direction icon morphs smoothly between states (layoutId preserved)
+- [ ] No visual gap between content exit and entry
+- [ ] PnL percentage appears smoothly in minimized state
+- [ ] Border color transitions remain smooth
+- [ ] Click to close works during transition
+- [ ] Multiple positions animate independently without interference
+
+---
+
+## Alternative Approaches Considered
+
+### Option A: CSS Transitions with transition-all
+**Rejected:** CSS transitions on width from auto to fixed don't animate smoothly - they snap.
+
+### Option B: Keyframe Animation
+**Rejected:** Less control over spring physics, harder to synchronize with content swap.
+
+### Option C: FLIP Animation Technique
+**Rejected:** Framer Motion's `layout` prop already implements FLIP internally. Additional complexity without benefit.
+
+### Selected: Framer Motion Animated Values
+**Rationale:** Native Framer Motion animation for all properties ensures consistent timing and spring physics across the entire transition.
