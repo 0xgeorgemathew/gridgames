@@ -23,7 +23,7 @@ interface GameSettingsSelectorProps {
  * GameSettingsSelector - Pre-game settings for matchmaking.
  *
  * Allows players to select game duration before entering the matchmaking queue.
- * Leverage is fixed at 100X for all players.
+ * Leverage is fixed at 500X for all players.
  * Settings are persisted to localStorage.
  */
 export const GameSettingsSelector = React.memo(function GameSettingsSelector({

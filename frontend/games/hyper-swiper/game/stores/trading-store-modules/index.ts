@@ -31,7 +31,7 @@ import type {
 
 // Re-export types
 export * from './types'
-const FIXED_LEVERAGE = 100
+const FIXED_LEVERAGE = 500
 
 export const useTradingStore = create<TradingState>((set, get) => ({
   // Connection state
@@ -62,11 +62,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   openPositions: new Map<string, Position>(), // Open positions (no settlement timer)
   gameSettlement: null, // Settlement data at game end
   toasts: [],
-  leverage: 100, // Fixed leverage at 100X
+  leverage: 500, // Fixed leverage at 500X
 
   // Matchmaking settings (pre-game)
   selectedGameDuration: 60000, // Default 1 minute
-  selectedLeverage: 100, // Fixed at 100X
+  selectedLeverage: 500, // Fixed at 500X
 
   // Audio state
   isSoundMuted: false,
@@ -245,7 +245,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const sceneWidth = window.sceneDimensions?.width || window.innerWidth
     const sceneHeight = window.sceneDimensions?.height || window.innerHeight
 
-    // Leverage is fixed at 100X
+    // Leverage is fixed at 500X
     set({ leverage: FIXED_LEVERAGE })
 
     socket?.emit('find_match', {
@@ -522,7 +522,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const sceneWidth = window.sceneDimensions?.width || window.innerWidth
     const sceneHeight = window.sceneDimensions?.height || window.innerHeight
 
-    // Leverage is fixed at 100X
+    // Leverage is fixed at 500X
     set({ leverage: FIXED_LEVERAGE })
 
     socket.emit('join_waiting_pool', {

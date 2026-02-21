@@ -9,7 +9,6 @@ import { AnimatePresence, m } from 'framer-motion'
 // Import extracted components
 import {
   CompactPriceRow,
-  LeverageSelector,
   PriceLoadingState,
   SinglePlayerHealth,
   containerVariants,
@@ -127,7 +126,6 @@ export const GameHUD = React.memo(function GameHUD() {
             {isGameReady && localPlayer && (
               <div className="p-2 sm:p-3">
                 <SinglePlayerHealth dollars={localPlayer.dollars} />
-                <LeverageSelector />
               </div>
             )}
 

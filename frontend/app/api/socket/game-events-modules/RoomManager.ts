@@ -75,7 +75,7 @@ export class RoomManager {
   addWaitingPlayer(
     socketId: string,
     name: string,
-    leverage: number = 100,
+    leverage: number = 500,
     gameDuration: number = 60000
   ): void {
     const existing = this.waitingPlayers.get(socketId)

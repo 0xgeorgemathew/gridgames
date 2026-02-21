@@ -71,13 +71,13 @@ interface GameState {
   openPositions: Map<string, Position> // Open positions (no settlement timer)
   gameSettlement: GameSettlementEvent | null // Settlement data at game end
   toasts: Toast[]
-  leverage: number // In-game leverage (fixed at 100X)
+  leverage: number // In-game leverage (fixed at 500X)
 }
 
 // Matchmaking settings slice
 interface MatchmakingSettingsState {
   selectedGameDuration: number // Game duration in ms (60000, 120000, 180000)
-  selectedLeverage: number // Leverage for matchmaking (fixed at 100X)
+  selectedLeverage: number // Leverage for matchmaking (fixed at 500X)
 }
 
 // Audio state slice

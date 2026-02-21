@@ -14,7 +14,7 @@ export interface WaitingPlayer {
   sceneWidth?: number
   sceneHeight?: number
   walletAddress?: string
-  leverage: number // Fixed leverage for matchmaking (100X)
+  leverage: number // Fixed leverage for matchmaking (500X)
   gameDuration: number // Game duration in ms (60000, 120000, 180000)
 }
 

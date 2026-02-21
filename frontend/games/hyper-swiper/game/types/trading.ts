@@ -23,7 +23,7 @@ export type Player = {
   score: number
   sceneWidth: number // Player's device width for coin spawning
   sceneHeight: number // Player's device height for coin spawning
-  leverage: number // Fixed leverage multiplier (100X)
+  leverage: number // Fixed leverage multiplier (500X)
 }
 
 /**
@@ -138,7 +138,7 @@ export type LobbyPlayer = {
   socketId: string
   name: string
   joinedAt: number
-  leverage: number // Fixed leverage multiplier for matchmaking (100X)
+  leverage: number // Fixed leverage multiplier for matchmaking (500X)
   gameDuration: number // Game duration in ms for fair matchmaking
 }
 
@@ -189,7 +189,7 @@ export interface Position {
 
   // Position details
   isLong: boolean // Direction: true=LONG, false=SHORT
-  leverage: number // Leverage multiplier (fixed at 100X)
+  leverage: number // Leverage multiplier (fixed at 500X)
   collateral: number // Fixed at $1 per position
 
   // Price tracking

@@ -19,7 +19,7 @@ import type {
 
 // Price feed state
 let priceFeedConnected = false
-const FIXED_LEVERAGE = 100
+const FIXED_LEVERAGE = 500
 const TIE_EPSILON = 1e-9
 
 // =============================================================================
@@ -703,7 +703,7 @@ export function setupGameEvents(io: SocketIOServer): {
 
           for (const [waitingId, waiting] of manager.getWaitingPlayers()) {
             if (waitingId !== socket.id) {
-              // Match only if gameDuration matches (leverage is fixed at 100X)
+              // Match only if gameDuration matches (leverage is fixed at 500X)
               if (waiting.gameDuration !== p1GameDuration) continue
 
               const waitingSocket = io.of('/').sockets.get(waitingId)
@@ -954,7 +954,7 @@ export function setupGameEvents(io: SocketIOServer): {
       const room = manager.getRoom(roomId)
       if (!room) return
 
-      // Leverage is fixed at 100X for all players.
+      // Leverage is fixed at 500X for all players.
       room.setPlayerLeverage(socket.id, FIXED_LEVERAGE)
 
       // Broadcast to room so opponent sees the change

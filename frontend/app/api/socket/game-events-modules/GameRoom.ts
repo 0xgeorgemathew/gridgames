@@ -65,9 +65,9 @@ export class GameRoom {
     }
   }
 
-  // Get player's current leverage (defaults to 100x)
+  // Get player's current leverage (defaults to 500x)
   getLeverageForPlayer(playerId: string): number {
-    return this.playerLeverage.get(playerId) ?? 100
+    return this.playerLeverage.get(playerId) ?? 500
   }
 
   // Helper to get wallet address for player
@@ -92,7 +92,7 @@ export class GameRoom {
     name: string,
     sceneWidth: number,
     sceneHeight: number,
-    leverage: number = 100
+    leverage: number = 500
   ): void {
     this.players.set(id, {
       id,
