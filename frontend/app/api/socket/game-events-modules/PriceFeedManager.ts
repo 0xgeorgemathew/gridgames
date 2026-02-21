@@ -19,7 +19,7 @@ class PriceFeedManager {
 
   // Price broadcast data for clients
   private lastBroadcastTime = 0
-  private readonly BROADCAST_THROTTLE_MS = 500
+  private readonly BROADCAST_THROTTLE_MS = 0 // Removed throttle for maximum reactivity
 
   connect(symbol: string = 'btcusdt'): void {
     // Exit if shutdown
