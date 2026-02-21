@@ -58,11 +58,8 @@ export async function GET() {
   const manifest = {
     accountAssociation: {
       header: cleanToken(process.env.FC_HEADER) || defaultAccountAssociation.header,
-      payload:
-        cleanToken(process.env.FC_PAYLOAD) || defaultAccountAssociation.payload,
-      signature:
-        cleanToken(process.env.FC_SIGNATURE) ||
-        defaultAccountAssociation.signature,
+      payload: cleanToken(process.env.FC_PAYLOAD) || defaultAccountAssociation.payload,
+      signature: cleanToken(process.env.FC_SIGNATURE) || defaultAccountAssociation.signature,
     },
     // Support both keys during transition. Keep them identical for strict validators.
     miniapp: miniAppConfig,

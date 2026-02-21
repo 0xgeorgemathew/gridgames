@@ -30,7 +30,7 @@ class PriceHistoryBuffer {
     // Convert timestamp to business day string format for Lightweight Charts
     // Lightweight charts handles Unix timestamp as numbers with Time type. We keep ms to prevent overlapping points in 100ms updates
     const time: Time = timestamp as Time
-    
+
     const dataPoint: PriceDataPoint = {
       time,
       value: price,
@@ -60,10 +60,7 @@ class PriceHistoryBuffer {
     }
 
     // Ring buffer rotation - reorder to maintain time sequence
-    return [
-      ...this.buffer.slice(this.writeIndex),
-      ...this.buffer.slice(0, this.writeIndex),
-    ]
+    return [...this.buffer.slice(this.writeIndex), ...this.buffer.slice(0, this.writeIndex)]
   }
 
   /**

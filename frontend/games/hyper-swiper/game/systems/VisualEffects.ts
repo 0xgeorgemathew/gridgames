@@ -47,8 +47,6 @@ export class VisualEffects {
     this.updateTextObjects(this.damageIndicators, -1.5, -0.02)
   }
 
-
-
   /**
    * Show damage indicator (floating text)
    */

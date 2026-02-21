@@ -118,17 +118,11 @@ export class Token extends GameObjects.Container {
 
     if (isBottomToss) {
       // Use exact velocities provided by server for deterministic deterministic sync
-      this.body.setVelocity(
-        velocityX,
-        velocityY
-      )
+      this.body.setVelocity(velocityX, velocityY)
       this.body.setGravity(0, 180) // Gravity pulls arc back down
     } else {
       // Legacy falling behavior
-      this.body.setVelocity(
-        velocityX,
-        velocityY
-      )
+      this.body.setVelocity(velocityX, velocityY)
       this.body.setGravity(0, 150) // Low gravity
     }
     this.body.setBounce(0) // No bounce

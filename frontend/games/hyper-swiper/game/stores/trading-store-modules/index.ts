@@ -164,19 +164,22 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
     // Perp-style position events
     nextSocket.on('position_opened', (position: PositionOpenedEvent) => {
-      console.log('[Socket] position_opened event received:', position)
+      // console.log('[Socket] position_opened event received:', position)
       get().handlePositionOpened(position)
     })
-    nextSocket.on('position_closed', (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => {
-      console.log('[Socket] position_closed event received:', data)
-      get().handlePositionClosed(data)
-    })
+    nextSocket.on(
+      'position_closed',
+      (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => {
+        // console.log('[Socket] position_closed event received:', data)
+        get().handlePositionClosed(data)
+      }
+    )
     nextSocket.on('game_settlement', (settlement: GameSettlementEvent) =>
       get().handleGameSettlement(settlement)
     )
     // Liquidation events - position force-closed due to low collateral health
     nextSocket.on('position_liquidated', (data: LiquidationEvent) => {
-      console.log('[Socket] position_liquidated event received:', data)
+      // console.log('[Socket] position_liquidated event received:', data)
       get().handlePositionLiquidated(data)
     })
     nextSocket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
@@ -330,8 +333,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Perp-style position opened - no settlement timer
   handlePositionOpened: (positionEvent) => {
-    console.log('[Store] position_opened received:', positionEvent)
-    console.log('[Store] localPlayerId:', get().localPlayerId)
+    // console.log('[Store] position_opened received:', positionEvent)
+    // console.log('[Store] localPlayerId:', get().localPlayerId)
 
     const { openPositions } = get()
     const newPosition: Position = {
@@ -349,30 +352,38 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       status: 'open',
     }
 
-    console.log('[Store] New position:', newPosition)
-    console.log('[Store] playerId match:', newPosition.playerId === get().localPlayerId)
+    // console.log('[Store] New position:', newPosition)
+    // console.log('[Store] playerId match:', newPosition.playerId === get().localPlayerId)
 
     const newPositions = new Map(openPositions)
     newPositions.set(positionEvent.positionId, newPosition)
     set({ openPositions: newPositions })
 
-    console.log('[Store] openPositions size after update:', newPositions.size)
+    // console.log('[Store] openPositions size after update:', newPositions.size)
   },
 
-  handlePositionClosed: (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => {
-    console.log('[Store] position_closed received:', data)
+  handlePositionClosed: (data: {
+    positionId: string
+    closePrice: number
+    realizedPnl: number
+    playerId: string
+  }) => {
+    // console.log('[Store] position_closed received:', data)
     const { openPositions, localPlayerId } = get()
-    
+
     const newPositions = new Map(openPositions)
     const position = newPositions.get(data.positionId)
 
     if (position) {
       newPositions.delete(data.positionId)
       set({ openPositions: newPositions })
-      
+
       const isOwnPosition = data.playerId === localPlayerId
       if (isOwnPosition) {
-        const pnlText = data.realizedPnl >= 0 ? `+$${data.realizedPnl.toFixed(2)}` : `-$${Math.abs(data.realizedPnl).toFixed(2)}`
+        const pnlText =
+          data.realizedPnl >= 0
+            ? `+$${data.realizedPnl.toFixed(2)}`
+            : `-$${Math.abs(data.realizedPnl).toFixed(2)}`
         get().addToast({
           message: `Position closed. PnL: ${pnlText}`,
           type: data.realizedPnl >= 0 ? 'success' : 'error',
@@ -406,7 +417,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Position liquidated - force-closed due to low collateral health (<= 80%)
   handlePositionLiquidated: (liquidationEvent) => {
-    console.log('[Store] position_liquidated received:', liquidationEvent)
+    // console.log('[Store] position_liquidated received:', liquidationEvent)
     const { openPositions, localPlayerId } = get()
 
     // Remove the liquidated position from open positions

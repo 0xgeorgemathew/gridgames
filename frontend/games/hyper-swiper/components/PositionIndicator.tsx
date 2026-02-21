@@ -72,10 +72,11 @@ function PositionCard({
       className={cn(
         'glass-panel-vibrant mb-1.5 relative flex-shrink-0',
         'pointer-events-auto cursor-pointer rounded-xl p-2',
-        borderStyle,
+        borderStyle
       )}
       style={{
-        transition: 'width 1.2s cubic-bezier(0.25, 0.1, 0.25, 1), height 1.2s cubic-bezier(0.25, 0.1, 0.25, 1)',
+        transition:
+          'width 1.2s cubic-bezier(0.25, 0.1, 0.25, 1), height 1.2s cubic-bezier(0.25, 0.1, 0.25, 1)',
       }}
       onClick={() => onClose(position.id)}
     >
@@ -106,7 +107,11 @@ function PositionCard({
             opacity: isMinimized ? 0 : 1,
           }}
           transition={smoothSpring}
-          className={isMinimized ? 'absolute top-0 left-0 flex items-center justify-between gap-2' : 'flex items-center justify-between gap-2'}
+          className={
+            isMinimized
+              ? 'absolute top-0 left-0 flex items-center justify-between gap-2'
+              : 'flex items-center justify-between gap-2'
+          }
           style={{ visibility: isMinimized ? 'hidden' : 'visible' }}
         >
           {/* Left: Entry Point & Direction */}
@@ -115,7 +120,7 @@ function PositionCard({
             <div
               className={cn(
                 'w-7 h-7 rounded-lg flex items-center justify-center relative shrink-0',
-                position.isLong ? 'bg-green-500/20' : 'bg-red-500/20',
+                position.isLong ? 'bg-green-500/20' : 'bg-red-500/20'
               )}
             >
               {position.isLong ? (
@@ -149,10 +154,9 @@ function PositionCard({
                     'bg-green-500/30 border border-green-500/50 text-green-300',
                   position.leverage === 5 &&
                     'bg-yellow-500/30 border border-yellow-500/50 text-yellow-300',
-                  position.leverage === 10 &&
-                    'bg-red-500/30 border border-red-500/50 text-red-300',
+                  position.leverage === 10 && 'bg-red-500/30 border border-red-500/50 text-red-300',
                   ![2, 5, 10].includes(position.leverage) &&
-                    'bg-cyan-500/30 border border-cyan-500/50 text-cyan-200',
+                    'bg-cyan-500/30 border border-cyan-500/50 text-cyan-200'
                 )}
               >
                 {position.leverage}X
@@ -162,9 +166,8 @@ function PositionCard({
             <div
               className={cn(
                 'px-1.5 py-1 rounded-lg text-[10px] font-bold font-mono',
-                position.isLong &&
-                  'bg-green-500/20 text-green-400 border border-green-500/30',
-                !position.isLong && 'bg-red-500/20 text-red-400 border border-red-500/30',
+                position.isLong && 'bg-green-500/20 text-green-400 border border-green-500/30',
+                !position.isLong && 'bg-red-500/20 text-red-400 border border-red-500/30'
               )}
             >
               {position.isLong ? 'LONG' : 'SHORT'}
@@ -178,14 +181,18 @@ function PositionCard({
             opacity: isMinimized ? 1 : 0,
           }}
           transition={smoothSpring}
-          className={isMinimized ? 'flex items-center gap-1' : 'absolute top-0 left-0 flex items-center gap-1'}
+          className={
+            isMinimized
+              ? 'flex items-center gap-1'
+              : 'absolute top-0 left-0 flex items-center gap-1'
+          }
           style={{ visibility: isMinimized ? 'visible' : 'hidden' }}
         >
           {/* Direction indicator - smaller */}
           <div
             className={cn(
               'w-6 h-6 rounded-md flex items-center justify-center relative shrink-0',
-              position.isLong ? 'bg-green-500/20' : 'bg-red-500/20',
+              position.isLong ? 'bg-green-500/20' : 'bg-red-500/20'
             )}
           >
             {position.isLong ? (
@@ -204,7 +211,7 @@ function PositionCard({
                 ? 'text-tron-cyan'
                 : isInProfit
                   ? 'text-green-400 drop-shadow-[0_0_6px_rgba(74,222,128,0.7)]'
-                  : 'text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.7)]',
+                  : 'text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.7)]'
             )}
           >
             {isInProfit ? '+' : ''}

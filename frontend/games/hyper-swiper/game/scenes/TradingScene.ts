@@ -24,8 +24,16 @@ const GRID_CONFIG = {
   maxCellHeight: 56,
   majorXEvery: 3,
   majorYEvery: 3,
-  scrollSpeed: 30,
+  scrollSpeed: 50,
   textureKey: 'trading-grid-tile',
+} as const
+
+// Arcade graph configuration for500× leverage
+const ARCADE_GRAPH_CONFIG = {
+  visualMultiplier: 100, // Exaggerate small moves for arcade feel
+  minRange: 10, // Minimum display range to prevent extreme sensitivity
+  autoScalePadding: 1.333, // Target ~75% graph utilization
+  leverage: 500, // For liquidation calculation
 } as const
 
 export class TradingScene extends Scene {
@@ -62,6 +70,8 @@ export class TradingScene extends Scene {
   private priceHistory: { time: number; price: number }[] = []
   private snakeGraphics!: Phaser.GameObjects.Graphics
   private displayedPrice: number | null = null
+  private momentumBoost = 0
+  private lastRawDisplayValue = 0
 
   constructor() {
     super({ key: 'TradingScene' })
@@ -94,11 +104,11 @@ export class TradingScene extends Scene {
     this.backgroundImage.setOrigin(0, 0)
     this.backgroundImage.setDepth(-2)
     this.ensureGridLayer()
-    
+
     // Setup snake graph
     this.snakeGraphics = this.add.graphics()
     this.snakeGraphics.setDepth(-0.5)
-    
+
     // Generate textures (only call and put now)
     this.coinRenderer.generateCachedTextures()
 
@@ -234,15 +244,15 @@ export class TradingScene extends Scene {
     }
 
     const now = Date.now()
-    
+
     // Initialize displayedPrice if null
     if (this.displayedPrice === null) {
       this.displayedPrice = priceData.price
     }
 
     // Smoothly interpolate displayedPrice towards the actual price
-    // Half-life of ~40ms for snappy but smooth movement
-    const t = 1 - Math.pow(0.5, delta / 40)
+    // Half-life of ~100ms for snappy but smooth movement (allows larger visible motion per bucket)
+    const t = 1 - Math.pow(0.5, delta / 100)
     this.displayedPrice = Phaser.Math.Linear(this.displayedPrice, priceData.price, t)
 
     const width = this.cameras.main.width
@@ -252,7 +262,7 @@ export class TradingScene extends Scene {
 
     // Calculate how many pixels the grid moves per millisecond
     const pixelsPerMs = GRID_CONFIG.scrollSpeed / 1000
-    
+
     // Only push points if they are far enough apart visually to save memory (e.g. 1 pixel)
     const lastPoint = this.priceHistory[this.priceHistory.length - 1]
     if (!lastPoint || (now - lastPoint.time) * pixelsPerMs >= 1) {
@@ -261,50 +271,113 @@ export class TradingScene extends Scene {
 
     // Keep only points that are still horizontally on screen (between headX and left edge)
     const maxAgeMs = headX / pixelsPerMs + 1000 // +1s buffer offscreen
-    this.priceHistory = this.priceHistory.filter(p => (now - p.time) <= maxAgeMs)
+    this.priceHistory = this.priceHistory.filter((p) => now - p.time <= maxAgeMs)
 
     if (this.priceHistory.length < 2) {
       return
     }
 
-    // Determine Y scale dynamically based on recent history
-    const visiblePrices = this.priceHistory.map(p => p.price)
-    const minPrice = Math.min(...visiblePrices)
-    const maxPrice = Math.max(...visiblePrices)
-    
-    // Min range: 0.0002% of asset price (for BTC at 60k, this is a $0.12 window).
-    // This allows even fraction-of-a-dollar moves to cause large visual swings.
-    const minRange = firstPrice * 0.000002
-    let yRange = maxPrice - minPrice
-    const yCenter = (maxPrice + minPrice) / 2
+    // === ARCADE-OPTIMIZED GRAPH ===
+    const startPrice = firstPrice
 
-    if (yRange < minRange) {
-      yRange = minRange
-    }
+    // Track live volatility envelope over last 30 seconds
+    const VOLATILITY_WINDOW_MS = 30000
+    const recentHistory = this.priceHistory.filter((p) => now - p.time <= VOLATILITY_WINDOW_MS)
     
-    // Minimal aesthetic padding (5% instead of 40%) to maximize screen usage
-    yRange *= 1.05
+    // Convert history points to percentage from startPrice
+    const recentPcts = recentHistory.map((p) => ((p.price - startPrice) / startPrice) * 100)
+    const currentPct = ((this.displayedPrice - startPrice) / startPrice) * 100
+    
+    // Find the min and max percentage within the active window
+    const recentMinPct = Math.min(...recentPcts, currentPct)
+    const recentMaxPct = Math.max(...recentPcts, currentPct)
+    
+    // The true range of motion we are currently experiencing
+    const recentRangePct = Math.max(0.01, recentMaxPct - recentMinPct)
+    
+    // The midpoint of the current action - this will become the visual center of the screen
+    const recentMidPct = (recentMaxPct + recentMinPct) / 2
 
-    const yMin = yCenter - (yRange / 2)
-    const yMax = yCenter + (yRange / 2)
+    // Target 75% utilization of the screen for the current range
+    const targetFillRatio = 0.75
+    // We want the range to fill targetFillRatio, so half the range should fill half the target
+    // Instead of using distance from zero, we scale based on the total high-low range
+    const rawMultiplier = targetFillRatio / (recentRangePct / 2) // Div by 2 because graph is centered
+    // Allow much higher max multiplier since we are zoomed in on a sliding window now
+    const visualMultiplier = Math.max(100, Math.min(2000, rawMultiplier))
+
+    // Calculate display values
+    const displayValues = this.priceHistory.map((p) => {
+      const priceChangePct = ((p.price - startPrice) / startPrice) * 100
+      return priceChangePct * visualMultiplier
+    })
+
+    // Phase 5: Momentum Amplification Layer
+    const rawCurrentDisplayValue = currentPct * visualMultiplier
+    
+    // Calculate velocity (difference across frames)
+    const velocity = rawCurrentDisplayValue - this.lastRawDisplayValue
+    this.lastRawDisplayValue = rawCurrentDisplayValue
+
+    const kBoost = 0.05
+    const instantBoost = Math.min(0.4, Math.abs(velocity) * kBoost)
+    
+    // Decay previous boost over ~300ms
+    this.momentumBoost = Math.max(0, this.momentumBoost - (0.4 * delta / 300))
+    // Apply new boost if higher
+    this.momentumBoost = Math.max(this.momentumBoost, instantBoost)
+
+    const boostFactor = 1 + this.momentumBoost
+    const currentDisplayValue = rawCurrentDisplayValue * boostFactor
+
+    // Auto-scale Y-axis based on the local range
+    const maxAbsValue = (recentRangePct / 2) * visualMultiplier
+    const paddedMax = Math.max(maxAbsValue * ARCADE_GRAPH_CONFIG.autoScalePadding, 0.01 * visualMultiplier)
+    
+    // Calculate the display value of the screen's center point
+    const centerDisplayValue = recentMidPct * visualMultiplier
+
+    // Graph area - leave space at bottom for HUD (approximately 128px)
+    const hudHeight = 128
+    const graphHeight = height - hudHeight
+    const centerY = graphHeight / 2 // Physical center of the rendering area
 
     this.snakeGraphics.clear()
+
+    // Draw zero line (entry price) - now drifts up/down off center
+    const zeroLineY = centerY - ((0 - centerDisplayValue) / paddedMax) * (graphHeight / 2)
     
-    const curvePoints = this.priceHistory.map((point) => {
+    // Only draw the zero line if it's broadly on screen (with a little padding)
+    if (zeroLineY > -100 && zeroLineY < graphHeight + 100) {
+      this.snakeGraphics.lineStyle(1, 0xffffff, 0.3)
+      this.snakeGraphics.beginPath()
+      this.snakeGraphics.moveTo(0, zeroLineY)
+      this.snakeGraphics.lineTo(width, zeroLineY)
+      this.snakeGraphics.strokePath()
+    }
+
+    // Calculate curve points relative to the dynamic center
+    const curvePoints = displayValues.map((value, i) => {
+      const point = this.priceHistory[i]
       const timeDiff = now - point.time
-      const x = headX - (timeDiff * pixelsPerMs)
-      const y = height - ((point.price - yMin) / yRange) * height
+      const x = headX - timeDiff * pixelsPerMs
+      // Map value relative to centerDisplayValue
+      const y = centerY - ((value - centerDisplayValue) / paddedMax) * (graphHeight / 2)
       return { x, y }
     })
 
-    // The continuously updating "live" head
-    const currentY = height - ((this.displayedPrice - yMin) / yRange) * height
+    // Add current head position
+    const currentY = centerY - ((currentDisplayValue - centerDisplayValue) / paddedMax) * (graphHeight / 2)
     curvePoints.push({ x: headX, y: currentY })
-    
-    // Draw glowing underlay (Tron Neon Green: 0x39ff14)
-    this.snakeGraphics.lineStyle(8, 0x39ff14, 0.4)
-    this.snakeGraphics.beginPath()
 
+    // Determine line color based on whether we are above or below the entry price (not the screen center)
+    const isAboveZero = currentDisplayValue >= 0
+    const lineColor = isAboveZero ? 0x00ff88 : 0xff4466 // Green above entry, red below
+    const glowColor = isAboveZero ? 0x00ff88 : 0xff4466
+
+    // Draw glowing underlay
+    this.snakeGraphics.lineStyle(8, glowColor, 0.4)
+    this.snakeGraphics.beginPath()
     curvePoints.forEach((pt, i) => {
       if (i === 0) this.snakeGraphics.moveTo(pt.x, pt.y)
       else this.snakeGraphics.lineTo(pt.x, pt.y)
@@ -312,9 +385,8 @@ export class TradingScene extends Scene {
     this.snakeGraphics.strokePath()
 
     // Draw bright core line
-    this.snakeGraphics.lineStyle(2, 0xffffff, 0.9)
+    this.snakeGraphics.lineStyle(2, lineColor, 0.9)
     this.snakeGraphics.beginPath()
-    
     curvePoints.forEach((pt, i) => {
       if (i === 0) this.snakeGraphics.moveTo(pt.x, pt.y)
       else this.snakeGraphics.lineTo(pt.x, pt.y)
@@ -324,8 +396,30 @@ export class TradingScene extends Scene {
     // Draw the head of the snake (glowing dot)
     this.snakeGraphics.fillStyle(0xffffff, 1)
     this.snakeGraphics.fillCircle(headX, currentY, 4)
-    this.snakeGraphics.fillStyle(0x39ff14, 0.6)
+    this.snakeGraphics.fillStyle(glowColor, 0.6)
     this.snakeGraphics.fillCircle(headX, currentY, 12)
+
+    // Draw liquidation bands (faint red bands at ±liquidation threshold from zero)
+    const liquidationThreshold = (1 / ARCADE_GRAPH_CONFIG.leverage) * 100 * visualMultiplier
+    
+    // Distance in pixels from the absolute zero point to a liquidation band
+    const liquidationDistY = (liquidationThreshold / paddedMax) * (graphHeight / 2)
+    
+    // Band rects
+    const topBandY = zeroLineY - liquidationDistY - 4
+    const bottomBandY = zeroLineY + liquidationDistY - 4
+
+    // Upper liquidation band (shorts liquidated)
+    if (topBandY > -20 && topBandY < graphHeight) {
+      this.snakeGraphics.fillStyle(0xff4466, 0.1)
+      this.snakeGraphics.fillRect(0, topBandY, width, 8)
+    }
+
+    // Lower liquidation band (longs liquidated)
+    if (bottomBandY > -20 && bottomBandY < graphHeight) {
+      this.snakeGraphics.fillStyle(0xff4466, 0.1)
+      this.snakeGraphics.fillRect(0, bottomBandY, width, 8)
+    }
   }
 
   private drawGridBackground(): void {
@@ -364,8 +458,12 @@ export class TradingScene extends Scene {
 
     // Deep volumetric background glow instead of just lines
     const bgGradient = ctx.createRadialGradient(
-      tileWidth / 2, tileHeight / 2, 0,
-      tileWidth / 2, tileHeight / 2, Math.max(tileWidth, tileHeight)
+      tileWidth / 2,
+      tileHeight / 2,
+      0,
+      tileWidth / 2,
+      tileHeight / 2,
+      Math.max(tileWidth, tileHeight)
     )
     bgGradient.addColorStop(0, 'rgba(0, 150, 255, 0.03)')
     bgGradient.addColorStop(1, 'rgba(0, 50, 100, 0.0)')
@@ -440,7 +538,6 @@ export class TradingScene extends Scene {
     }
     this.textures.addCanvas(GRID_CONFIG.textureKey, canvas)
   }
-
 
   private configureGridBloom(): void {
     const bloomPipeline = this.gridLayer.getPostPipeline('BloomPostFX') as any
@@ -729,7 +826,16 @@ export class TradingScene extends Scene {
       token.body.enable = true
     }
 
-    token.spawn(spawnX, spawnY, data.coinType, data.coinId, config, this.isMobile, data.velocityX, data.velocityY)
+    token.spawn(
+      spawnX,
+      spawnY,
+      data.coinType,
+      data.coinId,
+      config,
+      this.isMobile,
+      data.velocityX,
+      data.velocityY
+    )
 
     token.setData('gridX', token.x)
     token.setData('gridY', token.y)
@@ -737,13 +843,17 @@ export class TradingScene extends Scene {
     this.spatialGrid.addCoinToGrid(data.coinId, token.x, token.y)
   }
 
-  private handleOpponentSlice(data: { playerName: string; coinType: CoinType; coinId: string }): void {
+  private handleOpponentSlice(data: {
+    playerName: string
+    coinType: CoinType
+    coinId: string
+  }): void {
     // Guard against events firing after scene shutdown
     if (this.isShutdown || !this.add || !this.cameras || !this.tokenPool) return
 
     // Find the specific coin by ID
     const tokens = this.tokenPool.getChildren() as Token[]
-    const targetCoin = tokens.find(t => t.active && t.getData('id') === data.coinId)
+    const targetCoin = tokens.find((t) => t.active && t.getData('id') === data.coinId)
 
     if (targetCoin) {
       // Do visual effects as if it was sliced locally, but DO NOT notify the server again
@@ -756,7 +866,13 @@ export class TradingScene extends Scene {
 
       // Play effects
       this.particles.emitSlice(targetCoin.x, targetCoin.y, config.color, 20)
-      this.visualEffects.createSplitEffect(targetCoin.x, targetCoin.y, config.color, config.radius, type)
+      this.visualEffects.createSplitEffect(
+        targetCoin.x,
+        targetCoin.y,
+        config.color,
+        config.radius,
+        type
+      )
 
       // Remove the coin explicitly without triggering state updates that might re-loop back to the server
       this.removeCoin(data.coinId)
@@ -764,9 +880,9 @@ export class TradingScene extends Scene {
   }
 
   private sliceCoin(coinId: string, coin: Token): void {
-    console.log('[Phaser:sliceCoin] Called with coinId:', coinId)
+    // console.log('[Phaser:sliceCoin] Called with coinId:', coinId)
     const type = coin.getData('type') as CoinType
-    console.log('[Phaser:sliceCoin] Coin type:', type)
+    // console.log('[Phaser:sliceCoin] Coin type:', type)
     const config = COIN_CONFIG[type]
     const store = useTradingStore.getState()
 
@@ -782,7 +898,7 @@ export class TradingScene extends Scene {
 
     // Server uses its own price feed for order creation (single source of truth)
     store.sliceCoin(coinId, type)
-    console.log('[Phaser:sliceCoin] Called store.sliceCoin')
+    // console.log('[Phaser:sliceCoin] Called store.sliceCoin')
 
     this.removeCoin(coinId)
   }

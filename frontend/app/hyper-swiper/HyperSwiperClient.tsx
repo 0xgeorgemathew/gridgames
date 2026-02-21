@@ -12,7 +12,6 @@ import { GameOverModal } from '@/games/hyper-swiper/components/GameOverModal'
 import { RoundEndFlash } from '@/games/hyper-swiper/components/RoundEndFlash'
 import GameCanvas from '@/components/GameCanvas'
 
-
 export function HyperSwiperClient() {
   const { isPlaying, connect, disconnect, toasts, removeToast } = useTradingStore()
 

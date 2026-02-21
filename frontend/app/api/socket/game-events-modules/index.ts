@@ -536,14 +536,14 @@ async function handleSlice(
   room.removeCoin(data.coinId)
 
   // Only call and put coins now - no gas or whale
-  console.log('[Server] handleSlice called with coinType:', data.coinType)
+  // console.log('[Server] handleSlice called with coinType:', data.coinType)
   if (!validateCoinType(data.coinType)) {
-    console.log('[Server] Invalid coin type, returning early')
+    // console.log('[Server] Invalid coin type, returning early')
     return
   }
 
   const player = room.players.get(playerId)
-  console.log('[Server] Player found:', player?.name, 'balance:', player?.dollars)
+  // console.log('[Server] Player found:', player?.name, 'balance:', player?.dollars)
   if (!player) return
 
   // Check if player has enough balance for collateral
@@ -581,7 +581,7 @@ async function handleSlice(
   room.addOpenPosition(position)
 
   // Emit position_opened event
-  console.log('[Server] Emitting position_opened to room:', room.id, 'positionId:', position.id)
+  // console.log('[Server] Emitting position_opened to room:', room.id, 'positionId:', position.id)
   io.to(room.id).emit('position_opened', {
     positionId: position.id,
     playerId: position.playerId,
@@ -866,20 +866,20 @@ export function setupGameEvents(io: SocketIOServer): {
     socket.on(
       'slice_coin',
       async (data: { coinId: string; coinType: string; priceAtSlice: number }) => {
-        console.log('[Server] slice_coin event received from socket:', socket.id)
-        console.log('[Server] slice_coin data:', data)
+        // console.log('[Server] slice_coin event received from socket:', socket.id)
+        // console.log('[Server] slice_coin data:', data)
         try {
           const roomId = manager.getPlayerRoomId(socket.id)
-          console.log('[Server] roomId lookup result:', roomId ?? 'NULL')
+          // console.log('[Server] roomId lookup result:', roomId ?? 'NULL')
 
           if (!roomId) {
-            console.log('[Server] EARLY RETURN - roomId is null')
+            // console.log('[Server] EARLY RETURN - roomId is null')
             return
           }
 
           const room = manager.getRoom(roomId)
           if (!room) {
-            console.log('[Server] EARLY RETURN - room not found for roomId:', roomId)
+            // console.log('[Server] EARLY RETURN - room not found for roomId:', roomId)
             manager.removePlayerFromRoom(socket.id)
             return
           }
