@@ -43,24 +43,27 @@ function PositionCard({
       ? 'border-2 border-green-500/60 shadow-[0_0_18px_rgba(74,222,128,0.35)]'
       : 'border-2 border-red-500/60 shadow-[0_0_18px_rgba(248,113,113,0.35)]'
 
-  // Shared spring config for smooth morphing - high damping prevents overshoot/squeeze
-  const morphSpring = {
+  // Very slow, buttery smooth spring config
+  const smoothSpring = {
     type: 'spring' as const,
-    stiffness: 100,
+    stiffness: 50,
     damping: 20,
-    mass: 1,
+    mass: 0.8,
   }
 
   return (
     <m.div
       layout
       key={position.id}
-      initial={{ y: 80, opacity: 0, borderRadius: 26 }}
+      initial={{ y: 80, opacity: 0 }}
       animate={{
         y: 0,
         opacity: 1,
-        borderRadius: isMinimized ? 28 : 26,
-        width: isMinimized ? 56 : 'max-content',
+        height: isMinimized ? 36 : 'auto',
+        paddingLeft: isMinimized ? 8 : 8,
+        paddingRight: isMinimized ? 8 : 8,
+        paddingTop: isMinimized ? 6 : 8,
+        paddingBottom: isMinimized ? 6 : 8,
       }}
       exit={{ y: 40, opacity: 0, scale: 0.9 }}
       transition={{
@@ -74,15 +77,17 @@ function PositionCard({
           duration: 0.3,
           delay: isMinimized ? 0 : index * 0.08,
         },
-        layout: morphSpring,
-        borderRadius: morphSpring,
-        width: morphSpring,
+        layout: smoothSpring,
+        height: smoothSpring,
+        paddingLeft: smoothSpring,
+        paddingRight: smoothSpring,
+        paddingTop: smoothSpring,
+        paddingBottom: smoothSpring,
       }}
       className={cn(
         'glass-panel-vibrant mb-1.5 relative overflow-hidden flex-shrink-0 transition-shadow',
-        'pointer-events-auto cursor-pointer',
+        'pointer-events-auto cursor-pointer rounded-xl',
         borderStyle,
-        isMinimized ? 'h-14 p-0 ml-auto' : 'h-auto p-2',
       )}
       onClick={() => onClose(position.id)}
     >
@@ -105,49 +110,31 @@ function PositionCard({
         />
       )}
 
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence mode="sync">
         {!isMinimized ? (
           <m.div
             key="full"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.9, filter: 'blur(4px)' }}
-            transition={{ duration: 0.25 }}
-            className="relative flex items-center justify-between gap-4 w-max shrink-0 pr-1"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="relative flex items-center justify-between gap-2 w-full"
           >
             {/* Left: Entry Point & Direction */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {/* Direction indicator with layoutId for smooth morphing */}
               <m.div
                 layoutId={`direction-icon-${position.id}`}
                 className={cn(
-                  'w-8 h-8 rounded-lg flex items-center justify-center relative shrink-0',
+                  'w-7 h-7 rounded-lg flex items-center justify-center relative shrink-0',
                   position.isLong ? 'bg-green-500/20' : 'bg-red-500/20',
                 )}
-                animate={{ y: [0, -3, 0, 3, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
               >
                 {position.isLong ? (
-                  <span className="text-green-400 text-lg">▲</span>
+                  <span className="text-green-400 text-base">▲</span>
                 ) : (
-                  <span className="text-red-400 text-lg">▼</span>
+                  <span className="text-red-400 text-base">▼</span>
                 )}
-
-                {/* Pulse ring */}
-                <m.div
-                  className={cn(
-                    'absolute inset-0 rounded-lg',
-                    position.isLong ? 'border border-green-400' : 'border border-red-400',
-                  )}
-                  animate={{
-                    scale: [1, 1.25, 1],
-                    opacity: [0.5, 0, 0.5],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                  }}
-                />
               </m.div>
 
               {/* Entry price */}
@@ -156,20 +143,18 @@ function PositionCard({
                   Entry
                 </span>
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="text-[15px] font-mono font-bold text-tron-cyan drop-shadow-[0_0_6px_rgba(0,243,255,0.5)] leading-none">
+                  <span className="text-[14px] font-mono font-bold text-tron-cyan drop-shadow-[0_0_6px_rgba(0,243,255,0.5)] leading-none">
                     ${formatPrice(position.openPrice)}
                   </span>
                 </div>
               </div>
             </div>
 
-
-
             {/* Right: Position type badge with leverage */}
             <div className="flex items-center gap-1 shrink-0">
               {/* Leverage badge */}
               {position.leverage > 1 && (
-                <m.div
+                <div
                   className={cn(
                     'px-1.5 py-0.5 rounded text-[9px] font-bold',
                     position.leverage === 2 &&
@@ -181,17 +166,9 @@ function PositionCard({
                     ![2, 5, 10].includes(position.leverage) &&
                       'bg-cyan-500/30 border border-cyan-500/50 text-cyan-200',
                   )}
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    opacity: [0.8, 1, 0.8],
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                  }}
                 >
                   {position.leverage}X
-                </m.div>
+                </div>
               )}
 
               <div
@@ -209,37 +186,32 @@ function PositionCard({
         ) : (
           <m.div
             key="minimized"
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{
-              type: 'spring',
-              stiffness: 100,
-              damping: 15,
-              delay: 0.1,
-            }}
-            className="flex flex-col items-center justify-center w-full h-full relative z-10"
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="flex items-center w-full h-full relative z-10"
           >
             {/* Direction indicator - smaller version with same layoutId for smooth morphing */}
             <m.div
               layoutId={`direction-icon-${position.id}`}
               className={cn(
-                'w-6 h-6 rounded-full flex items-center justify-center relative',
+                'w-6 h-6 rounded-md flex items-center justify-center relative shrink-0',
                 position.isLong ? 'bg-green-500/20' : 'bg-red-500/20',
               )}
-              transition={morphSpring}
             >
               {position.isLong ? (
-                <span className="text-green-400 text-xs">▲</span>
+                <span className="text-green-400 text-sm">▲</span>
               ) : (
-                <span className="text-red-400 text-xs">▼</span>
+                <span className="text-red-400 text-sm">▼</span>
               )}
             </m.div>
 
-            {/* PnL percentage */}
+            {/* PnL percentage - fixed min-width to prevent size changes */}
             <span
               className={cn(
-                'text-[10px] font-black font-mono leading-none mt-0.5',
+                'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5',
+                'min-w-[48px]',
                 isNearZero
                   ? 'text-tron-cyan'
                   : isInProfit
@@ -279,8 +251,6 @@ export function PositionIndicator() {
             />
           ))}
         </AnimatePresence>
-
-
       </div>
     </div>
   )
