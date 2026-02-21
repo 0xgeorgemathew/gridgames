@@ -688,7 +688,7 @@ export class TradingScene extends Scene {
     // Guard against events firing after scene shutdown
     if (this.isShutdown || !this.add || !this.cameras) return
 
-    this.visualEffects.showOpponentSlice(data.playerName, data.coinType)
+    // Opponent slice notifications are disabled as per user request
   }
 
   private sliceCoin(coinId: string, coin: Token): void {
@@ -703,7 +703,6 @@ export class TradingScene extends Scene {
     this.audio.playSliceAt(coin.x, screenWidth)
 
     this.particles.emitSlice(coin.x, coin.y, config.color, 20)
-    this.visualEffects.createDirectionalArrow(coin.x, coin.y, type)
     this.visualEffects.createSplitEffect(coin.x, coin.y, config.color, config.radius, type)
 
     // Server uses its own price feed for order creation (single source of truth)
