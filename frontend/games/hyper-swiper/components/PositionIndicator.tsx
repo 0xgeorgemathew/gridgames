@@ -345,15 +345,7 @@ export function PositionIndicator() {
           ))}
         </AnimatePresence>
 
-        {/* Show placeholder if no positions */}
-        {localPositions.length === 0 && (
-          <div className="glass-panel-vibrant w-full rounded-xl p-3 text-center">
-            <span className="text-xs text-tron-white-dim">No open positions</span>
-            <span className="text-[10px] text-tron-cyan/50 block mt-1">
-              Slice coins to open positions
-            </span>
-          </div>
-        )}
+
       </div>
     </div>
   )

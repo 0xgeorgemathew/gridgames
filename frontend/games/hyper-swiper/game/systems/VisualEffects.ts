@@ -264,9 +264,9 @@ export class VisualEffects {
       }
     }
 
-    // Animate halves flying apart with more dramatic movement
-    const flyDistance = 40
-    const rotationAmount = 1
+    // Animate halves flying apart with more explosive movement
+    const flyDistance = Phaser.Math.Between(60, 100)
+    const rotationAmount = Phaser.Math.FloatBetween(1.5, 3.0)
 
     this.scene.tweens.add({
       targets: leftContainer,
@@ -274,8 +274,8 @@ export class VisualEffects {
       y: y + flyDistance * 0.5,
       rotation: -rotationAmount,
       alpha: 0,
-      duration: 400,
-      ease: 'Power2',
+      duration: 350,
+      ease: 'Cubic.easeOut',
       onComplete: () => {
         leftComplete = true
         handleComplete()
@@ -288,8 +288,8 @@ export class VisualEffects {
       y: y - flyDistance * 0.5,
       rotation: rotationAmount,
       alpha: 0,
-      duration: 400,
-      ease: 'Power2',
+      duration: 350,
+      ease: 'Cubic.easeOut',
       onComplete: () => {
         rightComplete = true
         handleComplete()
