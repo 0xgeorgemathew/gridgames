@@ -676,7 +676,7 @@ export class TradingScene extends Scene {
       token.body.enable = true
     }
 
-    token.spawn(spawnX, spawnY, data.coinType, data.coinId, config, this.isMobile)
+    token.spawn(spawnX, spawnY, data.coinType, data.coinId, config, this.isMobile, data.velocityX, data.velocityY)
 
     token.setData('gridX', token.x)
     token.setData('gridY', token.y)
@@ -684,11 +684,30 @@ export class TradingScene extends Scene {
     this.spatialGrid.addCoinToGrid(data.coinId, token.x, token.y)
   }
 
-  private handleOpponentSlice(data: { playerName: string; coinType: CoinType }): void {
+  private handleOpponentSlice(data: { playerName: string; coinType: CoinType; coinId: string }): void {
     // Guard against events firing after scene shutdown
-    if (this.isShutdown || !this.add || !this.cameras) return
+    if (this.isShutdown || !this.add || !this.cameras || !this.tokenPool) return
 
-    // Opponent slice notifications are disabled as per user request
+    // Find the specific coin by ID
+    const tokens = this.tokenPool.getChildren() as Token[]
+    const targetCoin = tokens.find(t => t.active && t.getData('id') === data.coinId)
+
+    if (targetCoin) {
+      // Do visual effects as if it was sliced locally, but DO NOT notify the server again
+      const type = targetCoin.getData('type') as CoinType
+      const config = COIN_CONFIG[type]
+
+      // Play sound
+      const screenWidth = this.cameras.main.width
+      this.audio.playSliceAt(targetCoin.x, screenWidth)
+
+      // Play effects
+      this.particles.emitSlice(targetCoin.x, targetCoin.y, config.color, 20)
+      this.visualEffects.createSplitEffect(targetCoin.x, targetCoin.y, config.color, config.radius, type)
+
+      // Remove the coin explicitly without triggering state updates that might re-loop back to the server
+      this.removeCoin(data.coinId)
+    }
   }
 
   private sliceCoin(coinId: string, coin: Token): void {
@@ -704,6 +723,9 @@ export class TradingScene extends Scene {
 
     this.particles.emitSlice(coin.x, coin.y, config.color, 20)
     this.visualEffects.createSplitEffect(coin.x, coin.y, config.color, config.radius, type)
+
+    // Optional: Add screen shake for addictive feedback
+    this.cameras.main.shake(100, 0.005)
 
     // Server uses its own price feed for order creation (single source of truth)
     store.sliceCoin(coinId, type)
