@@ -283,18 +283,18 @@ export class TradingScene extends Scene {
     // Track live volatility envelope over last 30 seconds
     const VOLATILITY_WINDOW_MS = 30000
     const recentHistory = this.priceHistory.filter((p) => now - p.time <= VOLATILITY_WINDOW_MS)
-    
+
     // Convert history points to percentage from startPrice
     const recentPcts = recentHistory.map((p) => ((p.price - startPrice) / startPrice) * 100)
     const currentPct = ((this.displayedPrice - startPrice) / startPrice) * 100
-    
+
     // Find the min and max percentage within the active window
     const recentMinPct = Math.min(...recentPcts, currentPct)
     const recentMaxPct = Math.max(...recentPcts, currentPct)
-    
+
     // The true range of motion we are currently experiencing
     const recentRangePct = Math.max(0.01, recentMaxPct - recentMinPct)
-    
+
     // The midpoint of the current action - this will become the visual center of the screen
     const recentMidPct = (recentMaxPct + recentMinPct) / 2
 
@@ -314,16 +314,16 @@ export class TradingScene extends Scene {
 
     // Phase 5: Momentum Amplification Layer
     const rawCurrentDisplayValue = currentPct * visualMultiplier
-    
+
     // Calculate velocity (difference across frames)
     const velocity = rawCurrentDisplayValue - this.lastRawDisplayValue
     this.lastRawDisplayValue = rawCurrentDisplayValue
 
     const kBoost = 0.05
     const instantBoost = Math.min(0.4, Math.abs(velocity) * kBoost)
-    
+
     // Decay previous boost over ~300ms
-    this.momentumBoost = Math.max(0, this.momentumBoost - (0.4 * delta / 300))
+    this.momentumBoost = Math.max(0, this.momentumBoost - (0.4 * delta) / 300)
     // Apply new boost if higher
     this.momentumBoost = Math.max(this.momentumBoost, instantBoost)
 
@@ -332,8 +332,11 @@ export class TradingScene extends Scene {
 
     // Auto-scale Y-axis based on the local range
     const maxAbsValue = (recentRangePct / 2) * visualMultiplier
-    const paddedMax = Math.max(maxAbsValue * ARCADE_GRAPH_CONFIG.autoScalePadding, 0.01 * visualMultiplier)
-    
+    const paddedMax = Math.max(
+      maxAbsValue * ARCADE_GRAPH_CONFIG.autoScalePadding,
+      0.01 * visualMultiplier
+    )
+
     // Calculate the display value of the screen's center point
     const centerDisplayValue = recentMidPct * visualMultiplier
 
@@ -346,7 +349,7 @@ export class TradingScene extends Scene {
 
     // Draw zero line (entry price) - now drifts up/down off center
     const zeroLineY = centerY - ((0 - centerDisplayValue) / paddedMax) * (graphHeight / 2)
-    
+
     // Only draw the zero line if it's broadly on screen (with a little padding)
     if (zeroLineY > -100 && zeroLineY < graphHeight + 100) {
       this.snakeGraphics.lineStyle(1, 0xffffff, 0.3)
@@ -367,7 +370,8 @@ export class TradingScene extends Scene {
     })
 
     // Add current head position
-    const currentY = centerY - ((currentDisplayValue - centerDisplayValue) / paddedMax) * (graphHeight / 2)
+    const currentY =
+      centerY - ((currentDisplayValue - centerDisplayValue) / paddedMax) * (graphHeight / 2)
     curvePoints.push({ x: headX, y: currentY })
 
     // Determine line color based on whether we are above or below the entry price (not the screen center)
@@ -401,10 +405,10 @@ export class TradingScene extends Scene {
 
     // Draw liquidation bands (faint red bands at ±liquidation threshold from zero)
     const liquidationThreshold = (1 / ARCADE_GRAPH_CONFIG.leverage) * 100 * visualMultiplier
-    
+
     // Distance in pixels from the absolute zero point to a liquidation band
     const liquidationDistY = (liquidationThreshold / paddedMax) * (graphHeight / 2)
-    
+
     // Band rects
     const topBandY = zeroLineY - liquidationDistY - 4
     const bottomBandY = zeroLineY + liquidationDistY - 4
