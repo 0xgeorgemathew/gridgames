@@ -43,7 +43,7 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
         }
       }
     }
-  }, [])
+  }, [onDurationChange])
 
   return (
     <m.div
