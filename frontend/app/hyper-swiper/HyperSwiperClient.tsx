@@ -9,7 +9,6 @@ import { PositionIndicator } from '@/games/hyper-swiper/components/PositionIndic
 import { GameCanvasBackground } from '@/components/GameCanvasBackground'
 import { ToastNotifications } from '@/components/ToastNotifications'
 import { GameOverModal } from '@/games/hyper-swiper/components/GameOverModal'
-import { SettlementFlash } from '@/games/hyper-swiper/components/SettlementFlash'
 import { RoundEndFlash } from '@/games/hyper-swiper/components/RoundEndFlash'
 import GameCanvas from '@/components/GameCanvas'
 
@@ -31,8 +30,6 @@ export function HyperSwiperClient() {
       <ToastNotifications toasts={toasts} onRemove={removeToast} />
 
       <GameOverModal />
-
-      <SettlementFlash />
 
       <RoundEndFlash />
 

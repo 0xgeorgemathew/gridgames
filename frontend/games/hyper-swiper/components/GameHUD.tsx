@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useTradingStore } from '../game/stores/trading-store'
 import { HowToPlayModal } from './HowToPlayModal'
-import { SettlementFlash } from './SettlementFlash'
 import { AnimatePresence, m } from 'framer-motion'
 
 // Import extracted components
@@ -49,7 +48,6 @@ export const GameHUD = React.memo(function GameHUD() {
 
   return (
     <>
-      <SettlementFlash />
       <HowToPlayModal isOpen={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
 
       {/* Price Feed Loading Overlay - Full screen when connecting */}
