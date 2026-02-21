@@ -85,70 +85,80 @@ export const GameHUD = React.memo(function GameHUD() {
       >
         <div>
           <m.div
-            className="glass-panel-vibrant rounded-t-xl overflow-hidden"
+            className="relative bg-tron-black/90 backdrop-blur-xl border-t border-tron-cyan/50"
             animate={{
               boxShadow: [
-                '0 0 20px rgba(0,243,255,0.1), inset 0 0 20px rgba(0,243,255,0.03)',
-                '0 0 30px rgba(0,243,255,0.15), inset 0 0 30px rgba(0,243,255,0.05)',
-                '0 0 20px rgba(0,243,255,0.1), inset 0 0 20px rgba(0,243,255,0.03)',
+                '0 -10px 30px rgba(0,243,255,0.05), inset 0 2px 10px rgba(0,243,255,0.1)',
+                '0 -10px 40px rgba(0,243,255,0.1), inset 0 2px 15px rgba(0,243,255,0.2)',
+                '0 -10px 30px rgba(0,243,255,0.05), inset 0 2px 10px rgba(0,243,255,0.1)',
               ],
             }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            {/* Compact Price Row - Always visible when playing */}
-            {isPlaying && (
-              <CompactPriceRow
-                priceData={priceData}
-                selectedCrypto={selectedCrypto}
-                isPriceConnected={isPriceConnected}
-                priceError={priceError}
-                gameTimeRemaining={gameTimeRemaining}
-                isSoundMuted={isSoundMuted}
-                onToggleSound={toggleSound}
-                onShowHowToPlay={() => setShowHowToPlay(true)}
-                onEndGame={endGame}
-                isGameReady={isGameReady}
-              />
-            )}
+            {/* Background Grid texture */}
+            <div className="absolute inset-0 opacity-20 tron-grid pointer-events-none" />
 
-            {/* Divider */}
-            {isGameReady && (
-              <m.div
-                className="h-px bg-gradient-to-r from-transparent via-tron-cyan/50 to-transparent"
-                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
+            {/* Top accent line */}
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-tron-cyan to-transparent opacity-80" />
 
-            {/* Single Player Health - Only when game is ready */}
-            {isGameReady && localPlayer && (
-              <div className="p-2 sm:p-3">
-                <SinglePlayerHealth dollars={localPlayer.dollars} />
-              </div>
-            )}
-
-            {/* Game Over - Play Again Button */}
-            <AnimatePresence>
-              {isGameOver && (
-                <m.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex justify-center p-3"
-                >
-                  <m.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={playAgain}
-                    className="px-6 py-2 bg-tron-cyan/20 border border-tron-cyan/40 rounded-lg backdrop-blur-sm"
-                  >
-                    <span className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.15em] text-tron-cyan font-medium">
-                      PLAY AGAIN
-                    </span>
-                  </m.button>
-                </m.div>
+            <div className="relative z-10">
+              {/* Compact Price Row - Always visible when playing */}
+              {isPlaying && (
+                <CompactPriceRow
+                  priceData={priceData}
+                  selectedCrypto={selectedCrypto}
+                  isPriceConnected={isPriceConnected}
+                  priceError={priceError}
+                  gameTimeRemaining={gameTimeRemaining}
+                  isSoundMuted={isSoundMuted}
+                  onToggleSound={toggleSound}
+                  onShowHowToPlay={() => setShowHowToPlay(true)}
+                  onEndGame={endGame}
+                  isGameReady={isGameReady}
+                />
               )}
-            </AnimatePresence>
+
+              {/* Divider */}
+              {isGameReady && (
+                <m.div
+                  className="h-px bg-gradient-to-r from-transparent via-tron-cyan/50 to-transparent"
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              )}
+
+              {/* Single Player Health - Only when game is ready */}
+              {isGameReady && localPlayer && (
+                <div className="p-2 sm:p-3">
+                  <SinglePlayerHealth dollars={localPlayer.dollars} />
+                </div>
+              )}
+
+              {/* Game Over - Play Again Button */}
+              <AnimatePresence>
+                {isGameOver && (
+                  <m.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex justify-center p-3"
+                  >
+                    <m.button
+                      whileHover={{ scale: 1.05, boxShadow: '0 0 15px rgba(0,243,255,0.4)' }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={playAgain}
+                      className="px-8 py-3 hologram bg-tron-black/60 border border-tron-cyan relative overflow-hidden group"
+                    >
+                      <div className="absolute inset-0 bg-tron-cyan/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                      <span className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.15em] text-tron-cyan font-medium">
+                        PLAY AGAIN
+                      </span>
+                    </m.button>
+                  </m.div>
+                )}
+              </AnimatePresence>
+            </div>
           </m.div>
         </div>
       </m.div>

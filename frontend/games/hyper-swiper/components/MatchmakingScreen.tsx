@@ -44,13 +44,13 @@ function PlayingAsPanel({
             className="flex flex-col items-center"
           >
             <div className="flex items-center gap-3 mb-3">
-              <m.p className="text-cyan-400/70 text-[10px] tracking-[0.25em] font-medium glow-text-label">
+              <m.p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/70 text-[10px] tracking-[0.3em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
                 PLAYING AS
               </m.p>
             </div>
 
             <m.div
-              className="relative flex flex-col items-center gap-3"
+              className="relative flex flex-col items-center gap-4"
               whileHover={{ scale: 1.02 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
@@ -61,12 +61,12 @@ function PlayingAsPanel({
                   transition={{ duration: 0.4, delay: 0.1 }}
                   className="relative"
                 >
-                  <div className="absolute -inset-1 rounded-full bg-cyan-400/20 blur-md" />
+                  <div className="absolute -inset-1 rounded-sm bg-tron-cyan/20 blur-md" />
                   <m.div
-                    className="absolute -inset-2 rounded-full border border-cyan-400/40"
+                    className="absolute -inset-2 rounded-sm border border-tron-cyan/60 hologram"
                     animate={{
-                      scale: [1, 1.1, 1],
-                      opacity: [0.4, 0.2, 0.4],
+                      scale: [1, 1.05, 1],
+                      opacity: [0.6, 0.3, 0.6],
                     }}
                     transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                   />
@@ -76,14 +76,16 @@ function PlayingAsPanel({
                     width={56}
                     height={56}
                     unoptimized
-                    className="relative rounded-full border-2 border-cyan-400/50 object-cover"
+                    className="relative rounded-sm border-2 border-tron-cyan/80 object-cover"
                   />
                 </m.div>
               )}
-              <PlayerName
-                username={displayName}
-                className="text-2xl tracking-wider relative z-10"
-              />
+              <div className="relative z-10 glass-panel-vibrant px-8 py-3 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] flex items-center justify-center">
+                <PlayerName
+                  username={displayName}
+                  className="font-[family-name:var(--font-orbitron)] text-xl sm:text-2xl tracking-[0.15em] text-tron-cyan drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
+                />
+              </div>
             </m.div>
           </m.div>
         )}
@@ -141,8 +143,8 @@ function MatchmakingAuthPanel({
               layout
               className="flex flex-col items-center gap-4"
             >
-              <p className="text-gray-400 text-sm tracking-wider">
-                {isInMiniApp ? 'CONNECTING...' : 'CONNECT TO PLAY'}
+              <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em] animate-pulse">
+                {isInMiniApp ? 'CONNECTING TO GRID...' : 'CONNECT TO PLAY'}
               </p>
               {!isInMiniApp && (
                 <ActionButton onClick={onLogin} color="cyan">
@@ -162,7 +164,9 @@ function MatchmakingAuthPanel({
               layout
               className="flex flex-col items-center gap-3"
             >
-              <p className="text-green-400 text-xs tracking-wider">READY TO PLAY</p>
+              <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+                SYSTEM READY
+              </p>
 
               <div className="flex flex-col gap-3 w-full min-w-[200px]">
                 <ActionButton onClick={onEnter} disabled={!isConnected || isMatching} color="cyan">
@@ -194,8 +198,8 @@ function MatchmakingAuthPanel({
               layout
               className="flex flex-col items-center gap-3"
             >
-              <p className="text-cyan-400 text-xs tracking-wider animate-pulse">
-                FINDING OPPONENT...
+              <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] animate-pulse drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+                SEARCHING GRID...
               </p>
             </m.div>
           )}
@@ -212,15 +216,19 @@ function MatchmakingAuthPanel({
             >
               <button
                 onClick={onBackFromLobby}
-                className="text-cyan-400/60 hover:text-cyan-400 transition-colors text-xs"
+                className="font-[family-name:var(--font-orbitron)] text-tron-cyan/60 hover:text-tron-cyan transition-colors text-xs tracking-[0.2em] mb-2"
               >
                 ← BACK
               </button>
 
-              <p className="text-cyan-400/70 text-[10px] tracking-[0.25em]">AVAILABLE OPPONENTS</p>
+              <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+                AVAILABLE TARGETS
+              </p>
 
               {lobbyPlayers.length === 0 ? (
-                <p className="text-cyan-400/60 text-xs">NO PLAYERS WAITING</p>
+                <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/50 text-xs tracking-[0.1em] mt-4 mb-4">
+                  GRID EMPTY
+                </p>
               ) : (
                 <div className="flex flex-col gap-2 w-full">
                   <AnimatePresence mode="popLayout">
@@ -235,18 +243,21 @@ function MatchmakingAuthPanel({
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                           className={cn(
-                            'relative px-4 py-3 bg-black/40 border rounded-lg overflow-hidden scale-pulse-button min-w-[200px]',
+                            'relative px-4 py-3 bg-tron-black/80 border rounded-sm overflow-hidden min-w-[200px] hologram group transition-all duration-300',
                             hasMatchingSettings
-                              ? 'border-cyan-400/40 hover:border-cyan-400/60'
-                              : 'border-cyan-400/20 hover:border-cyan-400/40 opacity-60'
+                              ? 'border-tron-cyan/50 hover:border-tron-cyan hover:bg-tron-cyan/10 shadow-[0_0_10px_rgba(0,243,255,0.1)] hover:shadow-[0_0_20px_rgba(0,243,255,0.3)]'
+                              : 'border-tron-cyan/20 hover:border-tron-cyan/40 opacity-70'
                           )}
                         >
                           <div className="relative z-10 flex flex-col items-center gap-1">
-                            <PlayerName username={player.name} className="text-sm" />
-                            <div className="flex items-center gap-2 text-[9px] tracking-wider">
+                            <PlayerName
+                              username={player.name}
+                              className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.1em] text-tron-cyan group-hover:text-white transition-colors"
+                            />
+                            <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] font-mono">
                               <span
                                 className={
-                                  hasMatchingSettings ? 'text-cyan-400' : 'text-cyan-400/50'
+                                  hasMatchingSettings ? 'text-tron-cyan' : 'text-tron-cyan/50'
                                 }
                               >
                                 {formatDuration(player.gameDuration)}
@@ -278,12 +289,20 @@ function MatchmakingAuthPanel({
 
 function MatchmakingBottomDots() {
   return (
-    <div className="fixed bottom-12 left-0 right-0 z-20 flex justify-center gap-2">
+    <div className="fixed bottom-12 left-0 right-0 z-20 flex justify-center gap-3">
       {BOTTOM_DOT_STEPS.map((step) => (
         <m.div
           key={`dot-${step}`}
-          className="w-0.5 h-0.5 bg-cyan-400/40"
-          animate={{ opacity: [0.2, 1, 0.2], scaleY: [1, 2, 1] }}
+          className="w-1 h-1 bg-tron-cyan/60 shadow-[0_0_8px_var(--color-tron-cyan)]"
+          animate={{
+            opacity: [0.2, 1, 0.2],
+            scaleY: [1, 3, 1],
+            boxShadow: [
+              '0 0 0px rgba(0,243,255,0)',
+              '0 0 10px rgba(0,243,255,0.8)',
+              '0 0 0px rgba(0,243,255,0)',
+            ],
+          }}
           transition={{ duration: 1.5, repeat: Infinity, delay: step * 0.15, ease: 'easeInOut' }}
         />
       ))}
@@ -410,7 +429,7 @@ export function MatchmakingScreen() {
       <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
         <GridScanBackground />
         <m.p
-          className="relative z-20 font-[family-name:var(--font-orbitron)] text-cyan-400 tracking-widest"
+          className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
@@ -424,9 +443,10 @@ export function MatchmakingScreen() {
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
       <GridScanBackground />
 
-      <div className="fixed inset-0 pointer-events-none z-10 opacity-15">
+      <div className="fixed inset-0 pointer-events-none z-10 opacity-20">
+        <div className="absolute inset-0 tron-grid opacity-30" />
         <m.div
-          className="w-full h-px bg-cyan-400"
+          className="w-full h-[2px] bg-tron-cyan shadow-[0_0_15px_var(--color-tron-cyan)]"
           animate={{ y: ['-10%', '110%'] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
         />
@@ -434,29 +454,31 @@ export function MatchmakingScreen() {
 
       <button
         onClick={() => router.push('/')}
-        className="fixed top-4 left-4 z-30 px-3 py-2 text-xs text-cyan-400/70 hover:text-cyan-400 transition-colors border border-cyan-400/30 hover:border-cyan-400/60 rounded-lg bg-black/40 backdrop-blur-sm"
+        className="fixed top-4 left-4 z-30 px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan hover:shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md hologram"
       >
         ← BACK
       </button>
 
-      <div className="relative z-20 flex flex-col items-center gap-12 px-6">
-        <div className="text-center">
+      <div className="relative z-20 flex flex-col items-center gap-10 px-6 mt-8 w-full max-w-xl">
+        <div className="text-center relative">
           <m.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="font-[family-name:var(--font-orbitron)] text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-[0.25em] text-white"
+            className="font-[family-name:var(--font-orbitron)] text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] mb-2"
           >
             ENTER THE GRID
           </m.h1>
-          <m.h2
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          <m.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-[0.2em] text-cyan-400 glow-text-grid"
+            className="relative inline-block mb-4"
           >
-            GRID
-          </m.h2>
+            <h2 className="font-[family-name:var(--font-orbitron)] text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
+              SWIPER
+            </h2>
+          </m.div>
 
           <PlayingAsPanel
             displayName={displayName}

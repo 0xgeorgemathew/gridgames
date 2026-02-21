@@ -91,16 +91,18 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
 
       {/* Center: Timer (only when game is ready) */}
       {isGameReady && (
-        <div className="flex items-center gap-1 shrink-0 px-2">
+        <div className="flex items-center justify-center min-w-[70px] px-3 py-1 my-1 bg-tron-black/80 border border-tron-cyan/30 rounded-sm hologram shrink-0 relative overflow-hidden">
+          {/* Subtle repeating scanline effect for timer */}
+          <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,243,255,0.05)_50%)] bg-[length:100%_4px] pointer-events-none" />
           <span
             className={cn(
-              'text-sm sm:text-base font-black font-numeric tracking-wider',
-              isLowTime ? 'text-red-400 animate-pulse' : 'text-white'
+              'text-sm sm:text-base font-black font-numeric tracking-wider z-10',
+              isLowTime ? 'text-red-400 animate-pulse' : 'text-tron-cyan'
             )}
             style={{
               textShadow: isLowTime
                 ? '0 0 10px rgba(248,113,113,0.5)'
-                : '0 0 10px rgba(255,255,255,0.3)',
+                : '0 0 8px rgba(0,243,255,0.6)',
             }}
           >
             {formatTime(gameTimeRemaining)}
@@ -109,13 +111,13 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
       )}
 
       {/* Right: Action icons */}
-      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+      <div className="flex items-center gap-1.5 shrink-0 pl-2 ml-1 border-l border-tron-cyan/30">
         <button
           onClick={onShowHowToPlay}
-          className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-tron-cyan/10 rounded transition-colors"
+          className="w-8 h-8 sm:w-8 sm:h-8 flex items-center justify-center bg-tron-black/60 border border-tron-cyan/30 hover:border-tron-cyan hover:bg-tron-cyan/20 rounded-sm transition-all hologram group"
           title="How to play"
         >
-          <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-cyan" />
+          <Info className="w-4 h-4 text-tron-cyan/80 group-hover:text-tron-cyan group-hover:drop-shadow-[0_0_8px_var(--color-tron-cyan)] transition-colors" />
         </button>
 
         <button
@@ -125,23 +127,23 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
             }
             onToggleSound()
           }}
-          className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-tron-cyan/10 rounded transition-colors"
+          className="w-8 h-8 sm:w-8 sm:h-8 flex items-center justify-center bg-tron-black/60 border border-tron-cyan/30 hover:border-tron-cyan hover:bg-tron-cyan/20 rounded-sm transition-all hologram group"
           title={isSoundMuted ? 'Unmute sounds' : 'Mute sounds'}
         >
           {isSoundMuted ? (
-            <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-orange" />
+            <VolumeX className="w-4 h-4 text-tron-orange/80 group-hover:text-tron-orange transition-colors" />
           ) : (
-            <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-cyan" />
+            <Volume2 className="w-4 h-4 text-tron-cyan/80 group-hover:text-tron-cyan group-hover:drop-shadow-[0_0_8px_var(--color-tron-cyan)] transition-colors" />
           )}
         </button>
 
         {isGameReady && (
           <button
             onClick={onEndGame}
-            className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-tron-orange/10 rounded transition-colors"
+            className="w-8 h-8 sm:w-8 sm:h-8 flex items-center justify-center bg-tron-black/60 border border-tron-orange/30 hover:border-tron-orange hover:bg-tron-orange/20 rounded-sm transition-all shadow-[0_0_10px_rgba(255,107,0,0.1)] group"
             title="End game early"
           >
-            <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-tron-orange/70 hover:text-tron-orange" />
+            <LogOut className="w-4 h-4 text-tron-orange/70 group-hover:text-tron-orange group-hover:drop-shadow-[0_0_8px_var(--color-tron-orange)] transition-colors" />
           </button>
         )}
       </div>

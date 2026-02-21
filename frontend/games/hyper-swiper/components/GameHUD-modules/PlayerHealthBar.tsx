@@ -62,28 +62,57 @@ export const SinglePlayerHealth = React.memo(
           </m.span>
         </div>
 
-        {/* Health bar */}
-        <div
-          className={cn(
-            'relative h-2.5 sm:h-3 bg-black/80 rounded-full overflow-hidden border border-white/20',
-            isLowHealth && 'animate-pulse'
-          )}
-        >
-          <m.div
-            className={cn('h-full rounded-full', healthGradientClasses[healthColor])}
-            initial={{ width: 0 }}
-            animate={{ width: `${healthPercent * 100}%` }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          />
+        {/* Health bar container - Angled/Skewed arcade style */}
+        <div className="relative px-1 pb-1">
+          <div
+            className={cn(
+              'relative h-3 sm:h-3.5 bg-tron-black/60 border border-tron-cyan/20 overflow-hidden transform -skew-x-[15deg]',
+              isLowHealth && 'animate-pulse'
+            )}
+          >
+            {/* Grid texture inside empty portion */}
+            <div className="absolute inset-0 opacity-30 tron-grid pointer-events-none bg-[length:10px_10px]" />
 
-          {/* Glow effect for low health */}
-          {isLowHealth && (
             <m.div
-              className="absolute inset-0 bg-red-500/20 rounded-full"
-              animate={{ opacity: [0.2, 0.5, 0.2] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-          )}
+              className={cn(
+                'h-full relative shadow-[0_0_15px_rgba(currentColor,0.5)]',
+                healthGradientClasses[healthColor]
+              )}
+              initial={{ width: 0 }}
+              animate={{ width: `${healthPercent * 100}%` }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <div className="absolute top-0 right-0 bottom-0 w-[5px] bg-white/50 blur-[1px]" />
+            </m.div>
+
+            {/* Glossy top overlay */}
+            <div className="absolute top-0 left-0 right-0 h-1/3 bg-white/10 pointer-events-none" />
+
+            {/* Glowing tick marks every 25% */}
+            <div className="absolute inset-0 flex justify-between px-[25%] opacity-40 pointer-events-none">
+              <div className="w-[1px] h-full bg-tron-cyan/50" />
+              <div className="w-[1px] h-full bg-tron-cyan/50" />
+              <div className="w-[1px] h-full bg-tron-cyan/50" />
+            </div>
+
+            {/* Glow effect for low health */}
+            {isLowHealth && (
+              <m.div
+                className="absolute inset-0 bg-red-500/20"
+                animate={{ opacity: [0.2, 0.5, 0.2] }}
+                transition={{ duration: 1, repeat: Infinity }}
+              />
+            )}
+          </div>
+
+          {/* Sub-bar decoration */}
+          <div className="flex justify-between w-full mt-1 transform -skew-x-[15deg] opacity-60">
+            <div className="flex gap-1">
+              <div className="h-[2px] w-8 bg-tron-cyan/40" />
+              <div className="h-[2px] w-2 bg-tron-cyan/70" />
+            </div>
+            <div className="h-[2px] w-12 bg-tron-cyan/40" />
+          </div>
         </div>
       </m.div>
     )

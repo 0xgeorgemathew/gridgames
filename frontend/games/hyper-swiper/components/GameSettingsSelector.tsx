@@ -52,17 +52,19 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
       transition={{ duration: 0.4 }}
       className="w-full max-w-md"
     >
-      <div className="glass-panel-vibrant rounded-xl p-4 border border-cyan-400/20">
+      <div className="glass-panel-vibrant rounded-sm p-4 border border-tron-cyan/30 w-full mb-4 mt-6">
         {/* Header */}
-        <div className="text-center mb-4">
-          <p className="text-cyan-400/70 text-[10px] tracking-[0.25em] font-medium">
+        <div className="text-center mb-6">
+          <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
             GAME SETTINGS
           </p>
         </div>
 
         {/* Duration Selection */}
         <div>
-          <p className="text-cyan-400/50 text-[9px] tracking-[0.2em] mb-2 text-center">DURATION</p>
+          <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/60 text-[9px] tracking-[0.3em] mb-4 text-center">
+            DURATION
+          </p>
           <div className="flex items-center justify-center gap-2">
             {TIME_OPTIONS.map((option) => {
               const isSelected = selectedDuration === option.value
@@ -75,13 +77,13 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
                   whileHover={disabled ? {} : { scale: 1.05 }}
                   whileTap={disabled ? {} : { scale: 0.95 }}
                   className={cn(
-                    'relative px-3 py-2 rounded-lg font-bold text-xs tracking-wider',
-                    'border transition-all duration-200',
-                    'flex items-center justify-center',
-                    'min-w-[60px] min-h-[40px]',
+                    'relative px-3 py-2 rounded-sm font-[family-name:var(--font-orbitron)] font-medium text-xs tracking-[0.2em]',
+                    'border transition-all duration-300',
+                    'flex items-center justify-center hologram',
+                    'min-w-[80px] min-h-[40px] overflow-hidden group',
                     isSelected
-                      ? 'text-tron-cyan bg-cyan-400/10 border-cyan-400/60'
-                      : 'text-white/40 bg-black/20 border-cyan-400/20 hover:border-cyan-400/40',
+                      ? 'text-tron-cyan bg-tron-cyan/20 border-tron-cyan shadow-[0_0_15px_rgba(0,243,255,0.2)]'
+                      : 'text-tron-cyan/40 bg-tron-black/60 border-tron-cyan/20 hover:border-tron-cyan/50 hover:text-tron-cyan/80 hover:bg-tron-cyan/10',
                     disabled && 'opacity-50 cursor-not-allowed'
                   )}
                   style={{
@@ -91,7 +93,7 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
                 >
                   {isSelected && (
                     <m.div
-                      className="absolute inset-0 rounded-lg"
+                      className="absolute inset-0 rounded-sm"
                       initial={{ opacity: 0.3 }}
                       animate={{ opacity: [0.3, 0.5, 0.3] }}
                       transition={{ duration: 2, repeat: Infinity }}

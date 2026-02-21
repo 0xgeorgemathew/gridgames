@@ -7,7 +7,7 @@ const BUTTON_TRANSITION = { duration: 2, repeat: Infinity, ease: 'easeInOut' as 
 const COLOR_CONFIG = {
   indigo: { border: 'border-indigo-400/30', text: 'text-indigo-300', glow: 'rgba(99,102,241,0.6)' },
   green: { border: 'border-green-400/30', text: 'text-green-300', glow: 'rgba(34,197,94,0.6)' },
-  cyan: { border: 'border-cyan-400/30', text: 'text-cyan-300', glow: 'rgba(0,217,255,0.6)' },
+  cyan: { border: 'border-tron-cyan/40', text: 'text-tron-cyan', glow: 'rgba(0,243,255,0.6)' },
   yellow: { border: 'border-yellow-400/30', text: 'text-yellow-300', glow: 'rgba(250,204,21,0.6)' },
   purple: { border: 'border-purple-400/30', text: 'text-purple-300', glow: 'rgba(168,85,247,0.6)' },
 }
