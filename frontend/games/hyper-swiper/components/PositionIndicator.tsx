@@ -59,11 +59,6 @@ function PositionCard({
       animate={{
         y: 0,
         opacity: 1,
-        height: isMinimized ? 36 : 'auto',
-        paddingLeft: isMinimized ? 8 : 8,
-        paddingRight: isMinimized ? 8 : 8,
-        paddingTop: isMinimized ? 6 : 8,
-        paddingBottom: isMinimized ? 6 : 8,
       }}
       exit={{ y: 40, opacity: 0, scale: 0.9 }}
       transition={{
@@ -78,16 +73,12 @@ function PositionCard({
           delay: isMinimized ? 0 : index * 0.08,
         },
         layout: smoothSpring,
-        height: smoothSpring,
-        paddingLeft: smoothSpring,
-        paddingRight: smoothSpring,
-        paddingTop: smoothSpring,
-        paddingBottom: smoothSpring,
       }}
       className={cn(
         'glass-panel-vibrant mb-1.5 relative overflow-hidden flex-shrink-0 transition-shadow',
         'pointer-events-auto cursor-pointer rounded-xl',
         borderStyle,
+        isMinimized ? 'h-9 px-2 py-1.5' : 'h-auto p-2',
       )}
       onClick={() => onClose(position.id)}
     >
