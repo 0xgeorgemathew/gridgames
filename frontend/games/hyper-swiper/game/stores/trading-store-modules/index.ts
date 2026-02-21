@@ -167,6 +167,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       console.log('[Socket] position_opened event received:', position)
       get().handlePositionOpened(position)
     })
+    nextSocket.on('position_closed', (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => {
+      console.log('[Socket] position_closed event received:', data)
+      get().handlePositionClosed(data)
+    })
     nextSocket.on('game_settlement', (settlement: GameSettlementEvent) =>
       get().handleGameSettlement(settlement)
     )
@@ -271,6 +275,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     socket.emit('slice_coin', { coinId, coinType })
   },
 
+  closePosition: (positionId: string) => {
+    const { socket, localPlayerId } = get()
+    if (!socket || !localPlayerId) return
+    socket.emit('close_position', { positionId })
+  },
+
   setLeverage: (leverage: number) => {
     const { socket, localPlayerId, players } = get()
     if (!socket || !localPlayerId) return
@@ -347,6 +357,29 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ openPositions: newPositions })
 
     console.log('[Store] openPositions size after update:', newPositions.size)
+  },
+
+  handlePositionClosed: (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => {
+    console.log('[Store] position_closed received:', data)
+    const { openPositions, localPlayerId } = get()
+    
+    const newPositions = new Map(openPositions)
+    const position = newPositions.get(data.positionId)
+
+    if (position) {
+      newPositions.delete(data.positionId)
+      set({ openPositions: newPositions })
+      
+      const isOwnPosition = data.playerId === localPlayerId
+      if (isOwnPosition) {
+        const pnlText = data.realizedPnl >= 0 ? `+$${data.realizedPnl.toFixed(2)}` : `-$${Math.abs(data.realizedPnl).toFixed(2)}`
+        get().addToast({
+          message: `Position closed. PnL: ${pnlText}`,
+          type: data.realizedPnl >= 0 ? 'success' : 'error',
+          duration: 3000,
+        })
+      }
+    }
   },
 
   // Game settlement - all positions settled at game end

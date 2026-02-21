@@ -141,4 +141,6 @@ export interface TradingState
   joinWaitingPool: (playerName: string, walletAddress?: string) => void
   leaveWaitingPool: () => void
   selectOpponent: (opponentSocketId: string) => void
+  closePosition: (positionId: string) => void
+  handlePositionClosed: (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => void
 }

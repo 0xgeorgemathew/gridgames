@@ -892,6 +892,71 @@ export function setupGameEvents(io: SocketIOServer): {
       }
     )
 
+    socket.on('close_position', ({ positionId }: { positionId: string }) => {
+      try {
+        const roomId = manager.getPlayerRoomId(socket.id)
+        if (!roomId) return
+
+        const room = manager.getRoom(roomId)
+        if (!room) return
+
+        const position = room.openPositions.get(positionId)
+        if (!position) {
+          socket.emit('error', { message: 'Position not found' })
+          return
+        }
+
+        if (position.playerId !== socket.id) {
+          socket.emit('error', { message: 'Unauthorized to close this position' })
+          return
+        }
+
+        const currentPrice = priceFeed.getLatestPrice()
+        const { pnl, isProfitable } = calculatePositionPnl(position, currentPrice)
+
+        room.addClosedPosition({
+          positionId: position.id,
+          playerId: position.playerId,
+          playerName: position.playerName,
+          isLong: position.coinType === 'long',
+          leverage: position.leverage,
+          collateral: position.collateral,
+          openPrice: position.priceAtOrder,
+          closePrice: currentPrice,
+          realizedPnl: pnl,
+          isProfitable,
+          isLiquidated: false,
+        })
+
+        room.removeOpenPosition(position.id)
+
+        const player = room.players.get(socket.id)
+        if (player) {
+          player.dollars += position.collateral + pnl
+        }
+
+        io.to(roomId).emit('position_closed', {
+          positionId: position.id,
+          playerId: position.playerId,
+          closePrice: currentPrice,
+          realizedPnl: pnl,
+        })
+
+        if (player) {
+          io.to(roomId).emit('balance_updated', {
+            playerId: socket.id,
+            newBalance: player.dollars,
+            reason: 'position_closed',
+            positionId: position.id,
+            pnl,
+          })
+        }
+      } catch (error) {
+        console.error('[Server] close_position error:', error)
+        socket.emit('error', { message: 'Failed to close position' })
+      }
+    })
+
     socket.on('get_lobby_players', () => {
       const players = Array.from(manager.getWaitingPlayers().entries())
         .filter(([id]) => id !== socket.id)

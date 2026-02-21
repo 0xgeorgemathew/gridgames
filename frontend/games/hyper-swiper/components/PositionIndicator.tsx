@@ -11,10 +11,12 @@ function PositionCard({
   position,
   index,
   priceData,
+  onClose,
 }: {
   position: Position
   index: number
   priceData: any
+  onClose: (id: string) => void
 }) {
   const [isMinimized, setIsMinimized] = useState(false)
 
@@ -78,10 +80,12 @@ function PositionCard({
       }}
       className={cn(
         'glass-panel-vibrant mb-1.5 relative overflow-hidden flex-shrink-0 transition-shadow',
+        'pointer-events-auto cursor-pointer',
         borderStyle,
         isMinimized ? 'h-14 p-0 ml-auto' : 'h-auto p-2',
       )}
       style={{ width: '100%' }}
+      onClick={() => onClose(position.id)}
     >
       {/* Animated glow effect for profit/loss */}
       {!isNearZero && (
@@ -323,7 +327,7 @@ function PositionCard({
 }
 
 export function PositionIndicator() {
-  const { openPositions, localPlayerId, priceData } = useTradingStore()
+  const { openPositions, localPlayerId, priceData, closePosition } = useTradingStore()
 
   // Get local player's open positions
   const localPositions = Array.from(openPositions.values())
@@ -340,6 +344,7 @@ export function PositionIndicator() {
               position={position}
               index={index}
               priceData={priceData}
+              onClose={closePosition}
             />
           ))}
         </AnimatePresence>
