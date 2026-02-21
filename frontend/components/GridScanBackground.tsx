@@ -275,6 +275,7 @@ interface GridScanProps {
   noiseIntensity?: number
   bloomIntensity?: number
   sensitivity?: number
+  maxFps?: number
 }
 
 export function GridScanBackground({
@@ -291,6 +292,7 @@ export function GridScanBackground({
   noiseIntensity = 0.008,
   bloomIntensity = 0.5, // Stronger bloom for Tron effect
   sensitivity = 0.55,
+  maxFps = 30, // Default to 30fps to save battery/CPU
 }: GridScanProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -490,11 +492,39 @@ export function GridScanBackground({
     }
     window.addEventListener('resize', onResize)
 
+    let isVisible = true
     let last = performance.now()
+    let lastRenderTime = 0
+    const frameInterval = 1000 / maxFps
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        isVisible = entries[0].isIntersecting
+        if (isVisible && !rafRef.current) {
+          last = performance.now()
+          tick()
+        } else if (!isVisible && rafRef.current) {
+          cancelAnimationFrame(rafRef.current)
+          rafRef.current = undefined
+        }
+      },
+      { threshold: 0 }
+    )
+    observer.observe(container)
+
     const tick = () => {
+      if (!isVisible) return
+
+      rafRef.current = requestAnimationFrame(tick)
+
       const now = performance.now()
+      const elapsed = now - lastRenderTime
+
+      if (elapsed < frameInterval) return
+
       const dt = Math.max(0, Math.min(0.1, (now - last) / 1000))
       last = now
+      lastRenderTime = now - (elapsed % frameInterval)
 
       // Smooth damp to center (no mouse input)
       lookCurrent.current.copy(
@@ -529,12 +559,13 @@ export function GridScanBackground({
       material.uniforms.iTime.value = now / 1000
       renderer.clear(true, true, true)
       composer.render(dt)
-
-      rafRef.current = requestAnimationFrame(tick)
     }
+    
+    // Initial start; observer will handle pausing/resuming
     rafRef.current = requestAnimationFrame(tick)
 
     return () => {
+      observer.disconnect()
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       window.removeEventListener('resize', onResize)
       material.dispose()
@@ -563,6 +594,7 @@ export function GridScanBackground({
     smoothTime,
     maxSpeed,
     yBoost,
+    maxFps,
   ])
 
   // Mobile portrait: no mouse interaction, centered focus
