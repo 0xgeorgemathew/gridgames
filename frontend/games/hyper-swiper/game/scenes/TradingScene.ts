@@ -18,8 +18,16 @@ import { AudioManager } from '../systems/AudioManager'
 
 const GRID_CONFIG = {
   color: 0x00f3ff,
-  bgColor: 0x0a0a0a,
-  size: 51,
+  minCellWidth: 42,
+  maxCellWidth: 72,
+  minCellHeight: 30,
+  maxCellHeight: 56,
+  majorXEvery: 3,
+  majorYEvery: 3,
+  scrollSpeed: 30,
+  sweepSpeed: 44,
+  textureKey: 'trading-grid-tile',
+  sweepTextureKey: 'trading-grid-sweep',
 } as const
 
 export class TradingScene extends Scene {
@@ -27,7 +35,8 @@ export class TradingScene extends Scene {
   private tokenPool!: GameObjects.Group
 
   // Grid
-  private gridGraphics!: GameObjects.Graphics
+  private gridLayer!: GameObjects.TileSprite
+  private gridSweep!: GameObjects.Image
   private backgroundImage!: GameObjects.Image
 
   // Collision detection
@@ -45,6 +54,8 @@ export class TradingScene extends Scene {
   // State
   private isShutdown = false
   private isMobile = false
+  private gridScrollX = 0
+  private gridSweepOffset = 0
   private eventEmitter: Phaser.Events.EventEmitter
 
   // Window visibility handlers for cleanup
@@ -81,30 +92,7 @@ export class TradingScene extends Scene {
     this.backgroundImage = this.add.image(0, 0, 'vignette-bg')
     this.backgroundImage.setOrigin(0, 0)
     this.backgroundImage.setDepth(-2)
-
-    this.gridGraphics = this.add.graphics()
-    this.gridGraphics.setDepth(-1)
-
-    // Enable PostFX and add bloom for the electric neon effect
-    // Bloom color naturally matches the cyan grid lines (0x00f3ff)
-    this.gridGraphics.setPostPipeline('BloomPostFX')
-    const bloomPipeline = this.gridGraphics.getPostPipeline('BloomPostFX') as any
-    if (bloomPipeline) {
-      // API varies by Phaser version - try both method and property
-      if (typeof bloomPipeline.setBlurStrength === 'function') {
-        bloomPipeline.setBlurStrength(1.2)
-      } else if ('strength' in bloomPipeline) {
-        bloomPipeline.strength = 1.2
-      } else if ('blurStrength' in bloomPipeline) {
-        bloomPipeline.blurStrength = 1.2
-      }
-
-      if (typeof bloomPipeline.setBlurQuality === 'function') {
-        bloomPipeline.setBlurQuality(2)
-      } else if ('blurQuality' in bloomPipeline) {
-        bloomPipeline.blurQuality = 2
-      }
-    }
+    this.ensureGridLayer()
 
     // Generate textures (only call and put now)
     this.coinRenderer.generateCachedTextures()
@@ -219,7 +207,7 @@ export class TradingScene extends Scene {
 
     const clampedDelta = Math.max(4, Math.min(50, delta))
 
-    this.updateGrid()
+    this.updateGrid(clampedDelta)
     this.updateCoinPhysics()
     this.particles.update(clampedDelta)
     this.bladeRenderer.draw()
@@ -230,80 +218,221 @@ export class TradingScene extends Scene {
   private drawGridBackground(): void {
     // Update background image size to match viewport
     this.backgroundImage.setDisplaySize(this.cameras.main.width, this.cameras.main.height)
+    this.ensureGridLayer()
   }
 
-  private updateGrid(): void {
+  private getGridCellSize() {
     const width = this.cameras.main.width
     const height = this.cameras.main.height
-    const time = this.time.now / 1000
-    const cellSize = GRID_CONFIG.size
 
-    // Digital breathing: modulate bloom intensity via alpha
-    const pulseIntensity = 0.4 + Math.sin(time * 2) * 0.15
+    return {
+      cellWidth: Math.round(
+        Math.max(GRID_CONFIG.minCellWidth, Math.min(GRID_CONFIG.maxCellWidth, width / 9))
+      ),
+      cellHeight: Math.round(
+        Math.max(GRID_CONFIG.minCellHeight, Math.min(GRID_CONFIG.maxCellHeight, height / 14))
+      ),
+    }
+  }
 
-    // Clear grid graphics (background is separate image)
-    this.gridGraphics.clear()
+  private buildGridTexture(): void {
+    const { cellWidth, cellHeight } = this.getGridCellSize()
+    const tileWidth = Math.max(240, cellWidth * 8)
+    const tileHeight = Math.max(180, cellHeight * 6)
 
-    const numVerticalLines = Math.ceil(width / cellSize)
-    const numHorizontalLines = Math.ceil(height / cellSize) + 1 // +1 for seamless scrolling
+    const canvas = document.createElement('canvas')
+    canvas.width = tileWidth
+    canvas.height = tileHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-    // =========================================================================
-    // GRID SCROLL ANIMATION (moves top to bottom, infinite loop)
-    // =========================================================================
-    const scrollSpeed = 30 // pixels per second (slow, smooth scroll)
-    const gridOffset = (time * scrollSpeed) % cellSize // loops every cell height
+    ctx.clearRect(0, 0, tileWidth, tileHeight)
 
-    this.gridGraphics.setBlendMode(Phaser.BlendModes.ADD)
-    this.gridGraphics.lineStyle(2, GRID_CONFIG.color, pulseIntensity)
-
-    // Draw vertical lines (constant position, don't scroll)
-    for (let i = 0; i <= numVerticalLines; i++) {
-      const x = i * cellSize
-      this.gridGraphics.lineBetween(x, 0, x, height)
+    // Subtle CRT-like scanline texture for a Tron Legacy atmosphere
+    ctx.fillStyle = 'rgba(0, 215, 255, 0.028)'
+    for (let y = 0; y < tileHeight; y += 4) {
+      ctx.fillRect(0, y, tileWidth, 1)
     }
 
-    // Draw horizontal lines with vertical scroll offset
-    for (let j = -1; j <= numHorizontalLines; j++) {
-      const y = j * cellSize + gridOffset
-      if (y >= -cellSize && y <= height + cellSize) {
-        this.gridGraphics.lineBetween(0, y, width, y)
-      }
+    const topGlow = ctx.createLinearGradient(0, 0, 0, tileHeight)
+    topGlow.addColorStop(0, 'rgba(0, 245, 255, 0.09)')
+    topGlow.addColorStop(0.3, 'rgba(0, 245, 255, 0.04)')
+    topGlow.addColorStop(1, 'rgba(0, 245, 255, 0)')
+    ctx.fillStyle = topGlow
+    ctx.fillRect(0, 0, tileWidth, tileHeight)
+
+    const drawH = (y: number, major: boolean) => {
+      ctx.strokeStyle = major ? 'rgba(0, 245, 255, 0.26)' : 'rgba(0, 225, 255, 0.11)'
+      ctx.lineWidth = major ? 3.2 : 2.2
+      ctx.beginPath()
+      ctx.moveTo(0, y + 0.5)
+      ctx.lineTo(tileWidth, y + 0.5)
+      ctx.stroke()
+
+      ctx.strokeStyle = major ? 'rgba(145, 255, 255, 0.78)' : 'rgba(0, 235, 255, 0.43)'
+      ctx.lineWidth = major ? 1.5 : 1
+      ctx.beginPath()
+      ctx.moveTo(0, y + 0.5)
+      ctx.lineTo(tileWidth, y + 0.5)
+      ctx.stroke()
     }
 
-    // =========================================================================
-    // DIGITAL VERTICES with scroll animation
-    // =========================================================================
-    const vertexSize = 4
-    for (let i = 0; i <= numVerticalLines; i++) {
-      for (let j = -1; j <= numHorizontalLines; j++) {
-        const x = i * cellSize
-        const y = j * cellSize + gridOffset
+    const drawV = (x: number, major: boolean) => {
+      ctx.strokeStyle = major ? 'rgba(0, 245, 255, 0.3)' : 'rgba(0, 225, 255, 0.12)'
+      ctx.lineWidth = major ? 3.4 : 2.2
+      ctx.beginPath()
+      ctx.moveTo(x + 0.5, 0)
+      ctx.lineTo(x + 0.5, tileHeight)
+      ctx.stroke()
 
-        // Only draw if visible
-        if (y >= -vertexSize && y <= height + vertexSize) {
-          // Outer cyan glow square
-          this.gridGraphics.fillStyle(GRID_CONFIG.color, pulseIntensity * 0.6)
-          this.gridGraphics.fillRect(x - vertexSize / 2, y - vertexSize / 2, vertexSize, vertexSize)
+      ctx.strokeStyle = major ? 'rgba(150, 255, 255, 0.82)' : 'rgba(0, 235, 255, 0.45)'
+      ctx.lineWidth = major ? 1.7 : 1
+      ctx.beginPath()
+      ctx.moveTo(x + 0.5, 0)
+      ctx.lineTo(x + 0.5, tileHeight)
+      ctx.stroke()
+    }
 
-          // Inner bright white core square
-          this.gridGraphics.fillStyle(0xffffff, pulseIntensity)
-          this.gridGraphics.fillRect(x - 1.5, y - 1.5, 3, 3)
+    const rows = Math.ceil(tileHeight / cellHeight)
+    const cols = Math.ceil(tileWidth / cellWidth)
+
+    for (let j = 0; j < rows; j++) {
+      const y = j * cellHeight
+      const major = j % GRID_CONFIG.majorYEvery === 0
+      drawH(y, major)
+    }
+
+    for (let i = 0; i < cols; i++) {
+      const x = i * cellWidth
+      const major = i % GRID_CONFIG.majorXEvery === 0
+      drawV(x, major)
+    }
+
+    // Nodes on all intersections so the mesh reads continuously; majors are brighter.
+    for (let i = 0; i < cols; i++) {
+      const x = i * cellWidth
+
+      for (let j = 0; j < rows; j++) {
+        const y = j * cellHeight
+
+        const major = i % GRID_CONFIG.majorXEvery === 0 && j % GRID_CONFIG.majorYEvery === 0
+        if (major) {
+          ctx.fillStyle = 'rgba(0, 245, 255, 0.38)'
+          ctx.fillRect(x - 2.2, y - 2.2, 4.4, 4.4)
+          ctx.fillStyle = 'rgba(225, 255, 255, 0.84)'
+          ctx.fillRect(x - 0.9, y - 0.9, 1.8, 1.8)
+        } else {
+          ctx.fillStyle = 'rgba(0, 235, 255, 0.16)'
+          ctx.fillRect(x - 0.6, y - 0.6, 1.2, 1.2)
         }
       }
     }
 
-    // Modulate bloom intensity based on pulse for "humming" effect
-    const bloomPipeline = this.gridGraphics.getPostPipeline('BloomPostFX') as any
-    if (bloomPipeline) {
-      const newStrength = 1 + Math.sin(time * 2) * 0.3
-      if (typeof bloomPipeline.setBlurStrength === 'function') {
-        bloomPipeline.setBlurStrength(newStrength)
-      } else if ('strength' in bloomPipeline) {
-        bloomPipeline.strength = newStrength
-      } else if ('blurStrength' in bloomPipeline) {
-        bloomPipeline.blurStrength = newStrength
-      }
+    if (this.textures.exists(GRID_CONFIG.textureKey)) {
+      this.textures.remove(GRID_CONFIG.textureKey)
     }
+    this.textures.addCanvas(GRID_CONFIG.textureKey, canvas)
+  }
+
+  private buildGridSweepTexture(height: number): void {
+    const sweepWidth = Math.max(96, Math.round(this.cameras.main.width * 0.14))
+    const canvas = document.createElement('canvas')
+    canvas.width = sweepWidth
+    canvas.height = Math.max(120, Math.round(height))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const gradient = ctx.createLinearGradient(0, 0, sweepWidth, 0)
+    gradient.addColorStop(0, 'rgba(0, 245, 255, 0)')
+    gradient.addColorStop(0.38, 'rgba(0, 245, 255, 0.09)')
+    gradient.addColorStop(0.5, 'rgba(120, 255, 255, 0.24)')
+    gradient.addColorStop(0.62, 'rgba(0, 245, 255, 0.09)')
+    gradient.addColorStop(1, 'rgba(0, 245, 255, 0)')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    // Core energy line in the center of the sweep.
+    const coreX = sweepWidth * 0.5
+    ctx.strokeStyle = 'rgba(205, 255, 255, 0.42)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(coreX + 0.5, 0)
+    ctx.lineTo(coreX + 0.5, canvas.height)
+    ctx.stroke()
+
+    if (this.textures.exists(GRID_CONFIG.sweepTextureKey)) {
+      this.textures.remove(GRID_CONFIG.sweepTextureKey)
+    }
+    this.textures.addCanvas(GRID_CONFIG.sweepTextureKey, canvas)
+  }
+
+  private configureGridBloom(): void {
+    const bloomPipeline = this.gridLayer.getPostPipeline('BloomPostFX') as any
+    if (!bloomPipeline) return
+
+    if (typeof bloomPipeline.setBlurStrength === 'function') {
+      bloomPipeline.setBlurStrength(1.15)
+    } else if ('strength' in bloomPipeline) {
+      bloomPipeline.strength = 1.15
+    } else if ('blurStrength' in bloomPipeline) {
+      bloomPipeline.blurStrength = 1.15
+    }
+
+    if (typeof bloomPipeline.setBlurQuality === 'function') {
+      bloomPipeline.setBlurQuality(2)
+    } else if ('blurQuality' in bloomPipeline) {
+      bloomPipeline.blurQuality = 2
+    }
+  }
+
+  private ensureGridLayer(): void {
+    const width = this.cameras.main.width
+    const height = this.cameras.main.height
+
+    this.buildGridTexture()
+    this.buildGridSweepTexture(height)
+
+    if (!this.gridLayer) {
+      this.gridLayer = this.add.tileSprite(0, 0, width, height, GRID_CONFIG.textureKey)
+      this.gridLayer.setOrigin(0, 0)
+      this.gridLayer.setDepth(-1)
+      this.gridLayer.setBlendMode(Phaser.BlendModes.ADD)
+      this.gridLayer.setPostPipeline('BloomPostFX')
+      this.configureGridBloom()
+    } else {
+      this.gridLayer.setTexture(GRID_CONFIG.textureKey)
+      this.gridLayer.setPosition(0, 0)
+      this.gridLayer.setSize(width, height)
+      this.gridLayer.setDisplaySize(width, height)
+      this.configureGridBloom()
+    }
+
+    if (!this.gridSweep) {
+      this.gridSweep = this.add.image(width, height / 2, GRID_CONFIG.sweepTextureKey)
+      this.gridSweep.setDepth(-0.95)
+      this.gridSweep.setBlendMode(Phaser.BlendModes.ADD)
+      this.gridSweep.setOrigin(0.5, 0.5)
+      this.gridSweep.setAlpha(0.2)
+    } else {
+      this.gridSweep.setTexture(GRID_CONFIG.sweepTextureKey)
+      this.gridSweep.setPosition(width, height / 2)
+    }
+  }
+
+  private updateGrid(delta: number): void {
+    const time = this.time.now / 1000
+    const pulseIntensity = 0.4 + Math.sin(time * 2) * 0.15
+
+    this.gridScrollX += (GRID_CONFIG.scrollSpeed * delta) / 1000
+    this.gridLayer.tilePositionX = this.gridScrollX
+    this.gridLayer.setAlpha(0.84 + pulseIntensity * 0.14)
+
+    this.gridSweepOffset += (GRID_CONFIG.sweepSpeed * delta) / 1000
+    const sweepWidth = this.gridSweep.width
+    const span = this.cameras.main.width + sweepWidth * 2
+    const sweepX = this.cameras.main.width + sweepWidth - (this.gridSweepOffset % span)
+    this.gridSweep.setPosition(sweepX, this.cameras.main.height / 2)
+    this.gridSweep.setAlpha(0.18 + pulseIntensity * 0.08)
   }
 
   private updateCoinPhysics(): void {
@@ -370,7 +499,14 @@ export class TradingScene extends Scene {
     this.tweens.killAll()
 
     this.particles.destroy()
-    this.gridGraphics?.destroy()
+    this.gridLayer?.destroy()
+    this.gridSweep?.destroy()
+    if (this.textures.exists(GRID_CONFIG.textureKey)) {
+      this.textures.remove(GRID_CONFIG.textureKey)
+    }
+    if (this.textures.exists(GRID_CONFIG.sweepTextureKey)) {
+      this.textures.remove(GRID_CONFIG.sweepTextureKey)
+    }
     this.backgroundImage?.destroy()
     this.visualEffects.setShutdown(true)
     this.visualEffects.destroy()
