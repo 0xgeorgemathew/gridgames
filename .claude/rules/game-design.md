@@ -1,246 +1,216 @@
-# HFT Battle Game Design
+# Hyper Swiper Game Design
 
-2-player competitive trading game. Slice coins to predict BTC price movement. **Best-of-three round system. First to 2 round wins.**
+2-player competitive trading game. Slice coins to open positions on BTC price movement. **Perp-style positions with real-time PnL and liquidation.**
 
 ## Overview
 
-**Objective:** Predict BTC price movement by slicing coins. Correct predictions transfer funds from opponent.
+**Objective:** Open LONG or SHORT positions on BTC price. Highest PnL at game end wins.
 
 **Starting Conditions:**
 
 - Each player: $10
 - Total economy: $20 (zero-sum, $0 floor)
-- **Game Mode**: Best-of-three rounds
-- **Round Duration**: 30 seconds per round
-- Coin spawn rate: 2000-3000ms (randomized)
+- **Game Mode**: Single 2.5-minute round
+- **Game Duration**: 150 seconds (150,000ms)
+- Coin spawn rate: Variable by wave (1.5s - 3s)
 
-## Round System
+## Game Structure
 
-HFT Battle uses a **best-of-three** round format instead of single continuous gameplay.
+### Single Round Format
 
-### Round Structure
-
-| Aspect                  | Value                                   |
-| ----------------------- | --------------------------------------- |
-| Rounds per game         | 3 (best-of-three)                       |
-| Round duration          | 30 seconds (30,000ms)                   |
-| Starting cash per round | $10 each (first round only)             |
-| Subsequent rounds       | Carry over cash from previous round end |
-| Round end condition     | Time limit (30s) OR knockout ($0)       |
-| Game end condition      | First player to 2 round wins            |
-
-### Sudden Death
-
-If players are tied 1-1 after two rounds:
-
-- Third round is played as **sudden death** (⚡ FINAL ROUND)
-- Same 30-second duration
-- Winner takes all (no additional mechanics)
-
-### Round Transitions
-
-1. **Round End**: Time expires OR player reaches $0
-2. **Settlement**: All pending orders settled immediately
-3. **Summary Update**: Round results added to history
-4. **Cash Carry-Over**: Players keep ending cash amount for next round
-5. **Delay**: 3-second pause before next round starts
-6. **Next Round**: New `round_start` event emitted
-
-### Round History
-
-Each round records:
-
-- Round number
-- Winner ID (null if tie)
-- Player 1 and Player 2 ending dollars
-- Gained/lost amounts per player
-
-Displayed in game over modal via `GameOverEvent.rounds` array.
+| Aspect              | Value                              |
+| ------------------- | ---------------------------------- |
+| Game duration       | 2.5 minutes (150,000ms)            |
+| Starting cash       | $10 each                           |
+| Position collateral | $1 per position                    |
+| Leverage            | Fixed 500X                         |
+| Max positions       | 10 per player (limited by balance) |
+| Game end            | Time limit or double knockout      |
 
 ### Deterministic Spawning
 
 All players see the **same coin types in the same sequence** regardless of device. Only screen positions differ.
 
-- **Method**: Pre-generated sequence using seeded RNG (room ID + round number as seed)
-- **Tokens per round**: ~10-12 tokens (30s round with 2-3s spawn interval)
+- **Method**: Pre-generated sequence using seeded RNG (room ID as seed)
+- **Tokens per game**: ~50-80 tokens (150s with variable spawn rate)
 - **Fairness**: Identical opportunities for both players
 
 ## Coin Types
 
-| Type  | Spawn Rate | Symbol | Effect                                     | Transfer                |
-| ----- | ---------- | ------ | ------------------------------------------ | ----------------------- |
-| Call  | 33% (2/6)  | ▲      | BTC price goes UP                          | $1 (×leverage)          |
-| Put   | 33% (2/6)  | ▼      | BTC price goes DOWN                        | $1 (×leverage)          |
-| Gas   | 17% (1/6)  | ⚡     | Immediate penalty                          | $1 (slicer to opponent) |
-| Whale | 17% (1/6)  | ★      | Leverage power-up (×player's HUD leverage) | No transfer             |
+| Type | Spawn Rate | Symbol | Effect                            |
+| ---- | ---------- | ------ | --------------------------------- |
+| Long | 50%        | ▲      | Opens LONG position (profit up)   |
+| Short| 50%        | ▼      | Opens SHORT position (profit down)|
+
+**Note:** Gas (⚡) and Whale (★) coins have been removed. Only Long and Short coins exist.
 
 ## Mechanics
 
-### Settlement
+### Perp-Style Positions
 
-Orders settle 5 seconds after slicing using the latest BTC price from Binance WebSocket feed. Gas and Whale coins settle immediately (Gas applies penalty, Whale activates player's leverage multiplier).
-
-```typescript
-const priceChange = (finalPrice - order.priceAtOrder) / order.priceAtOrder
-
-const isCorrect =
-  order.coinType === 'call' ? priceChange > 0 : order.coinType === 'put' ? priceChange < 0 : false
-
-const baseImpact = 1
-const multiplier = room.getLeverageForPlayer(order.playerId) // From HUD selector: 1, 2, 5, 10, or 20
-const impact = baseImpact * multiplier
-```
-
-**Note:** Multiplier set via HUD selector (default 2x). Whale coin activates player's leverage multiplier for the next settlement.
-
-### Zero-Sum Transfer
-
-Winner gains transfer amount, loser loses same amount (floor at $0).
+Positions stay **OPEN** until game end. No 5-second settlement timer.
 
 ```typescript
-const winnerId = isCorrect ? order.playerId : playerIds.find((id) => id !== order.playerId)
-const loserId = isCorrect ? playerIds.find((id) => id !== order.playerId) : order.playerId
-
-const winner = room.players.get(winnerId)
-const loser = room.players.get(loserId)
-
-if (winner) winner.dollars += transfer
-if (loser) loser.dollars = Math.max(0, loser.dollars - transfer)
-```
-
-### Tug-of-War
-
-Visual indicator of game state balance. Range: -100 to +100.
-
-- Player 1: Positive = losing, Negative = winning
-- Player 2: Positive = winning, Negative = losing
-- Standard coins shift by ±1, Whale by ±2
-
-```typescript
-function calculateTugOfWarDelta(isPlayer1: boolean, isCorrect: boolean, transfer: number): number {
-  const delta = isCorrect ? -transfer : transfer
-  return isPlayer1 ? delta : -delta
+// Position structure
+interface Position {
+  id: string
+  playerId: string
+  playerName: string
+  isLong: boolean           // Direction
+  leverage: number          // Fixed at 100
+  collateral: number        // Fixed at $1
+  openPrice: number         // Entry price
+  closePrice: number | null // Set at game end
+  realizedPnl: number       // 0 until settled
+  status: 'open' | 'settled'
 }
 ```
 
-### Special Coins
-
-**Gas (⚡):** Settles immediately on slice. Slicer pays $1 to opponent.
+### PnL Calculation
 
 ```typescript
-if (data.coinType === 'gas') {
-  const player = room.players.get(playerId)
-  const opponent = room.players.get(room.getPlayerIds().find((id) => id !== playerId) || '')
-
-  if (player) player.dollars = Math.max(0, player.dollars - 1)
-  if (opponent) opponent.dollars += 1
-  room.tugOfWar += playerId === playerIds[0] ? 1 : -1
+// Real-time PnL calculation
+function calculatePnl(position: Position, currentPrice: number): number {
+  const priceChange = (currentPrice - position.openPrice) / position.openPrice
+  const directionMultiplier = position.isLong ? 1 : -1
+  return position.collateral * position.leverage * priceChange * directionMultiplier
 }
 ```
 
-**Whale (★):** Activates player's leverage multiplier based on their HUD selector. Multiplier applies to next call/put settlement (not time-based). Does not create a pending order - activates immediately.
+### Liquidation System
+
+Positions are liquidated when collateral health ratio ≤ 80%.
 
 ```typescript
-if (data.coinType === 'whale') {
-  const leverage = room.getLeverageForPlayer(playerId) // From HUD: 2, 5, 10, or 20
-  room.activateWhaleMultiplier(playerId, leverage)
+// Collateral Health Ratio = (Net Collateral + PnL) / Net Collateral
+function calculateHealthRatio(position: Position, currentPrice: number): number {
+  const pnl = calculatePnl(position, currentPrice)
+  const netCollateral = position.collateral
+  return (netCollateral + pnl) / netCollateral
+}
 
-  io.to(room.id).emit('whale_multiplier_activated', {
-    playerId,
-    playerName: room.players.get(playerId)?.name || 'Unknown',
-    multiplier: leverage,
-  })
-
-  return // Whale doesn't create an order
+function shouldLiquidate(position: Position, currentPrice: number): boolean {
+  return calculateHealthRatio(position, currentPrice) <= 0.80
 }
 ```
 
-**Leverage Options:** 1x (default), 2x, 5x, 10x, 20x - set by player via HUD selector.
+**Liquidation Flow:**
+1. Price feed updates on every trade
+2. Check all open positions for liquidation
+3. If health ratio ≤ 80%, force-close position
+4. Emit `position_liquidated` event to room
+5. Record realized PnL at liquidation price
+
+### Game End Settlement
+
+All open positions are settled at game end using the final BTC price.
+
+```typescript
+function settleAllPositions(io: SocketIOServer, room: GameRoom): GameSettlementData {
+  const closePrice = priceFeed.getLatestPrice()
+  const settlements: PositionSettlementResult[] = []
+
+  // Include already-liquidated positions
+  settlements.push(...room.closedPositions)
+
+  // Settle all open positions
+  for (const [positionId, position] of room.openPositions) {
+    const { pnl, isProfitable } = calculatePositionPnl(position, closePrice)
+    settlements.push({
+      positionId,
+      playerId: position.playerId,
+      playerName: position.playerName,
+      isLong: position.isLong,
+      leverage: position.leverage,
+      collateral: position.collateral,
+      openPrice: position.openPrice,
+      closePrice,
+      realizedPnl: pnl,
+      isProfitable,
+      isLiquidated: false,
+    })
+  }
+
+  // Calculate player totals and determine winner
+  const playerResults = calculatePlayerResults(room, settlements)
+  const winner = determineWinner(playerResults)
+
+  return { closePrice, positions: settlements, playerResults, winner }
+}
+```
+
+### Winner Determination
+
+Winner is determined by total PnL (not balance).
+
+```typescript
+function determineWinner(playerResults: PlayerSettlementResult[]): Winner | null {
+  const sorted = [...playerResults].sort((a, b) => b.totalPnl - a.totalPnl)
+  
+  // Tie check (within epsilon)
+  if (sorted.length > 1 && Math.abs(sorted[0].totalPnl - sorted[1].totalPnl) <= 1e-9) {
+    return null
+  }
+  
+  return {
+    playerId: sorted[0].playerId,
+    playerName: sorted[0].playerName,
+    winningBalance: sorted[0].finalBalance,
+  }
+}
+```
 
 ## Game Flow
 
-### Per Round
+### Match Creation
 
 1. Two players queue → RoomManager creates room → Both join Socket.IO room
-2. 5-second delay for Phaser initialization → Round 1 begins
-3. `round_start` event emitted with round number and duration
-4. Coins spawn every 2000-3000ms with deterministic types (same sequence for both players) and random X positions
-5. Player slices coin:
-   - **Call/Put**: Order created with 5s countdown
-   - **Gas**: Immediate penalty ($1 from slicer to opponent)
-   - **Whale**: 2X mode activated for slicing player (10 seconds)
-6. After 5s, price checked → Winner/loser determined → Funds transferred (×2 if 2X active)
+2. `match_found` event emitted with player data
+3. Wait for both clients to signal ready (`client_ready`)
+4. 10-second timeout if clients don't signal ready
 
-### Round End
+### Gameplay
 
-1. Round time expires (30s) OR knockout ($0)
-2. All pending orders settled immediately
-3. `round_end` event emitted with round summary
-4. If game continues: 3-second delay → Next round starts
-5. If game over: `game_over` event emitted with full round history
+1. `game_start` event emitted with duration (150,000ms)
+2. Coins spawn with variable rates (wave-based difficulty)
+3. Player slices coin:
+   - **Long/Short**: Opens position with $1 collateral, 500X leverage
+   - Balance deducted by $1 collateral
+4. Real-time liquidation monitoring on every price update
+5. Timer counts down from 150 seconds
 
-### Game Over
+### Game End
 
-1. **Best-of-three complete**: One player has 2 round wins
-2. All pending orders settled
-3. Room deleted after 1-second delay (events sent)
+1. Time expires OR both players knockout
+2. `settleAllPositions()` called
+3. `game_over` event emitted with settlement data:
+   ```typescript
+   {
+     winnerId: string | null,
+     winnerName: string | null,
+     reason: 'time_limit' | 'knockout' | 'forfeit',
+     playerResults: PlayerSettlementResult[]
+   }
+   ```
+4. Room deleted after 1-second delay
 
 ## Win Conditions
 
-### Per Round (determines round winner)
-
-1. **Knockout (Instant):** Opponent reaches $0
-2. **Time Limit:** 30 seconds expire, highest dollar amount wins
-3. **Tie:** Equal dollars when time expires (rare)
-
-### Game Over (best-of-three)
-
-1. **2-0 Sweep:** Player wins both rounds 1 and 2
-2. **2-1 Victory:** Players split rounds 1 and 2, winner of round 3 takes game
-3. **Forfeit:** Opponent disconnects (remaining player wins by default)
-
-```typescript
-function checkGameOver(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
-  if (room.hasDeadPlayer()) {
-    const winner = room.getWinner()
-
-    // CRITICAL: Settle all pending orders before deleting room
-    for (const [orderId, order] of room.pendingOrders) {
-      settleOrder(io, room, order)
-    }
-
-    io.to(room.id).emit('game_over', {
-      winnerId: winner?.id,
-      winnerName: winner?.name,
-      roomId: room.id,
-      reason: 'knockout',
-      rounds: room.getRoundSummaries(), // Round history for game over modal
-    })
-
-    setTimeout(() => manager.deleteRoom(room.id), 1000)
-  }
-}
-
-function checkBestOfThreeComplete(room: GameRoom): boolean {
-  const { player1Wins, player2Wins } = room
-  const maxWins = Math.max(player1Wins, player2Wins)
-  const roundsPlayed = room.currentRound
-
-  // Game over if someone has 2 wins, OR if round 3 complete
-  return maxWins >= 2 || roundsPlayed >= 3
-}
-```
+1. **Time Limit**: 150 seconds expire, highest total PnL wins
+2. **Knockout**: Both positions liquidated (rare with $10 balance)
+3. **Forfeit**: Opponent disconnects
+4. **Tie**: Equal total PnL (within epsilon)
 
 ## Implementation Files
 
-- `frontend/app/api/socket/game-events.ts` - Server-side logic (settlement, spawning, game loop)
-- `frontend/game/stores/trading-store.ts` - Client state (orders, settlements, tug-of-war)
-- `frontend/game/scenes/TradingScene.ts` - Phaser scene (rendering, input)
-- `frontend/game/systems/` - Extracted game systems (CoinRenderer, BladeRenderer, ParticleSystem, VisualEffects, AudioManager)
-- `frontend/hooks/useBaseName.ts` - Base Name resolution (read-only)
-- `frontend/components/GameHUD-modules/LeverageSelector.tsx` - Manual leverage selector
+- [`frontend/app/api/socket/game-events-modules/index.ts`](frontend/app/api/socket/game-events-modules/index.ts) - Server-side logic (settlement, spawning, game loop)
+- [`frontend/app/api/socket/game-events-modules/GameRoom.ts`](frontend/app/api/socket/game-events-modules/GameRoom.ts) - Room state management
+- [`frontend/app/api/socket/game-events-modules/CoinSequence.ts`](frontend/app/api/socket/game-events-modules/CoinSequence.ts) - Deterministic coin generation
+- [`frontend/games/hyper-swiper/game/stores/trading-store-modules/index.ts`](frontend/games/hyper-swiper/game/stores/trading-store-modules/index.ts) - Client state (positions, settlements)
+- [`frontend/games/hyper-swiper/game/scenes/TradingScene.ts`](frontend/games/hyper-swiper/game/scenes/TradingScene.ts) - Phaser scene (rendering, input)
+- [`frontend/games/hyper-swiper/game/systems/`](frontend/games/hyper-swiper/game/systems/) - Extracted game systems (CoinRenderer, BladeRenderer, ParticleSystem, VisualEffects, AudioManager)
+- [`frontend/games/hyper-swiper/game/constants.ts`](frontend/games/hyper-swiper/game/constants.ts) - Game economy constants
 
 ## See Also
 
-- `.claude/rules/multiplayer-patterns.md` - Reliability patterns
-- `frontend/PRICE_SETTLEMENT_ARCHITECTURE.md` - Price feed details
+- [`.claude/rules/multiplayer-patterns.md`](.claude/rules/multiplayer-patterns.md) - Reliability patterns

@@ -29,7 +29,7 @@ From `.claude/rules/workflows.md` - can run in parallel with code-reviewer agent
 Task({
   subagent_type: "general-purpose",
   agentConfig: "agents/game-logic-reviewer.md",
-  prompt: "Review TradingScene.ts and trading-store.ts for multiplayer reliability issues"
+  prompt: "Review TradingScene.ts and trading-store-modules/index.ts for multiplayer reliability issues"
 })
 Task({
   subagent_type: "feature-dev:code-reviewer",
@@ -424,10 +424,9 @@ create() {
 ## Reference Files
 
 Analyze these for patterns:
-- `frontend/game/scenes/TradingScene.ts:229-243` - Shutdown pattern
-- `frontend/game/scenes/TradingScene.ts:132-194` - Spatial hash grid
-- `frontend/game/scenes/TradingScene.ts:54-56, 468-511` - Object pooling
-- `frontend/game/stores/trading-store.ts:206-212` - Scene ready guard
+- `frontend/games/hyper-swiper/game/scenes/TradingScene.ts` - Shutdown pattern, spatial hash grid, object pooling
+- `frontend/games/hyper-swiper/game/stores/trading-store-modules/index.ts` - Scene ready guard, socket handling
+- `frontend/app/api/socket/game-events-modules/index.ts` - Liquidation monitoring, timer tracking
 
 ## Review Checklist
 
@@ -492,7 +491,7 @@ Can be invoked via:
 Task({
   subagent_type: "general-purpose",
   agentConfig: "agents/game-logic-reviewer.md",
-  prompt: "Review TradingScene.ts and trading-store.ts"
+  prompt: "Review TradingScene.ts and trading-store-modules/index.ts"
 })
 
 Task({

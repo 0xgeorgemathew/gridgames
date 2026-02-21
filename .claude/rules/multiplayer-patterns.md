@@ -8,8 +8,8 @@ Use double-check guards to prevent duplicate operations when async callbacks exe
 
 ```typescript
 const timeoutId = setTimeout(() => {
-  if (manager.hasRoom(room.id) && room.pendingOrders.has(order.id)) {
-    settleOrder(io, room, order)
+  if (manager.hasRoom(room.id) && room.openPositions.has(position.id)) {
+    settlePosition(io, room, position)
     checkGameOver(io, manager, room)
   }
 }, 10000)
@@ -61,30 +61,33 @@ deleteRoom(roomId: string): void {
 
 ## 3. Room Lifecycle Management
 
-Settle all pending orders before room deletion to prevent data loss. Delay deletion to ensure events are sent.
+Settle all open positions before room deletion to prevent data loss. Delay deletion to ensure events are sent.
 
 ```typescript
-function checkGameOver(io: SocketIOServer, manager: RoomManager, room: GameRoom): void {
-  if (room.hasDeadPlayer()) {
-    const winner = room.getWinner()
+function endGame(
+  io: SocketIOServer,
+  manager: RoomManager,
+  room: GameRoom,
+  reason: 'time_limit' | 'knockout' | 'forfeit'
+): void {
+  if (room.getIsClosing()) return
+  room.setClosing()
 
-    // CRITICAL: Settle all pending orders before deleting room
-    for (const [orderId, order] of room.pendingOrders) {
-      settleOrder(io, room, order)
-    }
+  // CRITICAL: Settle all positions before deleting room
+  const settlementData = settleAllPositions(io, room)
 
-    io.to(room.id).emit('game_over', {
-      winnerId: winner?.id,
-      winnerName: winner?.name,
-      roomId: room.id,
-    })
+  io.to(room.id).emit('game_over', {
+    winnerId: settlementData.winner?.playerId ?? null,
+    winnerName: settlementData.winner?.playerName ?? null,
+    reason,
+    playerResults: settlementData.playerResults,
+  })
 
-    setTimeout(() => manager.deleteRoom(room.id), 1000)
-  }
+  setTimeout(() => manager.deleteRoom(room.id), 1000)
 }
 ```
 
-**Use with:** Game over conditions (knockout, time limit), player disconnect, any state transition ending gameplay.
+**Use with:** Game over conditions (time limit, knockout), player disconnect, any state transition ending gameplay.
 
 ---
 
@@ -93,23 +96,17 @@ function checkGameOver(io: SocketIOServer, manager: RoomManager, room: GameRoom)
 Cache state at creation time, not during async operations. Player positions may change between order creation and settlement.
 
 ```typescript
-function settleOrder(io: SocketIOServer, room: GameRoom, order: PendingOrder): void {
+function openPosition(io: SocketIOServer, room: GameRoom, sliceData: SliceData): void {
   const playerIds = room.getPlayerIds()
 
-  // Cached at order creation, not settlement
-  const isPlayer1 = order.playerId === playerIds[0]
+  // Cached at position creation, not settlement
+  const isPlayer1 = sliceData.playerId === playerIds[0]
 
-  if (isCorrect) {
-    room.tugOfWar += isPlayer1 ? -impact : impact
-  } else {
-    room.tugOfWar += isPlayer1 ? impact : -impact
-  }
-
-  room.removePendingOrder(order.id)
+  // ... position creation logic
 }
 ```
 
-**Use with:** Order creation (player ID, position, timestamp), event emission, any async operation needing stable state.
+**Use with:** Position creation (player ID, position, timestamp), event emission, any async operation needing stable state.
 
 ---
 
@@ -120,93 +117,69 @@ Clean up orphaned state when server events are missed. Use cleanup intervals to 
 **Implementation (trading-store.ts):**
 
 ```typescript
-cleanupOrphanedOrders: () => {
-  const { activeOrders } = get()
-  const now = Date.now()
-
-  const newActiveOrders = new Map(activeOrders)
-  for (const [orderId, order] of newActiveOrders) {
-    if (now - order.settlesAt > 3000) { // Reduced buffer: 3s past settlement
-      newActiveOrders.delete(orderId)
-    }
-  }
-
-  if (newActiveOrders.size !== activeOrders.size) {
-    set({ activeOrders: newActiveOrders })
+cleanupOrphanedPositions: () => {
+  const { openPositions, gameSettlement } = get()
+  
+  // If game has settled, clear all open positions
+  if (gameSettlement) {
+    set({ openPositions: new Map() })
   }
 }
 ```
 
 **Usage:** Called periodically from client-side effect or after connection events.
 
-**Use with:** Pending orders (timeout + buffer), room state, connection state handling.
+**Use with:** Open positions, room state, connection state handling.
 
 ---
 
-## 6. SettlementGuard Pattern (RAII)
+## 6. Liquidation Guard Pattern
 
-Prevent duplicate settlement race conditions using RAII (Resource Acquisition Is Initialization) pattern. Ensures each order settles exactly once, even with multiple concurrent settlement attempts.
+Prevent duplicate liquidation race conditions using guard checks. Ensures each position liquidates exactly once.
 
-**Implementation (game-events.ts):**
+**Implementation (game-events-modules/index.ts):**
 
 ```typescript
-class SettlementGuard {
-  private inProgress = new Set<string>()
-  private timestamps = new Map<string, number>()
-  private cleanupInterval: NodeJS.Timeout | null = null
-  private readonly STALE_THRESHOLD_MS = 30000
-  private readonly CLEANUP_INTERVAL_MS = 60000
+function liquidatePosition(
+  io: SocketIOServer,
+  room: GameRoom,
+  position: OpenPosition,
+  currentPrice: number
+): void {
+  // Double-check position still exists
+  if (!room.openPositions.has(position.id)) return
 
-  start(): void {
-    if (this.cleanupInterval) return
+  const { pnl, isProfitable } = calculatePositionPnl(position, currentPrice)
+  const healthRatio = calculateCollateralHealthRatio(position, currentPrice)
 
-    this.cleanupInterval = setInterval(() => {
-      const now = Date.now()
-      for (const [orderId, timestamp] of this.timestamps) {
-        if (now - timestamp > this.STALE_THRESHOLD_MS) {
-          this.inProgress.delete(orderId)
-          this.timestamps.delete(orderId)
-        }
-      }
-    }, this.CLEANUP_INTERVAL_MS)
-  }
+  // Record liquidation
+  room.addClosedPosition({
+    positionId: position.id,
+    playerId: position.playerId,
+    playerName: position.playerName,
+    isLong: position.isLong,
+    leverage: position.leverage,
+    collateral: position.collateral,
+    openPrice: position.openPrice,
+    closePrice: currentPrice,
+    realizedPnl: pnl,
+    isProfitable,
+    isLiquidated: true,
+  })
 
-  stop(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval)
-      this.cleanupInterval = null
-    }
-  }
+  // Remove from open positions
+  room.removeOpenPosition(position.id)
 
-  tryAcquire(orderId: string): boolean {
-    if (this.inProgress.has(orderId)) return false
-    this.inProgress.add(orderId)
-    this.timestamps.set(orderId, Date.now())
-    return true
-  }
-
-  release(orderId: string): void {
-    this.inProgress.delete(orderId)
-    this.timestamps.delete(orderId)
-  }
+  // Emit liquidation event
+  io.to(room.id).emit('position_liquidated', {
+    positionId: position.id,
+    playerId: position.playerId,
+    // ... other fields
+  })
 }
 ```
 
-**Usage in settlement:**
-
-```typescript
-function settleOrder(io: SocketIOServer, room: GameRoom, order: PendingOrder): void {
-  if (!settlementGuard.tryAcquire(order.id)) return // Already settling
-
-  try {
-    // Settlement logic...
-  } finally {
-    settlementGuard.release(order.id) // Always release
-  }
-}
-```
-
-**Use with:** Order settlement, any operation that must execute exactly once. Auto-cleanup of stale entries prevents memory leaks.
+**Use with:** Position liquidation, any operation that must execute exactly once per entity.
 
 ---
 
@@ -214,7 +187,7 @@ function settleOrder(io: SocketIOServer, room: GameRoom, order: PendingOrder): v
 
 WebSocket connections fail and recover gracefully. Pattern ensures continuous price feed with automatic reconnection.
 
-**Implementation (game-events.ts):**
+**Implementation (PriceFeedManager.ts):**
 
 ```typescript
 class PriceFeedManager {
@@ -285,19 +258,19 @@ declare global {
 }
 
 // Server → React → Phaser
-socket.on('whale_2x_activated', (data) => {
+socket.on('position_liquidated', (data) => {
   // Update React state
-  set({ whale2XActive: true })
+  removeOpenPosition(data.positionId)
 
   // Bridge to Phaser
   if (window.phaserEvents) {
-    window.phaserEvents.emit('whale_2x_activated', data)
+    window.phaserEvents.emit('position_liquidated', data)
   }
 })
 
 // Phaser receives bridge events
 TradingScene.ts: create() {
-  window.phaserEvents?.on('whale_2x_activated', (data) => {
+  window.phaserEvents?.on('position_liquidated', (data) => {
     // Phaser visual effects
   })
 }
@@ -369,7 +342,7 @@ export default function GameCanvasClient({ scene = 'GridScene' }: GameCanvasClie
 ```typescript
 // GameCanvas.tsx (wrapper)
 const GameCanvasClient = dynamic(
-  () => import('./GameCanvasClient').then((mod) => mod.default),
+  () import('./GameCanvasClient').then((mod) => mod.default),
   { ssr: false }
 )
 ```
@@ -382,7 +355,7 @@ const GameCanvasClient = dynamic(
 
 Deterministic random number generation ensures all players see identical coin sequences regardless of device. Only screen positions differ.
 
-**Implementation (game-events.ts:81-96):**
+**Implementation (SeededRandom.ts):**
 
 ```typescript
 class SeededRandom {
@@ -405,12 +378,12 @@ class SeededRandom {
 
 **Usage:**
 ```typescript
-const seed = hashCode(roomId + roundNumber)
+const seed = hashCode(roomId)
 const rng = new SeededRandom(seed)
 const coinType = COIN_TYPES[rng.nextInt(0, COIN_TYPES.length - 1)]
 ```
 
-**Use with:** Coin spawning, power-up timing, any game-randomness that must be identical across clients.
+**Use with:** Coin spawning, any game-randomness that must be identical across clients.
 
 ---
 
@@ -418,7 +391,7 @@ const coinType = COIN_TYPES[rng.nextInt(0, COIN_TYPES.length - 1)]
 
 Progressive difficulty through pre-configured spawn waves. Ensures fair gameplay with increasing intensity.
 
-**Configuration (game-events.ts:661-683):**
+**Configuration (CoinSequence.ts):**
 
 ```typescript
 const SPAWN_WAVES = [
@@ -435,38 +408,73 @@ const SPAWN_WAVES = [
 - Burst spawning: 1-3 coins with 100ms stagger (Fruit Ninja feel)
 - Ensures both players face identical difficulty curves
 
-**Use with:** Round-based gameplay, progressive difficulty, boss encounters.
+**Use with:** Game loop spawning, progressive difficulty.
+
+---
+
+## 12. Liquidation Monitoring Pattern
+
+Real-time position monitoring on every price update. Checks collateral health ratio for all open positions.
+
+**Implementation (game-events-modules/index.ts):**
+
+```typescript
+function checkLiquidations(io: SocketIOServer, manager: RoomManager, currentPrice: number): void {
+  for (const room of manager.getAllRooms()) {
+    // Skip rooms that are closing or shutdown
+    if (room.getIsClosing() || room.isShutdown) continue
+
+    // Check each open position in the room
+    for (const [, position] of room.openPositions) {
+      if (shouldLiquidate(position, currentPrice)) {
+        liquidatePosition(io, room, position, currentPrice)
+      }
+    }
+  }
+}
+
+// Called on every price update
+priceFeed.setBroadcastCallback((data) => {
+  io.emit('btc_price', data)
+
+  // Check all active rooms for liquidations
+  if (roomManagerRef) {
+    checkLiquidations(io, roomManagerRef, data.price)
+  }
+})
+```
+
+**Use with:** Real-time position monitoring, price-based triggers.
 
 ---
 
 ## Key Principles
 
-1. **Track everything:** Timers, orders, rooms for cleanup
+1. **Track everything:** Timers, positions, rooms for cleanup
 2. **Double-check guards:** Verify state before async operations
 3. **Cache at creation:** Store state when events occur
 4. **Clean up first:** Settle pending operations before deleting
 5. **Graceful degradation:** Show errors instead of crashing
-6. **RAII patterns:** Resource acquisition equals initialization (SettlementGuard)
-7. **Shutdown flags:** Prevent reconnection loops during cleanup
-8. **Bridge carefully:** Use event emitters for cross-DOM communication
+6. **Shutdown flags:** Prevent reconnection loops during cleanup
+7. **Bridge carefully:** Use event emitters for cross-DOM communication
 
 ## Pattern Quick Reference
 
 | Pattern | Purpose | File |
 |---------|---------|------|
-| Double-check guards | Race condition prevention | `game-events.ts:1432-1440` |
-| Timer tracking | Memory leak prevention | `game-events.ts:313-314, 499-519` (GameRoom.cleanup) |
-| Room lifecycle | Data loss prevention | `game-events.ts:1612-1744` (checkGameOver) |
-| State caching | Async stability | `game-events.ts:289-298` |
-| Client fallbacks | Network resilience | `trading-store.ts:737-752` |
-| SettlementGuard | RAII duplicate prevention | `game-events.ts:33-72` |
-| Price feed reconnect | WebSocket resilience | `game-events.ts:142-264` (PriceFeedManager) |
-| React-Phaser bridge | Cross-DOM communication | `trading-store.ts:38-42, 419-425` |
-| Phaser singleton | Instance management | `GameCanvasClient.tsx` |
-| Seeded RNG | Deterministic coin sequences | `game-events.ts:81-96` (SeededRandom) |
-| Wave-based spawning | Progressive difficulty | `game-events.ts:661-683` (CoinSequence) |
+| Double-check guards | Race condition prevention | [`game-events-modules/index.ts`](frontend/app/api/socket/game-events-modules/index.ts) |
+| Timer tracking | Memory leak prevention | `GameRoom.timeouts`/`GameRoom.intervals` |
+| Room lifecycle | Data loss prevention | [`game-events-modules/index.ts`](frontend/app/api/socket/game-events-modules/index.ts) |
+| State caching | Async stability | [`game-events-modules/index.ts`](frontend/app/api/socket/game-events-modules/index.ts) |
+| Client fallbacks | Network resilience | [`trading-store-modules/index.ts`](frontend/games/hyper-swiper/game/stores/trading-store-modules/index.ts) |
+| Liquidation guard | RAII duplicate prevention | [`game-events-modules/index.ts`](frontend/app/api/socket/game-events-modules/index.ts) |
+| Price feed reconnect | WebSocket resilience | [`PriceFeedManager.ts`](frontend/app/api/socket/game-events-modules/PriceFeedManager.ts) |
+| React-Phaser bridge | Cross-DOM communication | [`trading-store-modules/index.ts`](frontend/games/hyper-swiper/game/stores/trading-store-modules/index.ts) |
+| Phaser singleton | Instance management | [`GameCanvasClient.tsx`](frontend/components/GameCanvasClient.tsx) |
+| Seeded RNG | Deterministic coin sequences | [`SeededRandom.ts`](frontend/app/api/socket/game-events-modules/SeededRandom.ts) |
+| Wave-based spawning | Progressive difficulty | [`CoinSequence.ts`](frontend/app/api/socket/game-events-modules/CoinSequence.ts) |
+| Liquidation monitoring | Real-time position checks | [`game-events-modules/index.ts`](frontend/app/api/socket/game-events-modules/index.ts) |
 
 ## See Also
 
-- `.claude/rules/game-design.md` - Game mechanics and architecture
-- `frontend/PRICE_SETTLEMENT_ARCHITECTURE.md` - Price feed data flow
+- [`.claude/rules/game-design.md`](.claude/rules/game-design.md) - Game mechanics and architecture

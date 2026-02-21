@@ -1,17 +1,17 @@
 ---
 name: game-component
-description: Scaffold Phaser scenes with React integration following HFT Battle patterns
+description: Scaffold Phaser scenes with React integration following Hyper Swiper patterns
 disableModelInvocation: false
 ---
 
 # Game Component Skill
 
-Scaffold Phaser game scenes with proper React integration, following established HFT Battle patterns.
+Scaffold Phaser game scenes with proper React integration, following established Hyper Swiper patterns.
 
 ## When to Use
 
 Use this skill when:
-- Creating new Phaser scenes (e.g., BattleScene, MenuScene)
+- Creating new Phaser scenes (e.g., TradingScene, MenuScene)
 - Adding game features with Phaser + React integration
 - Setting up multiplayer game rooms with Socket.IO
 - Implementing game UI overlays
@@ -35,9 +35,9 @@ Prompt: "Find Phaser scenes similar to [scene type] and analyze their structure,
 ```
 
 Analyze:
-- TradingScene.ts for multiplayer + physics
-- GridScene.ts for grid-based gameplay
-- GameCanvasClient.tsx for React bridge patterns
+- `frontend/games/hyper-swiper/game/scenes/TradingScene.ts` for multiplayer + physics
+- `frontend/games/hyper-swiper/game/scenes/GridScene.ts` for grid-based gameplay
+- `frontend/components/GameCanvasClient.tsx` for React bridge patterns
 
 ### 3. Scene Generation
 
@@ -52,7 +52,7 @@ Create scene file following `frontend.md` conventions:
 
 ### 4. Configuration
 
-Add scene config to `game/config.ts`:
+Add scene config to `games/hyper-swiper/game/config.ts`:
 ```typescript
 export const getSceneConfig = (sceneType: string) => {
   const configs: Record<string, Phaser.Types.Core.SceneConfig> = {
@@ -76,7 +76,7 @@ type SceneType = 'TradingScene' | 'GridScene' | 'NewScene'
 
 ### 6. Socket.IO Integration (if multiplayer)
 
-Add events to `app/api/socket/route.ts`:
+Add events to `app/api/socket/game-events-modules/index.ts`:
 - Room join/leave logic
 - Game state synchronization
 - Player action handlers
@@ -96,7 +96,7 @@ Auto-format runs via hooks. Verify:
 
 ## Templates
 
-### Spatial Hash Grid (TradingScene.ts:132-194)
+### Spatial Hash Grid
 
 ```typescript
 private spatialHash = new Map<string, Phaser.GameObjects.Rectangle[]>()
@@ -121,7 +121,7 @@ private queryHash(x: number, y: number, radius: number) {
 }
 ```
 
-### Object Pool Pattern (TradingScene.ts:54-56, 468-511)
+### Object Pool Pattern
 
 ```typescript
 private particlePool: Phaser.GameObjects.Rectangle[] = []
@@ -148,7 +148,7 @@ private spawnParticle(x: number, y: number) {
 }
 ```
 
-### React Bridge (TradingScene.ts:101-111)
+### React Bridge
 
 ```typescript
 private setupReactBridge() {
@@ -170,7 +170,7 @@ private setupReactBridge() {
 }
 ```
 
-### Shutdown Pattern (TradingScene.ts:229-243)
+### Shutdown Pattern
 
 ```typescript
 shutdown() {
@@ -193,7 +193,7 @@ shutdown() {
 }
 ```
 
-### Mobile Detection (TradingScene.ts:88-92)
+### Mobile Detection
 
 ```typescript
 private isMobile() {
@@ -208,14 +208,14 @@ create() {
 
 ## Common Patterns
 
-### Scene Factory Pattern (GameCanvasClient.tsx:16-24)
+### Scene Factory Pattern
 
 ```typescript
 const getSceneClass = (sceneType: string) => {
   const scenes: Record<string, typeof Phaser.Scene> = {
-    TradingScene: () => import('../game/scenes/TradingScene'),
-    GridScene: () => import('../game/scenes/GridScene'),
-    NewScene: () => import('../game/scenes/NewScene')
+    TradingScene: () => import('../games/hyper-swiper/game/scenes/TradingScene'),
+    GridScene: () => import('../games/hyper-swiper/game/scenes/GridScene'),
+    NewScene: () => import('../games/hyper-swiper/game/scenes/NewScene')
   }
   return scenes[sceneType]
 }
@@ -224,21 +224,21 @@ const getSceneClass = (sceneType: string) => {
 ### Socket.IO Event Guards
 
 ```typescript
-import type { CoinType } from '@/game/types/coins'
+import type { CoinType } from '@/games/hyper-swiper/game/types/trading'
 
 // Validate coin type
 const isValidCoinType = (type: string): type is CoinType => {
-  return ['bitcoin', 'ethereum', 'solana'].includes(type)
+  return ['long', 'short'].includes(type)
 }
 
 // Handle player input
-socket.on('collectCoin', (data: unknown) => {
-  if (!isValidCoinData(data)) return
+socket.on('slice_coin', (data: unknown) => {
+  if (!isValidSliceData(data)) return
   // Process...
 })
 ```
 
-### Scene Ready Guard (trading-store.ts:206-212)
+### Scene Ready Guard
 
 ```typescript
 const sceneReady = computed(() => {
@@ -259,7 +259,6 @@ useEffect(() => {
 This skill respects:
 - ✅ `.claude/rules/frontend.md` - Phaser/React separation, Zustand for state
 - ✅ `.claude/rules/workflows.md` - Multi-agent coordination patterns
-- ✅ `.claude/rules/ultrathink.md` - Maximum reasoning depth
 
 Can invoke:
 - `feature-dev:code-explorer` - Analyze existing scenes
@@ -269,12 +268,12 @@ Can invoke:
 
 After scene generation, provide:
 
-1. **File created**: `frontend/game/scenes/NewScene.ts`
-2. **Config updated**: `game/config.ts` (show diff)
+1. **File created**: `frontend/games/hyper-swiper/game/scenes/NewScene.ts`
+2. **Config updated**: `games/hyper-swiper/game/config.ts` (show diff)
 3. **Types updated**: `GameCanvasClient.tsx` (show diff)
 4. **Socket.IO events** (if applicable):
-   - Server-side additions needed in `app/api/socket/route.ts`
-   - Event types to add to `game/types/socket.ts`
+   - Server-side additions needed in `app/api/socket/game-events-modules/index.ts`
+   - Event types to add to `games/hyper-swiper/game/types/trading.ts`
 5. **React integration**:
    - Events emitted via `window.phaserEvents`
    - Zustand store suggestions
@@ -307,7 +306,7 @@ Skill execution:
 
 ## Success Criteria
 
-- Scene follows HFT Battle patterns
+- Scene follows Hyper Swiper patterns
 - No Phaser/React DOM mixing
 - Proper cleanup (no memory leaks)
 - Spatial hash for collisions (if physics)

@@ -6,18 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Known Issues
 
-- **Performance**: `GridScanBackground.tsx` runs Three.js at 60fps continuously (no frame throttling)
-- **Performance**: `PositionIndicator.tsx` filters pending orders every 16ms (RAF loop)
-- **Security**: CORS wildcard in production (`*` origin)
+- **Performance**: [`GridScanBackground.tsx`](frontend/components/GridScanBackground.tsx) runs Three.js at 60fps continuously (no frame throttling)
+- **Security**: CORS uses origin reflection in production (Mini App iframe compatible)
 - **Missing**: Rate limiting on Socket.IO endpoints
 
 ## Project Overview
 
-Grid Games is a monorepo containing a web-based game with real-time multiplayer and blockchain settlement. The project consists of:
+Grid Games is a monorepo containing a web-based game with real-time multiplayer. The project consists of:
 
-- **frontend/**: Next.js web app with Phaser game engine, embedded Socket.IO server, ENS integration (port 3000)
+- **frontend/**: Next.js web app with Phaser game engine, embedded Socket.IO server (port 3000)
 - **contracts/**: Foundry smart contracts for USDC faucet (Base Sepolia testnet)
-- ~~backend/\*\*~~: _Removed - Socket.IO server now embedded in frontend_
 
 ## Master Directives
 
@@ -34,7 +32,7 @@ Grid Games is a monorepo containing a web-based game with real-time multiplayer 
 
 ```bash
 bun install           # Install dependencies
-bun run dev           # Start development server on localhost:3000
+bun run dev           # Start development server on localhost:3000 (uses server.ts)
 bun run types         # TypeScript type checking
 bun run format        # Format code with Prettier
 bun run build         # Production build
@@ -62,8 +60,7 @@ anvil                # Start local Ethereum node
 │  - Phaser game canvas (client-side arcade physics)          │
 │  - Three.js background (GridScanBackground - 60fps)         │
 │  - Socket.IO server at /api/socket (embedded)               │
-│  - Privy authentication                                     │
-│  - ENS integration (Base Sepolia L2 registry)              │
+│  - Privy authentication                                      │
 │  - viem + wagmi for wallet interaction                      │
 │  - TanStack Query for data fetching                         │
 │  - window.phaserEvents bridge (React ↔ Phaser)              │
@@ -73,31 +70,31 @@ anvil                # Start local Ethereum node
 ┌─────────────────────────────────────────────────────────────┐
 │  Smart Contracts & L2                                       │
 │  - USDCFaucet.sol (Base Sepolia USDC faucet)               │
-│  - ENS L2 Registry (player identity: .grid.eth)            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Current Game Mode: Best-of-Three Rounds
+### Current Game Mode: Hyper Swiper
 
-HFT Battle uses a best-of-three round system:
+Hyper Swiper is a 2-player competitive trading game with perp-style positions:
 
-- **Round Duration**: 30 seconds per round
-- **Starting Cash**: $10 per player, $20 total economy (zero-sum, $0 floor)
-- **Round End**: Time limit or knockout ($0)
-- **Game End**: First to 2 round wins
-- **Sudden Death**: If tied 1-1 after 2 rounds, final round determines winner
-- **Round Transitions**: Cash-at-start preserved from previous round's end
+- **Game Duration**: 2.5 minutes (150 seconds)
+- **Starting Cash**: $10 per player
+- **Position Collateral**: $1 per position
+- **Leverage**: Fixed at 500X
+- **Position Style**: Perp-style - positions stay OPEN until game end
+- **Liquidation**: 80% collateral health ratio threshold
+- **Coin Types**: Long (▲) and Short (▼) only
 
-See `.claude/rules/game-design.md` for complete mechanics.
+See [`.claude/rules/game-design.md`](.claude/rules/game-design.md) for complete mechanics.
 
 ### Key Architectural Patterns
 
-1. **HFT Battle**: Single-monolith architecture - Next.js App Router hosts both frontend and Socket.IO server at `/api/socket`
-2. **Blockchain**: Frontend interacts directly with contracts via ethers.js for settlements
-3. **Data Persistence**: In-memory room state (no external DB for multiplayer)
-4. **Multiplier Snapshot**: Orders placed during Whale 2X mode capture multiplier at creation time (`order.multiplier = 2`). This ensures orders retain 2X even if they settle after the 10s power-up expires. See `game-events.ts:848-861`.
+1. **Hyper Swiper**: Single-monolith architecture - Next.js App Router hosts both frontend and Socket.IO server at `/api/socket`
+2. **Data Persistence**: In-memory room state (no external DB for multiplayer)
+3. **Perp-Style Positions**: Positions remain open until game end, then all settle at once
+4. **Liquidation System**: Real-time monitoring of collateral health ratio with 80% threshold
 
-### Multiplayer Game Patterns (HFT Battle)
+### Multiplayer Game Patterns
 
 - **RoomManager class**: Centralized room and player management with cleanup
 - **GameRoom class**: Encapsulates room state with timer tracking (prevents memory leaks)
@@ -107,7 +104,7 @@ See `.claude/rules/game-design.md` for complete mechanics.
 - **React-Phaser bridge**: `window.phaserEvents` event emitter for cross-DOM communication
   - Server events → React store → `window.phaserEvents` → Phaser scene
   - Phaser input → Socket emit → Server
-  - Pattern documented in `.claude/rules/multiplayer-patterns.md`
+  - Pattern documented in [`.claude/rules/multiplayer-patterns.md`](.claude/rules/multiplayer-patterns.md)
 
 ## Technology Stack
 
@@ -115,19 +112,40 @@ See `.claude/rules/game-design.md` for complete mechanics.
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Frontend  | Next.js 16.1.6, React 19.2.3, Tailwind CSS v4, SHADCN, Phaser 3.90.0, Socket.IO, viem, wagmi, TanStack Query, Framer Motion, Privy auth |
 | Contracts | Foundry, Solidity ^0.8.20, OpenZeppelin v5.5                                                                                            |
-| Identity  | ENS L2 (Base Sepolia), .grid.eth subdomains                                                                                             |
 
 ## Important File Locations
 
-- `frontend/components/GameCanvas.tsx` - Phaser game wrapper (client-side only)
-- `frontend/components/MatchmakingScreen.tsx` - Lobby mode, ENS username claiming, leverage selection
-- `frontend/components/ens/` - ENS integration components (PlayerName, ClaimUsername, SetLeverage)
-- `frontend/app/api/socket/route.ts` - Socket.IO server for HFT Battle multiplayer
-- `frontend/app/api/socket/game-events.ts` - Server-side game logic
-- `frontend/lib/ens.ts` - ENS contract addresses, text record operations, leverage fetching
-- `frontend/hooks/useENS.ts` - React hooks for ENS operations
-- `contracts/src/USDCFaucet.sol` - Base Sepolia USDC faucet for testnet gameplay
-- `ens-code-usage.md` - ENS integration documentation
+### Game Code (Hyper Swiper)
+
+- [`frontend/games/hyper-swiper/`](frontend/games/hyper-swiper/) - Main game module
+- [`frontend/games/hyper-swiper/game/scenes/TradingScene.ts`](frontend/games/hyper-swiper/game/scenes/TradingScene.ts) - Main Phaser scene
+- [`frontend/games/hyper-swiper/game/stores/trading-store-modules/`](frontend/games/hyper-swiper/game/stores/trading-store-modules/) - Zustand store
+- [`frontend/games/hyper-swiper/game/constants.ts`](frontend/games/hyper-swiper/game/constants.ts) - Game economy constants
+- [`frontend/games/hyper-swiper/game/types/trading.ts`](frontend/games/hyper-swiper/game/types/trading.ts) - TypeScript types
+
+### Server Code
+
+- [`frontend/app/api/socket/route.ts`](frontend/app/api/socket/route.ts) - Socket.IO server initialization
+- [`frontend/app/api/socket/game-events-modules/index.ts`](frontend/app/api/socket/game-events-modules/index.ts) - Main game event handlers
+- [`frontend/app/api/socket/game-events-modules/GameRoom.ts`](frontend/app/api/socket/game-events-modules/GameRoom.ts) - Room state management
+- [`frontend/app/api/socket/game-events-modules/RoomManager.ts`](frontend/app/api/socket/game-events-modules/RoomManager.ts) - Room/player tracking
+
+### Components
+
+- [`frontend/games/hyper-swiper/components/MatchmakingScreen.tsx`](frontend/games/hyper-swiper/components/MatchmakingScreen.tsx) - Lobby and matchmaking
+- [`frontend/games/hyper-swiper/components/GameHUD.tsx`](frontend/games/hyper-swiper/components/GameHUD.tsx) - In-game UI
+- [`frontend/games/hyper-swiper/components/GameOverModal.tsx`](frontend/games/hyper-swiper/components/GameOverModal.tsx) - End game results
+- [`frontend/components/GameCanvas.tsx`](frontend/components/GameCanvas.tsx) - Phaser game wrapper
+- [`frontend/components/GridScanBackground.tsx`](frontend/components/GridScanBackground.tsx) - Three.js background
+
+### Hooks
+
+- [`frontend/hooks/useBaseName.ts`](frontend/hooks/useBaseName.ts) - Base Name resolution
+- [`frontend/hooks/useBaseMiniAppAuth.ts`](frontend/hooks/useBaseMiniAppAuth.ts) - Base Mini App authentication
+
+### Contracts
+
+- [`contracts/src/USDCFaucet.sol`](contracts/src/USDCFaucet.sol) - Base Sepolia USDC faucet
 
 ## Configuration Notes
 
@@ -140,24 +158,13 @@ See `.claude/rules/game-design.md` for complete mechanics.
 ### Known Performance Issues
 
 1. **Three.js Background (GridScanBackground)**: Runs at 60fps continuously with no frame throttling
-   - File: `frontend/components/GridScanBackground.tsx`
+   - File: [`frontend/components/GridScanBackground.tsx`](frontend/components/GridScanBackground.tsx)
    - Impact: High CPU usage on mobile devices
    - Mitigation: Consider requestAnimationFrame throttling or conditional rendering
 
-2. **PositionIndicator Filtering**: Filters pending orders every 16ms (RAF loop)
-   - File: `frontend/components/PositionIndicator.tsx`
-   - Impact: Unnecessary re-renders when orders haven't changed
-   - Mitigation: Use memoization or reactive filtering
-
-3. **CORS Wildcard**: Production uses `origin: "*"` for Socket.IO
-   - Security concern: Open to any origin
-   - Mitigation: Restrict to known domains in production
-
-## Player Identity
-
-- **Base Mini App users**: Base Name resolved via [`useBaseName.ts`](frontend/hooks/useBaseName.ts) (read-only, shows during matchmaking)
-- **Web users**: Privy names for matchmaking
-- **Leverage**: Manual HUD selector in [`LeverageSelector.tsx`](frontend/components/GameHUD-modules/LeverageSelector.tsx) - not stored persistently
+2. **CORS Configuration**: Production uses origin reflection (`true`) for Socket.IO
+   - Purpose: Mini App iframe compatibility
+   - Configuration: Set via `ALLOWED_ORIGINS` env var or `RAILWAY_PUBLIC_DOMAIN`
 
 ## Smart Contract Status
 
@@ -171,7 +178,7 @@ See `.claude/rules/game-design.md` for complete mechanics.
 | `withdraw(uint256)`       | Owner withdraw USDC                                 |
 
 **Contract Address:** `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Base Sepolia USDC)
-**File:** `contracts/src/USDCFaucet.sol`
+**File:** [`contracts/src/USDCFaucet.sol`](contracts/src/USDCFaucet.sol)
 
 ## Claude Code Automations
 
@@ -197,7 +204,6 @@ See `.claude/rules/game-design.md` for complete mechanics.
 
 ### Workflow Integration
 
-- All automations follow patterns from `.claude/rules/workflows.md`
-- Agents use superpowers framework from `.claude/rules/skills.md`
-- Frontend patterns follow conventions from `.claude/rules/frontend.md`
-- ULTRATHINK directive applies to all automation execution
+- All automations follow patterns from [`.claude/rules/workflows.md`](.claude/rules/workflows.md)
+- Agents use superpowers framework from [`.claude/rules/skills.md`](.claude/rules/skills.md)
+- Frontend patterns follow conventions from [`.claude/rules/frontend.md`](.claude/rules/frontend.md)
