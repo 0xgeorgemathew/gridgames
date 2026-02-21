@@ -248,12 +248,12 @@ export class GameRoom {
   }
 
   // Get next coin from deterministic sequence
-  getNextCoinData(): { type: 'long' | 'short'; xNormalized: number } | null {
+  getNextCoinData(): { type: 'long' | 'short'; xNormalized: number; velocityX: number; velocityY: number } | null {
     return this.coinSequence?.next() ?? null
   }
 
   // Peek at next coin without consuming it
-  peekNextCoinData(): { type: 'long' | 'short'; xNormalized: number } | null {
+  peekNextCoinData(): { type: 'long' | 'short'; xNormalized: number; velocityX: number; velocityY: number } | null {
     return this.coinSequence?.peek() ?? null
   }
 }

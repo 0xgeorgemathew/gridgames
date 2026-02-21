@@ -35,6 +35,8 @@ export type CoinSpawnEvent = {
   coinId: string
   coinType: CoinType
   xNormalized: number // 0.0 to 1.0 (relative screen position, synced between players)
+  velocityX: number
+  velocityY: number
 }
 
 /**
@@ -45,6 +47,7 @@ export type SliceEvent = {
   playerId: string
   playerName: string
   coinType: CoinType
+  coinId: string
 }
 
 /**

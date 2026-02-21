@@ -7,7 +7,7 @@ import { SeededRandom } from './SeededRandom'
  * Only screen positions differ based on device dimensions.
  */
 export class CoinSequence {
-  private sequence: Array<{ type: 'long' | 'short'; xNormalized: number }> = []
+  private sequence: Array<{ type: 'long' | 'short'; xNormalized: number; velocityX: number; velocityY: number }> = []
   private index = 0
 
   constructor(durationMs: number, minIntervalMs: number, maxIntervalMs: number, seed: number) {
@@ -19,11 +19,13 @@ export class CoinSequence {
       this.sequence.push({
         type: types[rng.nextInt(0, types.length - 1)],
         xNormalized: 0.15 + rng.next() * 0.7, // 15%-85% screen width (avoid edges)
+        velocityX: rng.nextInt(-50, 50), // Standardized Fruit Ninja drift
+        velocityY: rng.nextInt(-600, -400), // Standardized Fruit Ninja upward toss
       })
     }
   }
 
-  next(): { type: 'long' | 'short'; xNormalized: number } | null {
+  next(): { type: 'long' | 'short'; xNormalized: number; velocityX: number; velocityY: number } | null {
     if (this.index >= this.sequence.length) return null
     return this.sequence[this.index++]
   }
@@ -32,7 +34,7 @@ export class CoinSequence {
     return this.index < this.sequence.length
   }
 
-  peek(): { type: 'long' | 'short'; xNormalized: number } | null {
+  peek(): { type: 'long' | 'short'; xNormalized: number; velocityX: number; velocityY: number } | null {
     if (this.index >= this.sequence.length) return null
     return this.sequence[this.index]
   }

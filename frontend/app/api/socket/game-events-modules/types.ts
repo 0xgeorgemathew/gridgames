@@ -82,6 +82,8 @@ export interface SpawnedCoin {
   id: string
   type: 'long' | 'short'
   xNormalized: number
+  velocityX: number
+  velocityY: number
 }
 
 // Liquidation event when position is force-closed due to low collateral health

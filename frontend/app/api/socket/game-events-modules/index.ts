@@ -306,6 +306,8 @@ function spawnCoin(room: GameRoom): SpawnedCoin | null {
     id: coinId,
     type: coinData.type,
     xNormalized: coinData.xNormalized,
+    velocityX: coinData.velocityX,
+    velocityY: coinData.velocityY,
   }
 
   room.addCoin({ id: coinId, type: coinData.type, x: 0, y: 0 })
@@ -336,6 +338,8 @@ function startGameLoop(io: SocketIOServer, manager: RoomManager, room: GameRoom)
       coinId: coin.id,
       coinType: coin.type,
       xNormalized: coin.xNormalized,
+      velocityX: coin.velocityX,
+      velocityY: coin.velocityY,
     })
   }
 
@@ -602,6 +606,7 @@ async function handleSlice(
     playerId,
     playerName: player.name,
     coinType: data.coinType,
+    coinId: data.coinId,
   })
 }
 

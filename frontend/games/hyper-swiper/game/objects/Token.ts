@@ -48,7 +48,9 @@ export class Token extends GameObjects.Container {
     type: CoinType,
     id: string,
     config: CoinConfig,
-    isMobile: boolean
+    isMobile: boolean,
+    velocityX: number = 0,
+    velocityY: number = 0
   ): void {
     this.config = config
 
@@ -109,23 +111,23 @@ export class Token extends GameObjects.Container {
     this.body.setAcceleration(0, 0)
     this.body.setVelocity(0, 0)
 
-    // Configure physics (Fruit Ninja style - Upward toss from bottom)
+    // Configure physics
     // Use actual camera height for bottom-toss detection
     const sceneHeight = this.scene.cameras?.main?.height ?? 800
     const isBottomToss = y > sceneHeight // Spawned from bottom edge
 
     if (isBottomToss) {
-      // Bottom-toss physics: upward velocity with horizontal drift
+      // Use exact velocities provided by server for deterministic deterministic sync
       this.body.setVelocity(
-        Phaser.Math.Between(-50, 50), // X: Horizontal drift for variety
-        Phaser.Math.Between(-400, -600) // Y: Upward toss (reaches 60-80% screen height)
+        velocityX,
+        velocityY
       )
       this.body.setGravity(0, 180) // Gravity pulls arc back down
     } else {
-      // Legacy falling behavior (for backward compatibility during transition)
+      // Legacy falling behavior
       this.body.setVelocity(
-        0, // X: No horizontal drift
-        Phaser.Math.Between(50, 150) // Y: Downwards
+        velocityX,
+        velocityY
       )
       this.body.setGravity(0, 150) // Low gravity
     }
