@@ -89,7 +89,7 @@ function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.Gam
     parent: 'phaser-game',
     width,
     height,
-    backgroundColor: COLORS.background,
+    transparent: true,
     pixelArt: false, // Smooth scaling (not pixelated)
     antialias: true, // Anti-aliased rendering
     fps: {

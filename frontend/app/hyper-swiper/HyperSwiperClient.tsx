@@ -12,6 +12,7 @@ import { GameOverModal } from '@/games/hyper-swiper/components/GameOverModal'
 import { RoundEndFlash } from '@/games/hyper-swiper/components/RoundEndFlash'
 import GameCanvas from '@/components/GameCanvas'
 
+
 export function HyperSwiperClient() {
   const { isPlaying, connect, disconnect, toasts, removeToast } = useTradingStore()
 
@@ -26,7 +27,7 @@ export function HyperSwiperClient() {
   }, [connect, disconnect])
 
   return (
-    <div className="h-dvh w-screen bg-tron-black relative overflow-hidden">
+    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
       <ToastNotifications toasts={toasts} onRemove={removeToast} />
 
       <GameOverModal />

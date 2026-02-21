@@ -60,6 +60,10 @@ export default function GameCanvasClient({ scene = 'GridScene' }: GameCanvasClie
       className="absolute inset-0 z-1"
       style={{
         touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        overscrollBehavior: 'none',
       }}
       suppressHydrationWarning={true}
     />

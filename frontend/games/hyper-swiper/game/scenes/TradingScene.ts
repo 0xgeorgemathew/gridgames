@@ -25,9 +25,7 @@ const GRID_CONFIG = {
   majorXEvery: 3,
   majorYEvery: 3,
   scrollSpeed: 30,
-  sweepSpeed: 44,
   textureKey: 'trading-grid-tile',
-  sweepTextureKey: 'trading-grid-sweep',
 } as const
 
 export class TradingScene extends Scene {
@@ -36,7 +34,6 @@ export class TradingScene extends Scene {
 
   // Grid
   private gridLayer!: GameObjects.TileSprite
-  private gridSweep!: GameObjects.Image
   private backgroundImage!: GameObjects.Image
 
   // Collision detection
@@ -55,12 +52,16 @@ export class TradingScene extends Scene {
   private isShutdown = false
   private isMobile = false
   private gridScrollX = 0
-  private gridSweepOffset = 0
   private eventEmitter: Phaser.Events.EventEmitter
 
   // Window visibility handlers for cleanup
   private visibilityChangeHandler?: () => void
   private windowBlurHandler?: () => void
+
+  // Snake Graph
+  private priceHistory: { time: number; price: number }[] = []
+  private snakeGraphics!: Phaser.GameObjects.Graphics
+  private displayedPrice: number | null = null
 
   constructor() {
     super({ key: 'TradingScene' })
@@ -93,7 +94,11 @@ export class TradingScene extends Scene {
     this.backgroundImage.setOrigin(0, 0)
     this.backgroundImage.setDepth(-2)
     this.ensureGridLayer()
-
+    
+    // Setup snake graph
+    this.snakeGraphics = this.add.graphics()
+    this.snakeGraphics.setDepth(-0.5)
+    
     // Generate textures (only call and put now)
     this.coinRenderer.generateCachedTextures()
 
@@ -208,11 +213,119 @@ export class TradingScene extends Scene {
     const clampedDelta = Math.max(4, Math.min(50, delta))
 
     this.updateGrid(clampedDelta)
+    this.updateSnakeGraph(clampedDelta)
     this.updateCoinPhysics()
     this.particles.update(clampedDelta)
     this.bladeRenderer.draw()
     this.checkCollisions()
     this.visualEffects.update()
+  }
+
+  private updateSnakeGraph(delta: number): void {
+    if (!this.snakeGraphics) return
+
+    // Poll the zustand store directly for the latest price
+    const { priceData, isPlaying, firstPrice } = useTradingStore.getState()
+    if (!isPlaying || !priceData || !firstPrice) {
+      this.snakeGraphics.clear()
+      this.priceHistory = []
+      this.displayedPrice = null
+      return
+    }
+
+    const now = Date.now()
+    
+    // Initialize displayedPrice if null
+    if (this.displayedPrice === null) {
+      this.displayedPrice = priceData.price
+    }
+
+    // Smoothly interpolate displayedPrice towards the actual price
+    // Half-life of ~40ms for snappy but smooth movement
+    const t = 1 - Math.pow(0.5, delta / 40)
+    this.displayedPrice = Phaser.Math.Linear(this.displayedPrice, priceData.price, t)
+
+    const width = this.cameras.main.width
+    const height = this.cameras.main.height
+    // Anchor the head in the exact horizontal middle of the screen
+    const headX = width / 2
+
+    // Calculate how many pixels the grid moves per millisecond
+    const pixelsPerMs = GRID_CONFIG.scrollSpeed / 1000
+    
+    // Only push points if they are far enough apart visually to save memory (e.g. 1 pixel)
+    const lastPoint = this.priceHistory[this.priceHistory.length - 1]
+    if (!lastPoint || (now - lastPoint.time) * pixelsPerMs >= 1) {
+      this.priceHistory.push({ time: now, price: this.displayedPrice })
+    }
+
+    // Keep only points that are still horizontally on screen (between headX and left edge)
+    const maxAgeMs = headX / pixelsPerMs + 1000 // +1s buffer offscreen
+    this.priceHistory = this.priceHistory.filter(p => (now - p.time) <= maxAgeMs)
+
+    if (this.priceHistory.length < 2) {
+      return
+    }
+
+    // Determine Y scale dynamically based on recent history
+    const visiblePrices = this.priceHistory.map(p => p.price)
+    const minPrice = Math.min(...visiblePrices)
+    const maxPrice = Math.max(...visiblePrices)
+    
+    // Min range: 0.0002% of asset price (for BTC at 60k, this is a $0.12 window).
+    // This allows even fraction-of-a-dollar moves to cause large visual swings.
+    const minRange = firstPrice * 0.000002
+    let yRange = maxPrice - minPrice
+    const yCenter = (maxPrice + minPrice) / 2
+
+    if (yRange < minRange) {
+      yRange = minRange
+    }
+    
+    // Minimal aesthetic padding (5% instead of 40%) to maximize screen usage
+    yRange *= 1.05
+
+    const yMin = yCenter - (yRange / 2)
+    const yMax = yCenter + (yRange / 2)
+
+    this.snakeGraphics.clear()
+    
+    const curvePoints = this.priceHistory.map((point) => {
+      const timeDiff = now - point.time
+      const x = headX - (timeDiff * pixelsPerMs)
+      const y = height - ((point.price - yMin) / yRange) * height
+      return { x, y }
+    })
+
+    // The continuously updating "live" head
+    const currentY = height - ((this.displayedPrice - yMin) / yRange) * height
+    curvePoints.push({ x: headX, y: currentY })
+    
+    // Draw glowing underlay (Tron Neon Green: 0x39ff14)
+    this.snakeGraphics.lineStyle(8, 0x39ff14, 0.4)
+    this.snakeGraphics.beginPath()
+
+    curvePoints.forEach((pt, i) => {
+      if (i === 0) this.snakeGraphics.moveTo(pt.x, pt.y)
+      else this.snakeGraphics.lineTo(pt.x, pt.y)
+    })
+    this.snakeGraphics.strokePath()
+
+    // Draw bright core line
+    this.snakeGraphics.lineStyle(2, 0xffffff, 0.9)
+    this.snakeGraphics.beginPath()
+    
+    curvePoints.forEach((pt, i) => {
+      if (i === 0) this.snakeGraphics.moveTo(pt.x, pt.y)
+      else this.snakeGraphics.lineTo(pt.x, pt.y)
+    })
+    this.snakeGraphics.strokePath()
+
+    // Draw the head of the snake (glowing dot)
+    this.snakeGraphics.fillStyle(0xffffff, 1)
+    this.snakeGraphics.fillCircle(headX, currentY, 4)
+    this.snakeGraphics.fillStyle(0x39ff14, 0.6)
+    this.snakeGraphics.fillCircle(headX, currentY, 12)
   }
 
   private drawGridBackground(): void {
@@ -237,8 +350,9 @@ export class TradingScene extends Scene {
 
   private buildGridTexture(): void {
     const { cellWidth, cellHeight } = this.getGridCellSize()
-    const tileWidth = Math.max(240, cellWidth * 8)
-    const tileHeight = Math.max(180, cellHeight * 6)
+    // Increase resolution for crisper lines
+    const tileWidth = Math.max(300, cellWidth * 12)
+    const tileHeight = Math.max(200, cellHeight * 8)
 
     const canvas = document.createElement('canvas')
     canvas.width = tileWidth
@@ -248,83 +362,76 @@ export class TradingScene extends Scene {
 
     ctx.clearRect(0, 0, tileWidth, tileHeight)
 
-    // Subtle CRT-like scanline texture for a Tron Legacy atmosphere
-    ctx.fillStyle = 'rgba(0, 215, 255, 0.028)'
-    for (let y = 0; y < tileHeight; y += 4) {
-      ctx.fillRect(0, y, tileWidth, 1)
-    }
-
-    const topGlow = ctx.createLinearGradient(0, 0, 0, tileHeight)
-    topGlow.addColorStop(0, 'rgba(0, 245, 255, 0.09)')
-    topGlow.addColorStop(0.3, 'rgba(0, 245, 255, 0.04)')
-    topGlow.addColorStop(1, 'rgba(0, 245, 255, 0)')
-    ctx.fillStyle = topGlow
+    // Deep volumetric background glow instead of just lines
+    const bgGradient = ctx.createRadialGradient(
+      tileWidth / 2, tileHeight / 2, 0,
+      tileWidth / 2, tileHeight / 2, Math.max(tileWidth, tileHeight)
+    )
+    bgGradient.addColorStop(0, 'rgba(0, 150, 255, 0.03)')
+    bgGradient.addColorStop(1, 'rgba(0, 50, 100, 0.0)')
+    ctx.fillStyle = bgGradient
     ctx.fillRect(0, 0, tileWidth, tileHeight)
 
-    const drawH = (y: number, major: boolean) => {
-      ctx.strokeStyle = major ? 'rgba(0, 245, 255, 0.26)' : 'rgba(0, 225, 255, 0.11)'
-      ctx.lineWidth = major ? 3.2 : 2.2
+    const drawH = (y: number) => {
+      // Glow underlay
+      ctx.strokeStyle = 'rgba(0, 180, 255, 0.05)'
+      ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.moveTo(0, y + 0.5)
-      ctx.lineTo(tileWidth, y + 0.5)
+      ctx.moveTo(0, y)
+      ctx.lineTo(tileWidth, y)
       ctx.stroke()
 
-      ctx.strokeStyle = major ? 'rgba(145, 255, 255, 0.78)' : 'rgba(0, 235, 255, 0.43)'
-      ctx.lineWidth = major ? 1.5 : 1
+      // Core line
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.2)'
+      ctx.lineWidth = 0.8
       ctx.beginPath()
-      ctx.moveTo(0, y + 0.5)
-      ctx.lineTo(tileWidth, y + 0.5)
+      ctx.moveTo(0, y)
+      ctx.lineTo(tileWidth, y)
       ctx.stroke()
     }
 
-    const drawV = (x: number, major: boolean) => {
-      ctx.strokeStyle = major ? 'rgba(0, 245, 255, 0.3)' : 'rgba(0, 225, 255, 0.12)'
-      ctx.lineWidth = major ? 3.4 : 2.2
+    const drawV = (x: number) => {
+      // Glow underlay
+      ctx.strokeStyle = 'rgba(0, 180, 255, 0.05)'
+      ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.moveTo(x + 0.5, 0)
-      ctx.lineTo(x + 0.5, tileHeight)
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, tileHeight)
       ctx.stroke()
 
-      ctx.strokeStyle = major ? 'rgba(150, 255, 255, 0.82)' : 'rgba(0, 235, 255, 0.45)'
-      ctx.lineWidth = major ? 1.7 : 1
+      // Core line
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.2)'
+      ctx.lineWidth = 0.8
       ctx.beginPath()
-      ctx.moveTo(x + 0.5, 0)
-      ctx.lineTo(x + 0.5, tileHeight)
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, tileHeight)
       ctx.stroke()
     }
 
     const rows = Math.ceil(tileHeight / cellHeight)
     const cols = Math.ceil(tileWidth / cellWidth)
 
+    // Draw grid lines
     for (let j = 0; j < rows; j++) {
       const y = j * cellHeight
-      const major = j % GRID_CONFIG.majorYEvery === 0
-      drawH(y, major)
+      drawH(y)
     }
 
     for (let i = 0; i < cols; i++) {
       const x = i * cellWidth
-      const major = i % GRID_CONFIG.majorXEvery === 0
-      drawV(x, major)
+      drawV(x)
     }
 
-    // Nodes on all intersections so the mesh reads continuously; majors are brighter.
+    // High-tech intersection nodes
     for (let i = 0; i < cols; i++) {
       const x = i * cellWidth
 
       for (let j = 0; j < rows; j++) {
         const y = j * cellHeight
 
-        const major = i % GRID_CONFIG.majorXEvery === 0 && j % GRID_CONFIG.majorYEvery === 0
-        if (major) {
-          ctx.fillStyle = 'rgba(0, 245, 255, 0.38)'
-          ctx.fillRect(x - 2.2, y - 2.2, 4.4, 4.4)
-          ctx.fillStyle = 'rgba(225, 255, 255, 0.84)'
-          ctx.fillRect(x - 0.9, y - 0.9, 1.8, 1.8)
-        } else {
-          ctx.fillStyle = 'rgba(0, 235, 255, 0.16)'
-          ctx.fillRect(x - 0.6, y - 0.6, 1.2, 1.2)
-        }
+        // Minor intersection dots everywhere
+        ctx.fillStyle = 'rgba(0, 243, 255, 0.3)'
+        ctx.fillRect(x - 0.5, y - 0.5, 1, 1)
       }
     }
 
@@ -334,37 +441,6 @@ export class TradingScene extends Scene {
     this.textures.addCanvas(GRID_CONFIG.textureKey, canvas)
   }
 
-  private buildGridSweepTexture(height: number): void {
-    const sweepWidth = Math.max(96, Math.round(this.cameras.main.width * 0.14))
-    const canvas = document.createElement('canvas')
-    canvas.width = sweepWidth
-    canvas.height = Math.max(120, Math.round(height))
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const gradient = ctx.createLinearGradient(0, 0, sweepWidth, 0)
-    gradient.addColorStop(0, 'rgba(0, 245, 255, 0)')
-    gradient.addColorStop(0.38, 'rgba(0, 245, 255, 0.09)')
-    gradient.addColorStop(0.5, 'rgba(120, 255, 255, 0.24)')
-    gradient.addColorStop(0.62, 'rgba(0, 245, 255, 0.09)')
-    gradient.addColorStop(1, 'rgba(0, 245, 255, 0)')
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    // Core energy line in the center of the sweep.
-    const coreX = sweepWidth * 0.5
-    ctx.strokeStyle = 'rgba(205, 255, 255, 0.42)'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(coreX + 0.5, 0)
-    ctx.lineTo(coreX + 0.5, canvas.height)
-    ctx.stroke()
-
-    if (this.textures.exists(GRID_CONFIG.sweepTextureKey)) {
-      this.textures.remove(GRID_CONFIG.sweepTextureKey)
-    }
-    this.textures.addCanvas(GRID_CONFIG.sweepTextureKey, canvas)
-  }
 
   private configureGridBloom(): void {
     const bloomPipeline = this.gridLayer.getPostPipeline('BloomPostFX') as any
@@ -390,7 +466,6 @@ export class TradingScene extends Scene {
     const height = this.cameras.main.height
 
     this.buildGridTexture()
-    this.buildGridSweepTexture(height)
 
     if (!this.gridLayer) {
       this.gridLayer = this.add.tileSprite(0, 0, width, height, GRID_CONFIG.textureKey)
@@ -406,17 +481,6 @@ export class TradingScene extends Scene {
       this.gridLayer.setDisplaySize(width, height)
       this.configureGridBloom()
     }
-
-    if (!this.gridSweep) {
-      this.gridSweep = this.add.image(width, height / 2, GRID_CONFIG.sweepTextureKey)
-      this.gridSweep.setDepth(-0.95)
-      this.gridSweep.setBlendMode(Phaser.BlendModes.ADD)
-      this.gridSweep.setOrigin(0.5, 0.5)
-      this.gridSweep.setAlpha(0.2)
-    } else {
-      this.gridSweep.setTexture(GRID_CONFIG.sweepTextureKey)
-      this.gridSweep.setPosition(width, height / 2)
-    }
   }
 
   private updateGrid(delta: number): void {
@@ -426,13 +490,6 @@ export class TradingScene extends Scene {
     this.gridScrollX += (GRID_CONFIG.scrollSpeed * delta) / 1000
     this.gridLayer.tilePositionX = this.gridScrollX
     this.gridLayer.setAlpha(0.84 + pulseIntensity * 0.14)
-
-    this.gridSweepOffset += (GRID_CONFIG.sweepSpeed * delta) / 1000
-    const sweepWidth = this.gridSweep.width
-    const span = this.cameras.main.width + sweepWidth * 2
-    const sweepX = this.cameras.main.width + sweepWidth - (this.gridSweepOffset % span)
-    this.gridSweep.setPosition(sweepX, this.cameras.main.height / 2)
-    this.gridSweep.setAlpha(0.18 + pulseIntensity * 0.08)
   }
 
   private updateCoinPhysics(): void {
@@ -500,12 +557,8 @@ export class TradingScene extends Scene {
 
     this.particles.destroy()
     this.gridLayer?.destroy()
-    this.gridSweep?.destroy()
     if (this.textures.exists(GRID_CONFIG.textureKey)) {
       this.textures.remove(GRID_CONFIG.textureKey)
-    }
-    if (this.textures.exists(GRID_CONFIG.sweepTextureKey)) {
-      this.textures.remove(GRID_CONFIG.sweepTextureKey)
     }
     this.backgroundImage?.destroy()
     this.visualEffects.setShutdown(true)
@@ -603,10 +656,10 @@ export class TradingScene extends Scene {
     const maxRadius = Math.max(width, height) / 1.5
     const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius)
 
-    // Dark charcoal/teal center to pure black edges
-    gradient.addColorStop(0, '#051014')
-    gradient.addColorStop(0.6, '#03080a')
-    gradient.addColorStop(1, '#000000')
+    // Dark charcoal/teal center to black edges, with alpha for the graph behind
+    gradient.addColorStop(0, 'rgba(5, 16, 20, 0.4)')
+    gradient.addColorStop(0.6, 'rgba(3, 8, 10, 0.7)')
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.95)')
 
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, width, height)
