@@ -53,7 +53,7 @@ export function GameSelectionScreen() {
 
   const authState = useMemo(() => {
     if (isInMiniApp) {
-      if (miniAppConnected && miniAppUser && !isBaseNameLoading) {
+      if (miniAppUser) {
         return 'ready'
       }
       return 'login'
@@ -63,7 +63,7 @@ export function GameSelectionScreen() {
       return 'ready'
     }
     return 'login'
-  }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, miniAppAuthenticated, authenticated, user?.wallet])
+  }, [isInMiniApp, miniAppUser, authenticated, user?.wallet])
 
   if (isInitializing) {
     return (
