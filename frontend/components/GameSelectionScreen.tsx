@@ -8,6 +8,7 @@ import { useBaseMiniAppAuth } from '@/hooks/useBaseMiniAppAuth'
 import { useBaseName } from '@/hooks/useBaseName'
 import { PlayerName } from '@/components/ens/PlayerName'
 import Image from 'next/image'
+import Link from 'next/link'
 
 export function GameSelectionScreen() {
   const router = useRouter()
@@ -127,23 +128,25 @@ export function GameSelectionScreen() {
 
         <div className="flex flex-col gap-4 w-full max-w-md mt-4">
           {games.map((game, index) => (
-            <m.button
-              key={game.slug}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
-              onClick={() => router.push(`/${game.slug}`)}
-              disabled={game.status !== 'available'}
-              className={`
-                relative px-6 py-5 rounded-sm overflow-hidden hologram group
-                border transition-all duration-300
-                ${
-                  game.status === 'available'
-                    ? 'border-cyan-400/30 hover:border-cyan-400 bg-black/40 hover:bg-cyan-400/10 cursor-pointer shadow-[0_0_10px_rgba(0,243,255,0.05)] hover:shadow-[0_0_20px_rgba(0,243,255,0.2)]'
-                    : 'border-white/10 bg-black/20 cursor-not-allowed opacity-60'
-                }
-              `}
-            >
+            <Link key={game.slug} href={game.status === 'available' ? `/${game.slug}` : '#'} passHref legacyBehavior>
+              <m.a
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 + index * 0.1 }}
+                aria-disabled={game.status !== 'available'}
+                onClick={(e) => {
+                  if (game.status !== 'available') e.preventDefault()
+                }}
+                className={`
+                  relative px-6 py-5 rounded-sm overflow-hidden hologram group
+                  border transition-all duration-300
+                  ${
+                    game.status === 'available'
+                      ? 'border-cyan-400/30 hover:border-cyan-400 bg-black/40 hover:bg-cyan-400/10 cursor-pointer shadow-[0_0_10px_rgba(0,243,255,0.05)] hover:shadow-[0_0_20px_rgba(0,243,255,0.2)]'
+                      : 'border-white/10 bg-black/20 cursor-not-allowed opacity-60'
+                  }
+                `}
+              >
               <div className="relative z-10 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-sm bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center">
                   <span className="text-2xl dropdown-shadow">{game.status === 'available' ? '⚡' : '🔮'}</span>
@@ -175,7 +178,8 @@ export function GameSelectionScreen() {
                   </div>
                 </div>
               </div>
-            </m.button>
+              </m.a>
+            </Link>
           ))}
         </div>
       </div>
