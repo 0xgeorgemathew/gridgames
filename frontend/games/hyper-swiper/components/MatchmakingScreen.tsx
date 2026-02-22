@@ -36,12 +36,7 @@ function PlayingAsPanel({
     <div className="mt-4 min-h-[100px]">
       <AnimatePresence>
         {displayName && matchState !== 'login' && (
-          <m.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center"
-          >
+          <div className="flex flex-col items-center">
             <div className="flex items-center gap-3 mb-2">
               <m.p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/70 text-[9px] tracking-[0.3em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
                 PLAYING AS
@@ -49,17 +44,12 @@ function PlayingAsPanel({
             </div>
 
             <m.div
-              className="relative flex flex-col items-center gap-2"
+              className="relative flex flex-row items-center gap-3"
               whileHover={{ scale: 1.02 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
               {isInMiniApp && miniAppPfpUrl && (
-                <m.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, delay: 0.1 }}
-                  className="relative"
-                >
+                <div className="relative">
                   <div className="absolute -inset-1 rounded-sm bg-tron-cyan/20 blur-md" />
                   <m.div
                     className="absolute -inset-2 rounded-sm border border-tron-cyan/60 hologram"
@@ -77,7 +67,7 @@ function PlayingAsPanel({
                     unoptimized
                     className="relative rounded-sm border-2 border-tron-cyan/80 object-cover"
                   />
-                </m.div>
+                </div>
               )}
               <div className="relative z-10 glass-panel-vibrant px-6 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] flex items-center justify-center">
                 <PlayerName
@@ -86,7 +76,7 @@ function PlayingAsPanel({
                 />
               </div>
             </m.div>
-          </m.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
@@ -101,8 +91,6 @@ interface MatchmakingAuthPanelProps {
   isRefreshingLobby: boolean
   selectedGameDuration: number
   lobbyPlayers: Array<{ socketId: string; name: string; gameDuration: number }>
-  onLogin: () => void
-  onLogout: () => void
   onEnter: () => void
   onOpenLobby: () => void
   onBackFromLobby: () => void
@@ -118,8 +106,6 @@ function MatchmakingAuthPanel({
   isRefreshingLobby,
   selectedGameDuration,
   lobbyPlayers,
-  onLogin,
-  onLogout,
   onEnter,
   onOpenLobby,
   onBackFromLobby,
@@ -131,38 +117,22 @@ function MatchmakingAuthPanel({
   return (
     <div className="flex flex-col items-center">
       <div className="min-h-[200px] w-full max-w-md">
-        <AnimatePresence mode="wait">
-          {matchState === 'login' && (
-            <m.div
-              key="login"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4 }}
-              layout
-              className="flex flex-col items-center gap-4"
-            >
+        {matchState === 'login' && (
+          <div
+            key="login"
+            className="flex flex-col items-center gap-4"
+          >
               <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em] animate-pulse">
-                {isInMiniApp ? 'CONNECTING TO GRID...' : 'CONNECT TO PLAY'}
+                {isInMiniApp ? 'CONNECTING TO GRID...' : 'VERIFYING CREDENTIALS...'}
               </p>
-              {!isInMiniApp && (
-                <ActionButton onClick={onLogin} color="cyan">
-                  LOGIN WITH GOOGLE
-                </ActionButton>
-              )}
-            </m.div>
-          )}
+          </div>
+        )}
 
-          {matchState === 'ready' && (
-            <m.div
-              key="ready"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4 }}
-              layout
-              className="flex flex-col items-center gap-3"
-            >
+        {matchState === 'ready' && (
+          <div
+            key="ready"
+            className="flex flex-col items-center gap-3"
+          >
               <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
                 SYSTEM READY
               </p>
@@ -175,44 +145,25 @@ function MatchmakingAuthPanel({
                   SELECT OPPONENT
                 </ActionButton>
               </div>
+          </div>
+        )}
 
-              {!isInMiniApp && (
-                <button
-                  onClick={onLogout}
-                  className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                >
-                  LOGOUT
-                </button>
-              )}
-            </m.div>
-          )}
-
-          {matchState === 'entering' && (
-            <m.div
-              key="entering"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4 }}
-              layout
-              className="flex flex-col items-center gap-3"
-            >
+        {matchState === 'entering' && (
+          <div
+            key="entering"
+            className="flex flex-col items-center gap-3"
+          >
               <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] animate-pulse drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
                 SEARCHING GRID...
               </p>
-            </m.div>
-          )}
+          </div>
+        )}
 
-          {matchState === 'lobby' && (
-            <m.div
-              key="lobby"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.4 }}
-              layout
-              className="flex flex-col items-center gap-4 w-full max-w-md"
-            >
+        {matchState === 'lobby' && (
+          <div
+            key="lobby"
+            className="flex flex-col items-center gap-4 w-full max-w-md"
+          >
               <button
                 onClick={onBackFromLobby}
                 className="font-[family-name:var(--font-orbitron)] text-tron-cyan/60 hover:text-tron-cyan transition-colors text-xs tracking-[0.2em] mb-2"
@@ -278,9 +229,8 @@ function MatchmakingAuthPanel({
               >
                 REFRESH
               </ActionButton>
-            </m.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -288,7 +238,7 @@ function MatchmakingAuthPanel({
 
 export function MatchmakingScreen() {
   const router = useRouter()
-  const { ready, authenticated, login, logout, user } = usePrivy()
+  const { ready, authenticated, user } = usePrivy()
   const {
     isInMiniApp,
     user: miniAppUser,
@@ -349,6 +299,19 @@ export function MatchmakingScreen() {
   }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, miniAppAuthenticated, authenticated, user?.wallet])
 
   const matchState = userState || authState
+
+  // Redirect to Game Selection Screen if not authenticated to handle login
+  useEffect(() => {
+    if (isInMiniApp) {
+      if (!miniAppAuthenticating && !isBaseNameLoading && !miniAppAuthenticated) {
+        router.push('/')
+      }
+    } else {
+      if (ready && !authenticated) {
+        router.push('/')
+      }
+    }
+  }, [isInMiniApp, miniAppAuthenticating, isBaseNameLoading, miniAppAuthenticated, ready, authenticated, router])
 
   const [showOnboarding, setShowOnboarding] = useState(false)
 
@@ -439,7 +402,15 @@ export function MatchmakingScreen() {
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
+    <div className="min-h-screen relative flex items-center justify-center overflow-hidden bg-black">
+      {/* Route Fade Overlay - preserves backdrop filter blurs on children by avoiding opacity animations on them */}
+      <m.div
+        initial={{ opacity: 1 }}
+        animate={{ opacity: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="absolute inset-0 z-50 bg-black pointer-events-none"
+      />
+
       <OnboardingModal isOpen={showOnboarding} onClose={handleCloseOnboarding} />
 
       <GridScanBackground
@@ -468,24 +439,16 @@ export function MatchmakingScreen() {
 
       <div className="relative z-20 flex flex-col items-center gap-4 px-4 mt-6 w-full max-w-[400px]">
         <div className="text-center relative">
-          <m.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+          <h1
             className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg font-bold tracking-[0.3em] text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] mb-1"
           >
             ENTER THE GRID
-          </m.h1>
-          <m.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative inline-block mb-2"
-          >
+          </h1>
+          <div className="relative inline-block mb-2">
             <h2 className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
               HYPER SWIPER
             </h2>
-          </m.div>
+          </div>
 
           <PlayingAsPanel
             displayName={displayName}
@@ -495,14 +458,7 @@ export function MatchmakingScreen() {
           />
         </div>
 
-        {matchState !== 'login' && (
-          <GameSettingsSelector
-            selectedDuration={selectedGameDuration}
-            onDurationChange={setSelectedGameDuration}
-            disabled={isMatching}
-          />
-        )}
-
+        {/* We place MatchmakingAuthPanel FIRST so the action buttons are above the subsetting */}
         <MatchmakingAuthPanel
           matchState={matchState}
           isInMiniApp={isInMiniApp}
@@ -511,8 +467,6 @@ export function MatchmakingScreen() {
           isRefreshingLobby={isRefreshingLobby}
           selectedGameDuration={selectedGameDuration}
           lobbyPlayers={lobbyPlayers}
-          onLogin={login}
-          onLogout={logout}
           onEnter={handleEnter}
           onOpenLobby={() => {
             getLobbyPlayers()
@@ -525,6 +479,14 @@ export function MatchmakingScreen() {
           onRefreshLobby={getLobbyPlayers}
           onSelectOpponent={handleSelectOpponent}
         />
+
+        {matchState !== 'login' && matchState !== 'entering' && (
+          <GameSettingsSelector
+            selectedDuration={selectedGameDuration}
+            onDurationChange={setSelectedGameDuration}
+            disabled={isMatching}
+          />
+        )}
       </div>
     </div>
   )

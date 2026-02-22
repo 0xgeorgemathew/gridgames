@@ -46,12 +46,7 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
   }, [onDurationChange])
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="w-full max-w-md"
-    >
+    <div className="w-full max-w-md">
       <div className="glass-panel-vibrant rounded-sm p-3 border border-tron-cyan/30 w-full mb-2 mt-2">
         {/* Header */}
         <div className="text-center mb-3">
@@ -109,6 +104,6 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
           </div>
         </div>
       </div>
-    </m.div>
+    </div>
   )
 })

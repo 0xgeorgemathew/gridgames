@@ -45,35 +45,14 @@ export function ActionButton({
       whileHover={isInteractive ? { scale: 1.02 } : undefined}
       whileTap={isInteractive ? { scale: 0.98 } : undefined}
     >
-      <m.div
-        className="absolute inset-0 rounded-lg"
-        animate={{
-          boxShadow: isInteractive
-            ? [`0 0 20px ${config.glow}40`, `0 0 60px ${config.glow}`, `0 0 20px ${config.glow}40`]
-            : '0 0 10px rgba(255,255,255,0.1)',
-        }}
-        transition={BUTTON_TRANSITION}
-      />
       <div
-        className={`relative ${paddingClass} bg-black/40 backdrop-blur-md border ${config.border} rounded`}
+        className={`relative ${paddingClass} bg-black/40 backdrop-blur-md border ${config.border} rounded transition-colors group-hover:bg-white/5`}
       >
-        <m.span
+        <span
           className={`font-[family-name:var(--font-orbitron)] ${textSize} tracking-[0.3em] font-medium block ${config.text}`}
-          animate={
-            isInteractive
-              ? {
-                  textShadow: [
-                    `0 0 10px ${config.glow}80`,
-                    `0 0 20px ${config.glow}`,
-                    `0 0 10px ${config.glow}80`,
-                  ],
-                }
-              : {}
-          }
-          transition={BUTTON_TRANSITION}
         >
           {children}
-        </m.span>
+        </span>
       </div>
     </m.button>
   )
