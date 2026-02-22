@@ -49,7 +49,7 @@ export function GameSelectionScreen() {
 
   const [isEntering, setIsEntering] = useState(false)
 
-  const isInitializing = isInMiniApp && (miniAppAuthenticating || isBaseNameLoading || (!miniAppAuthenticated && miniAppWallet !== undefined))
+  const isInitializing = isInMiniApp && (miniAppAuthenticating || isBaseNameLoading)
 
   const authState = useMemo(() => {
     if (isInMiniApp) {

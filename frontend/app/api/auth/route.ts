@@ -1,8 +1,6 @@
 import { createClient, Errors } from '@farcaster/quick-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Use RAILWAY_PUBLIC_DOMAIN if available, otherwise fallback to localhost for dev
-const domain = process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost:3000'
 const client = createClient()
 
 export async function GET(request: NextRequest) {
@@ -13,6 +11,10 @@ export async function GET(request: NextRequest) {
   }
 
   const token = authorization.split(' ')[1]
+
+  // Use the request's Host header so the domain always matches what the client sees
+  // (works for direct access, base.dev/preview iframe, and real Mini App)
+  const domain = request.headers.get('host') || process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost:3000'
 
   try {
     const payload = await client.verifyJwt({ token, domain })

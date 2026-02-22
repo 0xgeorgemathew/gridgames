@@ -37,9 +37,8 @@ export function useBaseMiniAppAuth() {
       const { token } = await sdk.quickAuth.getToken()
       
       console.log('[QuickAuth] Token received, verifying with backend...')
-      const origin = typeof window !== 'undefined' ? window.location.origin : ''
       
-      const response = await fetch('/api/auth', {
+      const response = await sdk.quickAuth.fetch(`${window.location.origin}/api/auth`, {
         headers: { "Authorization": `Bearer ${token}` }
       })
       
