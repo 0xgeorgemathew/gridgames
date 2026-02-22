@@ -15,8 +15,6 @@ import { GameSettingsSelector } from './GameSettingsSelector'
 import { OnboardingModal } from './OnboardingModal'
 import { cn } from '@/lib/utils'
 
-const BOTTOM_DOT_STEPS = [0, 1, 2, 3, 4, 5, 6] as const
-
 type AuthMatchState = 'login' | 'ready'
 type UserMatchState = 'lobby' | 'entering'
 type MatchState = AuthMatchState | UserMatchState
@@ -288,29 +286,6 @@ function MatchmakingAuthPanel({
   )
 }
 
-function MatchmakingBottomDots() {
-  return (
-    <div className="fixed bottom-12 left-0 right-0 z-20 flex justify-center gap-3">
-      {BOTTOM_DOT_STEPS.map((step) => (
-        <m.div
-          key={`dot-${step}`}
-          className="w-1 h-1 bg-tron-cyan/60 shadow-[0_0_8px_var(--color-tron-cyan)]"
-          animate={{
-            opacity: [0.2, 1, 0.2],
-            scaleY: [1, 3, 1],
-            boxShadow: [
-              '0 0 0px rgba(0,243,255,0)',
-              '0 0 10px rgba(0,243,255,0.8)',
-              '0 0 0px rgba(0,243,255,0)',
-            ],
-          }}
-          transition={{ duration: 1.5, repeat: Infinity, delay: step * 0.15, ease: 'easeInOut' }}
-        />
-      ))}
-    </div>
-  )
-}
-
 export function MatchmakingScreen() {
   const router = useRouter()
   const { ready, authenticated, login, logout, user } = usePrivy()
@@ -551,8 +526,6 @@ export function MatchmakingScreen() {
           onSelectOpponent={handleSelectOpponent}
         />
       </div>
-
-      <MatchmakingBottomDots />
     </div>
   )
 }
