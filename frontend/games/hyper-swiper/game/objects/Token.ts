@@ -135,7 +135,8 @@ export class Token extends GameObjects.Container {
     // Hitbox: 85% of visual size (forgiving slicing), with hitbox multiplier
     // Note: We multiply by 4 because the CoinRenderer generates the texture at 4x the base radius
     const RENDER_SCALE = 4
-    const hitboxRadius = config.radius * RENDER_SCALE * 0.85 * scale * (config.hitboxMultiplier ?? 1.0)
+    const hitboxRadius =
+      config.radius * RENDER_SCALE * 0.85 * scale * (config.hitboxMultiplier ?? 1.0)
     this.body.setCircle(hitboxRadius)
 
     // Start at minimum visible scale (prevents stuck-at-0)
