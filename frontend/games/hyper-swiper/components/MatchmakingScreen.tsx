@@ -488,7 +488,7 @@ export function MatchmakingScreen() {
             className="relative inline-block mb-4"
           >
             <h2 className="font-[family-name:var(--font-orbitron)] text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
-             HYPER SWIPER
+              HYPER SWIPER
             </h2>
           </m.div>
 
