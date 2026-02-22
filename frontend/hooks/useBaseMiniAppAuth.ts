@@ -3,12 +3,15 @@ import { sdk } from '@farcaster/miniapp-sdk'
 import { useAccount, useConnect } from 'wagmi'
 import type { Context } from '@farcaster/miniapp-core'
 
-// Module-level flag survives component remounts (React Strict Mode, Privy re-init)
+// Module-level caches survive component remounts (Privy re-initialization)
+let cachedIsInMiniApp: boolean | null = null
+let cachedContextUser: Context.UserContext | null = null
 let hasAttemptedQuickAuth = false
+let hasAttemptedWagmiConnect = false
 
 export function useBaseMiniAppAuth() {
-  const [isInMiniApp, setIsInMiniApp] = useState(false)
-  const [contextUser, setContextUser] = useState<Context.UserContext | null>(null)
+  const [isInMiniApp, setIsInMiniApp] = useState(cachedIsInMiniApp ?? false)
+  const [contextUser, setContextUser] = useState<Context.UserContext | null>(cachedContextUser)
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -17,12 +20,20 @@ export function useBaseMiniAppAuth() {
   const { connect, connectors } = useConnect()
 
   useEffect(() => {
-    sdk.isInMiniApp().then(setIsInMiniApp)
+    if (cachedIsInMiniApp !== null) {
+      setIsInMiniApp(cachedIsInMiniApp)
+      return
+    }
+    sdk.isInMiniApp().then((result) => {
+      cachedIsInMiniApp = result
+      setIsInMiniApp(result)
+    })
   }, [])
 
-  // Auto-connect wagmi wallet when in Mini App
+  // Auto-connect wagmi wallet — guarded to fire only once
   useEffect(() => {
-    if (isInMiniApp && !isConnected) {
+    if (isInMiniApp && !isConnected && !hasAttemptedWagmiConnect) {
+      hasAttemptedWagmiConnect = true
       const farcasterConnector = connectors.find(c => c.id === 'farcaster')
       if (farcasterConnector) {
         connect({ connector: farcasterConnector })
@@ -62,12 +73,13 @@ export function useBaseMiniAppAuth() {
     }
   }, [isAuthenticating, isAuthenticated])
 
-  // Only fetch SDK context on mount — no popups, safe to auto-call.
-  // Quick Auth (authenticate) is NOT called automatically because it opens
-  // a signIn popup. Call authenticate() explicitly when backend trust is needed.
+  // Fetch SDK context — cached at module level to survive remounts
   useEffect(() => {
-    if (isInMiniApp) {
-      sdk.context.then((ctx) => setContextUser(ctx.user))
+    if (isInMiniApp && !cachedContextUser) {
+      sdk.context.then((ctx) => {
+        cachedContextUser = ctx.user
+        setContextUser(ctx.user)
+      })
     }
   }, [isInMiniApp])
 
@@ -82,3 +94,4 @@ export function useBaseMiniAppAuth() {
     authenticate
   }
 }
+

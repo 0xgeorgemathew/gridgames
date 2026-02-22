@@ -53,17 +53,14 @@ export function GameSelectionScreen() {
 
   const authState = useMemo(() => {
     if (isInMiniApp) {
-      if (miniAppUser) {
-        return 'ready'
-      }
-      return 'login'
+      return 'ready' // Mini App users can always access the game menu
     }
 
     if (authenticated && user?.wallet) {
       return 'ready'
     }
     return 'login'
-  }, [isInMiniApp, miniAppUser, authenticated, user?.wallet])
+  }, [isInMiniApp, authenticated, user?.wallet])
 
   if (isInitializing) {
     return (
