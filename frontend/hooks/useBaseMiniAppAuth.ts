@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { sdk } from '@farcaster/miniapp-sdk'
-import { useAccount } from 'wagmi'
+import { useAccount, useConnect } from 'wagmi'
 import type { Context } from '@farcaster/miniapp-core'
 
 export function useBaseMiniAppAuth() {
@@ -11,11 +11,22 @@ export function useBaseMiniAppAuth() {
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   
   const { address: connectedAddress, isConnected } = useAccount()
+  const { connect, connectors } = useConnect()
   const hasAttemptedAuth = useRef(false)
 
   useEffect(() => {
     sdk.isInMiniApp().then(setIsInMiniApp)
   }, [])
+
+  // Auto-connect wagmi wallet when in Mini App
+  useEffect(() => {
+    if (isInMiniApp && !isConnected) {
+      const farcasterConnector = connectors.find(c => c.id === 'farcaster')
+      if (farcasterConnector) {
+        connect({ connector: farcasterConnector })
+      }
+    }
+  }, [isInMiniApp, isConnected, connectors, connect])
 
   const authenticate = useCallback(async () => {
     if (isAuthenticating || isAuthenticated) return
