@@ -73,8 +73,8 @@ export class Token extends GameObjects.Container {
       this.image.setTexture(textureKey)
     }
 
-    // Apply mobile scale (0.7x on mobile for less visual clutter)
-    const targetScale = isMobile ? 0.7 : 1
+    // Apply mobile scale (0.5x on mobile for optimized iPhone 14 Pro Max tap/slice targets)
+    const targetScale = isMobile ? 0.5 : 0.65
     const scale = targetScale
 
     // Store metadata
@@ -133,7 +133,9 @@ export class Token extends GameObjects.Container {
     this.body.setCollideWorldBounds(false) // Fall through edges
 
     // Hitbox: 85% of visual size (forgiving slicing), with hitbox multiplier
-    const hitboxRadius = config.radius * 0.85 * scale * (config.hitboxMultiplier ?? 1.0)
+    // Note: We multiply by 4 because the CoinRenderer generates the texture at 4x the base radius
+    const RENDER_SCALE = 4
+    const hitboxRadius = config.radius * RENDER_SCALE * 0.85 * scale * (config.hitboxMultiplier ?? 1.0)
     this.body.setCircle(hitboxRadius)
 
     // Start at minimum visible scale (prevents stuck-at-0)

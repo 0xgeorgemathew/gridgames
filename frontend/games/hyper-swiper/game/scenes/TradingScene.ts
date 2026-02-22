@@ -719,8 +719,9 @@ export class TradingScene extends Scene {
       const config = COIN_CONFIG[type]
 
       // Hitbox: 85% of visual size, accounting for mobile scale (matching Token.spawn())
-      const mobileScale = this.isMobile ? 0.7 : 1
-      const hitboxRadius = config.radius * 0.85 * mobileScale * (config.hitboxMultiplier ?? 1.0)
+      const mobileScale = this.isMobile ? 0.5 : 0.65
+      const RENDER_SCALE = 4
+      const hitboxRadius = config.radius * RENDER_SCALE * 0.85 * mobileScale * (config.hitboxMultiplier ?? 1.0)
       this.collisionCircle.setTo(tokenObj.x, tokenObj.y, hitboxRadius)
 
       // Check against all collision segments
