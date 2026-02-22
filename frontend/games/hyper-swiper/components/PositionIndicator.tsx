@@ -24,7 +24,7 @@ function PositionCard({
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsMinimized(true)
-    }, 5000)
+    }, 2000)
     return () => clearTimeout(timer)
   }, [])
 
@@ -70,7 +70,7 @@ function PositionCard({
           delay: index * 0.08,
         },
       }}
-      className={cn('glass-panel-vibrant mb-1.5 relative flex-shrink-0', borderStyle)}
+      className={cn('glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto', borderStyle)}
       style={{ willChange: 'transform, opacity' }}
       onClick={() => onClose(position.id)}
     >
