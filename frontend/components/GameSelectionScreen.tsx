@@ -9,8 +9,6 @@ import { useBaseName } from '@/hooks/useBaseName'
 import { PlayerName } from '@/components/ens/PlayerName'
 import Image from 'next/image'
 
-const BOTTOM_DOT_STEPS = [0, 1, 2, 3, 4, 5, 6] as const
-
 export function GameSelectionScreen() {
   const router = useRouter()
   const {
@@ -180,22 +178,6 @@ export function GameSelectionScreen() {
             </m.button>
           ))}
         </div>
-      </div>
-
-      <div className="fixed bottom-12 left-0 right-0 z-20 flex justify-center gap-2">
-        {BOTTOM_DOT_STEPS.map((step) => (
-          <m.div
-            key={`dot-${step}`}
-            className="w-0.5 h-0.5 bg-cyan-400/40"
-            animate={{ opacity: [0.2, 1, 0.2], scaleY: [1, 2, 1], boxShadow: ['0 0 0px rgba(0,243,255,0)', '0 0 8px rgba(0,243,255,0.6)', '0 0 0px rgba(0,243,255,0)'] }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              delay: step * 0.15,
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
       </div>
     </div>
   )
