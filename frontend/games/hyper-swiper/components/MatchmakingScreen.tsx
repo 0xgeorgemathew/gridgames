@@ -42,14 +42,14 @@ function PlayingAsPanel({
             exit={{ opacity: 0 }}
             className="flex flex-col items-center"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <m.p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/70 text-[10px] tracking-[0.3em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+            <div className="flex items-center gap-3 mb-2">
+              <m.p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/70 text-[9px] tracking-[0.3em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
                 PLAYING AS
               </m.p>
             </div>
 
             <m.div
-              className="relative flex flex-col items-center gap-4"
+              className="relative flex flex-col items-center gap-2"
               whileHover={{ scale: 1.02 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
@@ -72,17 +72,17 @@ function PlayingAsPanel({
                   <Image
                     src={miniAppPfpUrl}
                     alt=""
-                    width={56}
-                    height={56}
+                    width={40}
+                    height={40}
                     unoptimized
                     className="relative rounded-sm border-2 border-tron-cyan/80 object-cover"
                   />
                 </m.div>
               )}
-              <div className="relative z-10 glass-panel-vibrant px-8 py-3 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] flex items-center justify-center">
+              <div className="relative z-10 glass-panel-vibrant px-6 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] flex items-center justify-center">
                 <PlayerName
                   username={displayName}
-                  className="font-[family-name:var(--font-orbitron)] text-xl sm:text-2xl tracking-[0.15em] text-tron-cyan drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
+                  className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg tracking-[0.1em] text-tron-cyan drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
                 />
               </div>
             </m.div>
@@ -167,7 +167,7 @@ function MatchmakingAuthPanel({
                 SYSTEM READY
               </p>
 
-              <div className="flex flex-col gap-3 w-full min-w-[200px]">
+              <div className="flex flex-col gap-2 w-full min-w-[200px]">
                 <ActionButton onClick={onEnter} disabled={!isConnected || isMatching} color="cyan">
                   {isMatching ? 'ENTERING...' : 'AUTO-MATCH'}
                 </ActionButton>
@@ -466,13 +466,13 @@ export function MatchmakingScreen() {
         ← BACK
       </button>
 
-      <div className="relative z-20 flex flex-col items-center gap-10 px-6 mt-8 w-full max-w-xl">
+      <div className="relative z-20 flex flex-col items-center gap-4 px-4 mt-6 w-full max-w-[400px]">
         <div className="text-center relative">
           <m.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="font-[family-name:var(--font-orbitron)] text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] mb-2"
+            className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg font-bold tracking-[0.3em] text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] mb-1"
           >
             ENTER THE GRID
           </m.h1>
@@ -480,9 +480,9 @@ export function MatchmakingScreen() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative inline-block mb-4"
+            className="relative inline-block mb-2"
           >
-            <h2 className="font-[family-name:var(--font-orbitron)] text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
+            <h2 className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
               HYPER SWIPER
             </h2>
           </m.div>

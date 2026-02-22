@@ -52,9 +52,9 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
       transition={{ duration: 0.4 }}
       className="w-full max-w-md"
     >
-      <div className="glass-panel-vibrant rounded-sm p-4 border border-tron-cyan/30 w-full mb-4 mt-6">
+      <div className="glass-panel-vibrant rounded-sm p-3 border border-tron-cyan/30 w-full mb-2 mt-2">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-3">
           <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
             GAME SETTINGS
           </p>
@@ -80,7 +80,7 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
                     'relative px-3 py-2 rounded-sm font-[family-name:var(--font-orbitron)] font-medium text-xs tracking-[0.2em]',
                     'border transition-all duration-300',
                     'flex items-center justify-center hologram',
-                    'min-w-[80px] min-h-[40px] overflow-hidden group',
+                    'min-w-[70px] min-h-[36px] overflow-hidden group',
                     isSelected
                       ? 'text-tron-cyan bg-tron-cyan/20 border-tron-cyan shadow-[0_0_15px_rgba(0,243,255,0.2)]'
                       : 'text-tron-cyan/40 bg-tron-black/60 border-tron-cyan/20 hover:border-tron-cyan/50 hover:text-tron-cyan/80 hover:bg-tron-cyan/10',
