@@ -1,7 +1,10 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { sdk } from '@farcaster/miniapp-sdk'
 import { useAccount, useConnect } from 'wagmi'
 import type { Context } from '@farcaster/miniapp-core'
+
+// Module-level flag survives component remounts (React Strict Mode, Privy re-init)
+let hasAttemptedQuickAuth = false
 
 export function useBaseMiniAppAuth() {
   const [isInMiniApp, setIsInMiniApp] = useState(false)
@@ -12,7 +15,6 @@ export function useBaseMiniAppAuth() {
   
   const { address: connectedAddress, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
-  const hasAttemptedAuth = useRef(false)
 
   useEffect(() => {
     sdk.isInMiniApp().then(setIsInMiniApp)
@@ -29,8 +31,9 @@ export function useBaseMiniAppAuth() {
   }, [isInMiniApp, isConnected, connectors, connect])
 
   const authenticate = useCallback(async () => {
-    if (isAuthenticating || isAuthenticated) return
+    if (isAuthenticating || isAuthenticated || hasAttemptedQuickAuth) return
 
+    hasAttemptedQuickAuth = true
     try {
       setIsAuthenticating(true)
       console.log('[QuickAuth] Requesting token...')
@@ -59,17 +62,14 @@ export function useBaseMiniAppAuth() {
     }
   }, [isAuthenticating, isAuthenticated])
 
+  // Only fetch SDK context on mount — no popups, safe to auto-call.
+  // Quick Auth (authenticate) is NOT called automatically because it opens
+  // a signIn popup. Call authenticate() explicitly when backend trust is needed.
   useEffect(() => {
     if (isInMiniApp) {
       sdk.context.then((ctx) => setContextUser(ctx.user))
-      
-      // Auto-authenticate once if in mini app
-      if (!hasAttemptedAuth.current) {
-        hasAttemptedAuth.current = true
-        authenticate()
-      }
     }
-  }, [isInMiniApp, authenticate])
+  }, [isInMiniApp])
 
   return {
     isInMiniApp,
