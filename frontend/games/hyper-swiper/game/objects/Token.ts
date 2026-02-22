@@ -3,9 +3,11 @@ import type { CoinType } from '../types/trading'
 
 interface CoinConfig {
   color: number
-  edgeColor: number // Darker shade for milled edge/rim
+  glowColor: number
+  coreColor: number
   radius: number
   hitboxMultiplier?: number // Hitbox size multiplier (default 1.0)
+  symbol: string
 }
 
 export class Token extends GameObjects.Container {
@@ -26,9 +28,11 @@ export class Token extends GameObjects.Container {
 
     // Default config (will be overridden in spawn())
     this.config = {
-      color: 0xf7931a,
-      edgeColor: 0xc47000,
+      color: 0x00ffff,
+      glowColor: 0x0088ff,
+      coreColor: 0x0a0a10,
       radius: 28,
+      symbol: '₿',
     }
   }
 

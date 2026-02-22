@@ -6,16 +6,20 @@ import type { CoinType } from '../types/trading'
 // Hitbox multipliers adjust slice difficulty: larger = easier, smaller = harder
 export const COIN_CONFIG = {
   long: {
-    color: 0x4a7c59, // Muted Forest Green
-    edgeColor: 0x2d4a35, // Dark Green (milled edge)
-    radius: 12,
+    color: 0x2ecc71, // Muted Emerald Green
+    glowColor: 0x186b3b, // Dimmed Emerald Green
+    coreColor: 0x051a0d,
+    radius: 14, // Slightly larger radius for the transparent effect
     hitboxMultiplier: 1.4, // 40% larger hitbox - easier to slice
+    symbol: '₿',
   },
   short: {
-    color: 0x8b3a3a, // Muted Burgundy
-    edgeColor: 0x4a1f1f, // Dark Burgundy (milled edge)
-    radius: 12,
+    color: 0xe74c3c, // Muted Alizarin Red
+    glowColor: 0x7a2820, // Dimmed Alizarin Red
+    coreColor: 0x1a0907,
+    radius: 14,
     hitboxMultiplier: 1.4, // 40% larger hitbox - easier to slice
+    symbol: '₿',
   },
 } as const
 
@@ -28,7 +32,7 @@ export class CoinRenderer {
 
   /**
    * Helper function to adjust color brightness
-   * Used for creating metallic gradient effects on casino tokens
+   * Used for creating metallic/glass gradient effects
    */
   private adjustBrightness(hexColor: number, factor: number): number {
     const color = Phaser.Display.Color.ValueToColor(hexColor)
@@ -49,7 +53,11 @@ export class CoinRenderer {
 
       // Quadruple the texture size for smooth gradients
       const scale = 4
-      const diameter = (config.radius * 2 + 4) * scale
+
+      // Calculate max boundary needed
+      // Just enough padding for the thickest line stroke
+      const paddedRadius = config.radius + 3
+      const diameter = paddedRadius * 2 * scale
 
       // Create a container to hold all elements
       const container = this.scene.add.container(0, 0)
@@ -59,77 +67,98 @@ export class CoinRenderer {
       const scaledRadius = config.radius * scale
 
       // =========================================================================
-      // CLASSIC CASINO TOKEN LAYERED STRUCTURE (from bottom to top)
+      // GLASS COIN LAYERED STRUCTURE (Transparent, Physical, Illuminated)
       // =========================================================================
 
-      // 1. OUTER RIM / MILLED EDGE (thick dark border)
-      graphics.fillStyle(config.edgeColor, 1)
+      // 1. BASE GLASS TINT (Transparent core)
+      // Gives the glass its base physical color/tint without blocking the background
+      graphics.fillStyle(config.color, 0.15) // Extremely faint color tint
       graphics.fillCircle(0, 0, scaledRadius)
 
-      // 2. MAIN BODY with radial gradient (metallic 3D effect)
-      for (let r = scaledRadius * 0.95; r >= scaledRadius * 0.2; r -= 0.5) {
-        const t = r / scaledRadius
-        const brightness = 1 - t * 0.4
-        const shadeColor = this.adjustBrightness(config.color, brightness)
-        graphics.fillStyle(shadeColor, 1)
+      // 2. INTERNAL ILLUMINATION (Soft self-glowing ambient light from center)
+      // Represents light trapped inside the glass bouncing around
+      const glowSteps = 10
+      for (let i = glowSteps; i > 0; i--) {
+        const r = scaledRadius * (i / glowSteps)
+        // Opacity drops off as it gets to the edge, creating a ball of soft light inside
+        const opacity = 0.03 * (1 - i / glowSteps)
+        graphics.fillStyle(config.glowColor, opacity)
         graphics.fillCircle(0, 0, r)
       }
 
-      // 3. INNER RING (bright border at ~70% radius)
-      const innerRingRadius = scaledRadius * 0.7
-      graphics.lineStyle(2 * scale, 0xffffff, 0.6)
-      graphics.strokeCircle(0, 0, innerRingRadius)
+      // 3. INNER GLASS BEVEL (Refraction near the edges)
+      graphics.lineStyle(3 * scale, config.color, 0.25)
+      graphics.strokeCircle(0, 0, scaledRadius * 0.85)
 
-      // 4. RIDGE DETAILS (decorative tick marks around inner ring)
-      graphics.lineStyle(1 * scale, config.edgeColor, 0.4)
-      const numRidges = 24
-      for (let i = 0; i < numRidges; i++) {
-        const angle = (i / numRidges) * Math.PI * 2
-        const innerR = innerRingRadius - 3 * scale
-        const outerR = innerRingRadius + 3 * scale
-        graphics.beginPath()
-        graphics.moveTo(Math.cos(angle) * innerR, Math.sin(angle) * innerR)
-        graphics.lineTo(Math.cos(angle) * outerR, Math.sin(angle) * outerR)
-        graphics.strokePath()
-      }
+      // 4. OUTER PHYSICAL EDGE (The rim/cut of the glass)
+      // Sharp distinct edge where light catches the surface cut
+      graphics.lineStyle(1 * scale, 0xffffff, 0.6) // Crisp white highlight on the absolute tip
+      graphics.strokeCircle(0, 0, scaledRadius)
 
-      // 5. CENTER AREA (slightly raised platform)
-      const centerShade = this.adjustBrightness(config.color, 1.1)
-      graphics.fillStyle(centerShade, 1)
-      graphics.fillCircle(0, 0, scaledRadius * 0.65)
+      graphics.lineStyle(2.5 * scale, config.color, 0.4) // Darker tone on the inside of the cut
+      graphics.strokeCircle(0, 0, scaledRadius - 0.5 * scale)
 
       container.add(graphics)
 
+      // 5. SPECULAR HIGHLIGHT (The shine reflection off the glass dome)
+      // This is what makes it look like a physical 3D glass object rather than a 2D circle
+      const highlight = this.scene.add.graphics()
+      highlight.fillStyle(0xffffff, 0.4)
+
+      // Draw a curved highlight shape near the top left (assuming light source is top left)
+      highlight.beginPath()
+      highlight.arc(0, 0, scaledRadius * 0.9, Math.PI * 1.05, Math.PI * 1.45, false) // Outer top-left curve
+      highlight.arc(0, 0, scaledRadius * 0.6, Math.PI * 1.45, Math.PI * 1.05, true) // Inner curve to hollow it out
+      highlight.closePath()
+      highlight.fillPath()
+
+      // Minor reflection bump on bottom right
+      highlight.fillStyle(0xffffff, 0.15)
+      highlight.beginPath()
+      highlight.arc(0, 0, scaledRadius * 0.85, Math.PI * 0.2, Math.PI * 0.4, false)
+      highlight.arc(0, 0, scaledRadius * 0.75, Math.PI * 0.4, Math.PI * 0.2, true)
+      highlight.closePath()
+      highlight.fillPath()
+
+      container.add(highlight)
+
       // =========================================================================
-      // SYMBOL RENDERING (with raised appearance - drop shadow)
+      // SYMBOL RENDERING (Internal floating neon shape)
       // =========================================================================
 
-      // Call/Put: BTC ₿ symbol
-      const symbol = '₿'
-      const symbolScale = config.radius * 0.8 * scale
+      const symbolScale = config.radius * 0.85 * scale
 
-      // Add text symbol with drop shadow for raised appearance
-      const shadowText = this.scene.add
-        .text(2 * scale, 2 * scale, symbol, {
-          fontSize: `${symbolScale}px`,
-          fontStyle: 'bold',
-          fontFamily: 'Arial',
-          color: '#000000',
-        })
-        .setOrigin(0.5)
+      const hexColorString = `#${config.color.toString(16).padStart(6, '0')}`
+      const deepHexColorString = `#${config.glowColor.toString(16).padStart(6, '0')}`
 
+      // Bright white/colored center text, appears suspended in the glass
       const mainText = this.scene.add
-        .text(0, 0, symbol, {
+        .text(0, 0, config.symbol, {
           fontSize: `${symbolScale}px`,
-          fontStyle: 'bold',
           fontFamily: 'Arial',
           color: '#ffffff',
-          stroke: '#000000',
-          strokeThickness: 2 * scale,
+          fontStyle: 'bold',
         })
         .setOrigin(0.5)
 
-      container.add(shadowText)
+      // The light cast BY the symbol INTO the glass around it
+      mainText.setShadow(0, 0, deepHexColorString, 12 * scale, false, true)
+
+      // Adds thick 3D-light bleed to the text inside the glass
+      const outlineText = this.scene.add
+        .text(0, 0, config.symbol, {
+          fontSize: `${symbolScale}px`,
+          fontFamily: 'Arial',
+          color: hexColorString,
+          stroke: deepHexColorString,
+          strokeThickness: 3 * scale,
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5)
+
+      outlineText.setAlpha(0.7)
+
+      container.add(outlineText)
       container.add(mainText)
 
       // =========================================================================
