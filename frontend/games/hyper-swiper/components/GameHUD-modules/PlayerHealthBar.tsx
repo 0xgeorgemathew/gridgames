@@ -26,9 +26,9 @@ export const SinglePlayerHealth = React.memo(
     const healthColor = isLowHealth ? 'red' : isMediumHealth ? 'yellow' : 'green'
 
     const healthGradientClasses = {
-      green: 'bg-gradient-to-r from-emerald-500 to-green-400',
-      yellow: 'bg-gradient-to-r from-yellow-500 to-amber-400',
-      red: 'bg-gradient-to-r from-red-600 to-red-500',
+      green: 'bg-gradient-to-r from-emerald-700/70 to-emerald-500/70',
+      yellow: 'bg-gradient-to-r from-yellow-700/70 to-amber-600/70',
+      red: 'bg-gradient-to-r from-red-800/70 to-red-600/70',
     }
 
     return (
@@ -50,8 +50,8 @@ export const SinglePlayerHealth = React.memo(
             )}
             style={{
               textShadow: isLowHealth
-                ? '0 0 10px rgba(248,113,113,0.8)'
-                : '0 0 10px rgba(255,255,255,0.3)',
+                ? '0 0 5px rgba(248,113,113,0.5)'
+                : '0 0 5px rgba(255,255,255,0.2)',
             }}
             key={dollars}
             initial={{ scale: 1.2 }}
@@ -75,7 +75,7 @@ export const SinglePlayerHealth = React.memo(
 
             <m.div
               className={cn(
-                'h-full relative shadow-[0_0_15px_rgba(currentColor,0.5)]',
+                'h-full relative shadow-[0_0_8px_rgba(currentColor,0.3)]',
                 healthGradientClasses[healthColor]
               )}
               initial={{ width: 0 }}
@@ -98,8 +98,8 @@ export const SinglePlayerHealth = React.memo(
             {/* Glow effect for low health */}
             {isLowHealth && (
               <m.div
-                className="absolute inset-0 bg-red-500/20"
-                animate={{ opacity: [0.2, 0.5, 0.2] }}
+                className="absolute inset-0 bg-red-800/20"
+                animate={{ opacity: [0.1, 0.3, 0.1] }}
                 transition={{ duration: 1, repeat: Infinity }}
               />
             )}

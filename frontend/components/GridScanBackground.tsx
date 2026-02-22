@@ -560,7 +560,7 @@ export function GridScanBackground({
       renderer.clear(true, true, true)
       composer.render(dt)
     }
-    
+
     // Initial start; observer will handle pausing/resuming
     rafRef.current = requestAnimationFrame(tick)
 
