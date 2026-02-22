@@ -427,7 +427,13 @@ export function MatchmakingScreen() {
   if (!ready) {
     return (
       <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
-        <GridScanBackground />
+        <GridScanBackground
+          scanDirection={0} // 0 = away from user.
+          scanRange={[2.0, 2.0]} // Lock it exactly at max depth
+          scanOpacity={0.0} // Hide entirely
+          scanDuration={4.0}
+          scanGlow={0.0}
+        />
         <m.p
           className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
           animate={{ opacity: [0.5, 1, 0.5] }}
@@ -441,7 +447,13 @@ export function MatchmakingScreen() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
-      <GridScanBackground />
+      <GridScanBackground
+        scanDirection={matchState === 'entering' ? 1 : 0} // 1 = towards user, 0 = away from user.
+        scanRange={matchState === 'entering' ? [0.0, 2.0] : [2.0, 2.0]} // Lock it exactly at max depth
+        scanOpacity={matchState === 'entering' ? 0.8 : 0.0} // Hide entirely except on enter
+        scanDuration={matchState === 'entering' ? 0.8 : 4.0}
+        scanGlow={matchState === 'entering' ? 1.0 : 0.0}
+      />
 
       <div className="fixed inset-0 pointer-events-none z-10 opacity-20">
         <div className="absolute inset-0 tron-grid opacity-30" />
