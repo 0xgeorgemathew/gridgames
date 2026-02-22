@@ -318,6 +318,8 @@ export function MatchmakingScreen() {
     user: miniAppUser,
     walletAddress: miniAppWallet,
     isConnected: miniAppConnected,
+    isAuthenticated: miniAppAuthenticated,
+    isAuthenticating: miniAppAuthenticating,
   } = useBaseMiniAppAuth()
   const {
     isConnected,
@@ -358,7 +360,7 @@ export function MatchmakingScreen() {
 
   const authState = useMemo((): AuthMatchState => {
     if (isInMiniApp) {
-      if (miniAppConnected && miniAppUser && !isBaseNameLoading) {
+      if (miniAppConnected && miniAppUser && !isBaseNameLoading && miniAppAuthenticated) {
         return 'ready'
       }
       return 'login'
@@ -368,7 +370,7 @@ export function MatchmakingScreen() {
       return 'ready'
     }
     return 'login'
-  }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, authenticated, user?.wallet])
+  }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, miniAppAuthenticated, authenticated, user?.wallet])
 
   const matchState = userState || authState
 
@@ -424,7 +426,7 @@ export function MatchmakingScreen() {
     [isConnected, isMatching, isInMiniApp, miniAppWallet, user?.wallet, selectOpponent]
   )
 
-  if (!ready) {
+  if (!ready || miniAppAuthenticating) {
     return (
       <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
         <GridScanBackground
@@ -439,7 +441,7 @@ export function MatchmakingScreen() {
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
-          INITIALIZING...
+          {miniAppAuthenticating ? 'AUTHENTICATING...' : 'INITIALIZING...'}
         </m.p>
       </div>
     )
