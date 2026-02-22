@@ -40,6 +40,7 @@ uniform float uScanSoftness;
 uniform float uPhaseTaper;
 uniform float uScanDuration;
 uniform float uScanDelay;
+uniform vec2 uScanRange;
 varying vec2 vUv;
 
 const int MAX_SCANS = 8;
@@ -222,9 +223,14 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
       float t2 = mod(max(0.0, iTime - del), 2.0 * dur);
       phase = (t2 < dur) ? (t2 / dur) : (1.0 - (t2 - dur) / dur);
     }
-    float scanZ = phase * scanZMax;
+    float scanZ = mix(uScanRange.x, uScanRange.y, phase);
     float dz = abs(hit.z - scanZ);
-    float lineBand = exp(-0.5 * (dz * dz) / (sigma * sigma));
+    // Make wave smaller and less pronounced when restricted to the back
+    float widthMult = uScanRange.y - uScanRange.x < 1.0 ? 0.3 : 1.0;
+    float currentSigma = sigma * widthMult;
+    float currentSigmaA = sigmaA * widthMult;
+    
+    float lineBand = exp(-0.5 * (dz * dz) / max(0.001, (currentSigma * currentSigma)));
     float taper = clamp(uPhaseTaper, 0.0, 0.49);
     float headW = taper;
     float tailW = taper;
@@ -233,7 +239,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     float phaseWindow = headFade * tailFade;
     float pulseBase = lineBand * phaseWindow;
     combinedPulse += pulseBase * clamp(uScanOpacity, 0.0, 1.0);
-    float auraBand = exp(-0.5 * (dz * dz) / (sigmaA * sigmaA));
+    float auraBand = exp(-0.5 * (dz * dz) / max(0.001, (currentSigmaA * currentSigmaA)));
     combinedAura += (auraBand * 0.25) * phaseWindow * clamp(uScanOpacity, 0.0, 1.0);
 
   float lineVis = lineMask;
@@ -271,6 +277,8 @@ interface GridScanProps {
   scanSoftness?: number
   scanDuration?: number
   scanDelay?: number
+  scanDirection?: number
+  scanRange?: [number, number]
   chromaticAberration?: number
   noiseIntensity?: number
   bloomIntensity?: number
@@ -288,6 +296,8 @@ export function GridScanBackground({
   scanSoftness = 2,
   scanDuration = 2.0,
   scanDelay = 2.0,
+  scanDirection = 2, // 0 = away, 1 = towards, 2 = pingpong
+  scanRange = [0.0, 2.0], // [minZ, maxZ] default
   chromaticAberration = 0.003, // Slightly more for neon glow
   noiseIntensity = 0.008,
   bloomIntensity = 0.5, // Stronger bloom for Tron effect
@@ -437,7 +447,8 @@ export function GridScanBackground({
       uPhaseTaper: { value: 0.9 },
       uScanDuration: { value: scanDuration },
       uScanDelay: { value: scanDelay },
-      uScanDirection: { value: 2 }, // pingpong
+      uScanDirection: { value: scanDirection },
+      uScanRange: { value: new THREE.Vector2(scanRange[0], scanRange[1]) },
     }
 
     const material = new THREE.ShaderMaterial({
@@ -585,6 +596,8 @@ export function GridScanBackground({
     scanSoftness,
     scanDuration,
     scanDelay,
+    scanDirection,
+    scanRange,
     chromaticAberration,
     noiseIntensity,
     bloomIntensity,
