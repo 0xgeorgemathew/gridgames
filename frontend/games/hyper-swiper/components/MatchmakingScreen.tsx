@@ -12,6 +12,7 @@ import { PlayerName } from '@/components/ens/PlayerName'
 import { useBaseMiniAppAuth } from '@/hooks/useBaseMiniAppAuth'
 import { useBaseName } from '@/hooks/useBaseName'
 import { GameSettingsSelector } from './GameSettingsSelector'
+import { OnboardingModal } from './OnboardingModal'
 import { cn } from '@/lib/utils'
 
 const BOTTOM_DOT_STEPS = [0, 1, 2, 3, 4, 5, 6] as const
@@ -346,13 +347,13 @@ export function MatchmakingScreen() {
       if (baseName) return baseName
       if (miniAppUser?.username) return miniAppUser.username
       if (miniAppUser?.fid) return `fid:${miniAppUser.fid}`
-      if (miniAppWallet) return miniAppWallet
+      if (miniAppWallet) return 'Grid Runner'
       return null
     }
 
     const googleName = (user as { google?: { name?: string } } | null)?.google?.name
     if (googleName) return googleName
-    if (user?.wallet?.address) return user.wallet.address
+    if (user?.wallet?.address) return 'Grid Runner'
     return null
   }, [isInMiniApp, baseName, miniAppUser, miniAppWallet, user])
 
@@ -373,6 +374,21 @@ export function MatchmakingScreen() {
   }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, miniAppAuthenticated, authenticated, user?.wallet])
 
   const matchState = userState || authState
+
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    const hasOnboarded = localStorage.getItem('hyper_swiper_onboarded')
+    if (!hasOnboarded) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowOnboarding(true)
+    }
+  }, [])
+
+  const handleCloseOnboarding = useCallback(() => {
+    localStorage.setItem('hyper_swiper_onboarded', 'true')
+    setShowOnboarding(false)
+  }, [])
 
   useEffect(() => {
     if (matchState === 'lobby') {
@@ -409,7 +425,7 @@ export function MatchmakingScreen() {
       )
     }
 
-    const playerName = displayName || walletAddress
+    const playerName = displayName || 'Grid Runner'
     findMatch(playerName, walletAddress)
   }, [displayName, findMatch, isConnected, isInMiniApp, isMatching, miniAppWallet, user?.wallet])
 
@@ -449,6 +465,8 @@ export function MatchmakingScreen() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
+      <OnboardingModal isOpen={showOnboarding} onClose={handleCloseOnboarding} />
+
       <GridScanBackground
         scanDirection={matchState === 'entering' ? 1 : 0} // 1 = towards user, 0 = away from user.
         scanRange={matchState === 'entering' ? [0.0, 2.0] : [2.0, 2.0]} // Lock it exactly at max depth
