@@ -157,7 +157,9 @@ export class BladeRenderer {
     const isHighVelocity = velocity > 400
     const stretchFactor = isHighVelocity ? 1.0 + Math.min(velocity / 2000, 0.4) : 1.0
 
-    this.bladeGraphics.setBlendMode(Phaser.BlendModes.ADD)
+    // Using SCREEN for webgl-safe additive blending that won't corrupt the alpha channel
+    // and turn black on transparent canvas backgrounds like GridScanBackground.
+    this.bladeGraphics.setBlendMode(Phaser.BlendModes.SCREEN)
 
     const ribbonWidth = this.isMobile
       ? BLADE_CONFIG.mobileRibbonWidth
@@ -171,95 +173,127 @@ export class BladeRenderer {
       const tdx = p2.x - p1.x
       const tdy = p2.y - p1.y
       const len = Math.sqrt(tdx * tdx + tdy * tdy) || 1
-      // Perpendicular vector
       return { px: -tdy / len, py: tdx / len }
     }
 
-    // === Layer 1: Outer ambient glow ===
-    for (let i = 0; i < this.bladePath.length - 1; i++) {
-      const p1 = this.bladePath[i]
-      const p2 = this.bladePath[i + 1]
-      const t = i / (this.bladePath.length - 1)
-      const alpha = t * t * 0.15
+    // Build perfect ribbons (single polygons!)
+    // This fixes circle edge overlap artifacts seamlessly.
+    const ribbonLeft: { x: number; y: number }[] = []
+    const ribbonRight: { x: number; y: number }[] = []
 
-      this.bladeGraphics.lineStyle(ribbonWidth * 2.5 * stretchFactor, BLADE_CONFIG.color, alpha)
-      this.bladeGraphics.beginPath()
-      this.bladeGraphics.moveTo(p1.x, p1.y)
-      this.bladeGraphics.lineTo(p2.x, p2.y)
-      this.bladeGraphics.strokePath()
+    // Core edges as filled shapes that naturally taper to zero width (which visually simulates alpha fading)
+    const topEdgeLeft: { x: number; y: number }[] = []
+    const topEdgeRight: { x: number; y: number }[] = []
+    const btmEdgeLeft: { x: number; y: number }[] = []
+    const btmEdgeRight: { x: number; y: number }[] = []
+
+    const flickerOffset = this.flickerTime % (Math.PI * 2)
+    const flicker = 0.85 + Math.sin(flickerOffset) * 0.15
+
+    for (let i = 0; i < this.bladePath.length; i++) {
+      const p = this.bladePath[i]
+      const perp = getPerp(i)
+
+      // Taper based on age (position in array)
+      const t = i / (this.bladePath.length - 1)
+
+      // Exponent sets how aggressive the taper is. 1.2 is a nice smooth curve.
+      const taper = Math.pow(t, 1.2)
+
+      const currentRibbonHW = (ribbonWidth * stretchFactor * taper) / 2
+
+      ribbonLeft.push({ x: p.x + perp.px * currentRibbonHW, y: p.y + perp.py * currentRibbonHW })
+      ribbonRight.unshift({
+        x: p.x - perp.px * currentRibbonHW,
+        y: p.y - perp.py * currentRibbonHW,
+      })
+
+      // Tapering the edge core lines gives them a visual fade effect without requiring segmented alpha overlapping
+      const currentEdgeW = edgeWidth * stretchFactor * taper
+
+      topEdgeLeft.push({
+        x: p.x + perp.px * (currentRibbonHW + currentEdgeW / 2),
+        y: p.y + perp.py * (currentRibbonHW + currentEdgeW / 2),
+      })
+      topEdgeRight.unshift({
+        x: p.x + perp.px * (currentRibbonHW - currentEdgeW / 2),
+        y: p.y + perp.py * (currentRibbonHW - currentEdgeW / 2),
+      })
+
+      btmEdgeLeft.push({
+        x: p.x - perp.px * (currentRibbonHW - currentEdgeW / 2),
+        y: p.y - perp.py * (currentRibbonHW - currentEdgeW / 2),
+      })
+      btmEdgeRight.unshift({
+        x: p.x - perp.px * (currentRibbonHW + currentEdgeW / 2),
+        y: p.y - perp.py * (currentRibbonHW + currentEdgeW / 2),
+      })
     }
+
+    const ribbonPoly = [...ribbonLeft, ...ribbonRight]
+    const topEdgePoly = [...topEdgeLeft, ...topEdgeRight]
+    const btmEdgePoly = [...btmEdgeLeft, ...btmEdgeRight]
+
+    // === Layer 1: Outer ambient glow ===
+    const glowLeft: { x: number; y: number }[] = []
+    const glowRight: { x: number; y: number }[] = []
+    for (let i = 0; i < this.bladePath.length; i++) {
+      const p = this.bladePath[i]
+      const perp = getPerp(i)
+      const t = i / (this.bladePath.length - 1)
+      const taper = Math.pow(t, 1.2)
+      const currentGlowHW = (ribbonWidth * 2.5 * stretchFactor * taper) / 2
+      glowLeft.push({ x: p.x + perp.px * currentGlowHW, y: p.y + perp.py * currentGlowHW })
+      glowRight.unshift({ x: p.x - perp.px * currentGlowHW, y: p.y - perp.py * currentGlowHW })
+    }
+
+    this.bladeGraphics.fillStyle(BLADE_CONFIG.color, 0.15)
+    this.bladeGraphics.fillPoints([...glowLeft, ...glowRight], true, true)
 
     // === Layer 2: Translucent glass-like ribbon body ===
-    for (let i = 0; i < this.bladePath.length - 1; i++) {
-      const p1 = this.bladePath[i]
-      const p2 = this.bladePath[i + 1]
+    this.bladeGraphics.fillStyle(BLADE_CONFIG.color, 0.35 * flicker)
+    this.bladeGraphics.fillPoints(ribbonPoly, true, true)
+
+    // === Layer 3: Edge core glows (colored glow focused natively on the edges) ===
+    const edgeGlowLeftTop: { x: number; y: number }[] = []
+    const edgeGlowRightTop: { x: number; y: number }[] = []
+    const edgeGlowLeftBtm: { x: number; y: number }[] = []
+    const edgeGlowRightBtm: { x: number; y: number }[] = []
+
+    for (let i = 0; i < this.bladePath.length; i++) {
+      const p = this.bladePath[i]
+      const perp = getPerp(i)
       const t = i / (this.bladePath.length - 1)
+      const taper = Math.pow(t, 1.2)
+      const currentRibbonHW = (ribbonWidth * stretchFactor * taper) / 2
+      const currentGlowW = edgeWidth * 3 * stretchFactor * taper
 
-      // Digital flicker effect - subtle pulsing along the ribbon
-      const flickerOffset = (i * 0.3 + this.flickerTime) % (Math.PI * 2)
-      const flicker = 0.85 + Math.sin(flickerOffset) * 0.15
+      edgeGlowLeftTop.push({
+        x: p.x + perp.px * (currentRibbonHW + currentGlowW / 2),
+        y: p.y + perp.py * (currentRibbonHW + currentGlowW / 2),
+      })
+      edgeGlowRightTop.unshift({
+        x: p.x + perp.px * (currentRibbonHW - currentGlowW / 2),
+        y: p.y + perp.py * (currentRibbonHW - currentGlowW / 2),
+      })
 
-      const alpha = t * t * 0.35 * flicker
-
-      this.bladeGraphics.lineStyle(ribbonWidth * stretchFactor, BLADE_CONFIG.color, alpha)
-      this.bladeGraphics.beginPath()
-      this.bladeGraphics.moveTo(p1.x, p1.y)
-      this.bladeGraphics.lineTo(p2.x, p2.y)
-      this.bladeGraphics.strokePath()
+      edgeGlowLeftBtm.push({
+        x: p.x - perp.px * (currentRibbonHW - currentGlowW / 2),
+        y: p.y - perp.py * (currentRibbonHW - currentGlowW / 2),
+      })
+      edgeGlowRightBtm.unshift({
+        x: p.x - perp.px * (currentRibbonHW + currentGlowW / 2),
+        y: p.y - perp.py * (currentRibbonHW + currentGlowW / 2),
+      })
     }
+    this.bladeGraphics.fillStyle(BLADE_CONFIG.color, 0.5)
+    this.bladeGraphics.fillPoints([...edgeGlowLeftTop, ...edgeGlowRightTop], true, true)
+    this.bladeGraphics.fillPoints([...edgeGlowLeftBtm, ...edgeGlowRightBtm], true, true)
 
-    // === Layer 3: Edge core lines (top and bottom of ribbon) ===
-    // These are the high-intensity lines that define the ribbon edges
-    for (let i = 0; i < this.bladePath.length - 1; i++) {
-      const p1 = this.bladePath[i]
-      const p2 = this.bladePath[i + 1]
-      const perp1 = getPerp(i)
-      const perp2 = getPerp(i + 1)
-
-      const t = i / (this.bladePath.length - 1)
-      const alpha = t * t * 0.9
-
-      const halfWidth = (ribbonWidth * stretchFactor) / 2
-
-      // Top edge line
-      this.bladeGraphics.lineStyle(edgeWidth, 0xffffff, alpha)
-      this.bladeGraphics.beginPath()
-      this.bladeGraphics.moveTo(p1.x + perp1.px * halfWidth, p1.y + perp1.py * halfWidth)
-      this.bladeGraphics.lineTo(p2.x + perp2.px * halfWidth, p2.y + perp2.py * halfWidth)
-      this.bladeGraphics.strokePath()
-
-      // Bottom edge line
-      this.bladeGraphics.beginPath()
-      this.bladeGraphics.moveTo(p1.x - perp1.px * halfWidth, p1.y - perp1.py * halfWidth)
-      this.bladeGraphics.lineTo(p2.x - perp2.px * halfWidth, p2.y - perp2.py * halfWidth)
-      this.bladeGraphics.strokePath()
-    }
-
-    // === Layer 4: Edge glow (colored glow on the edge lines) ===
-    for (let i = 0; i < this.bladePath.length - 1; i++) {
-      const p1 = this.bladePath[i]
-      const p2 = this.bladePath[i + 1]
-      const perp1 = getPerp(i)
-      const perp2 = getPerp(i + 1)
-
-      const t = i / (this.bladePath.length - 1)
-      const alpha = t * t * 0.5
-
-      const halfWidth = (ribbonWidth * stretchFactor) / 2
-
-      // Top edge glow
-      this.bladeGraphics.lineStyle(edgeWidth * 3, BLADE_CONFIG.color, alpha)
-      this.bladeGraphics.beginPath()
-      this.bladeGraphics.moveTo(p1.x + perp1.px * halfWidth, p1.y + perp1.py * halfWidth)
-      this.bladeGraphics.lineTo(p2.x + perp2.px * halfWidth, p2.y + perp2.py * halfWidth)
-      this.bladeGraphics.strokePath()
-
-      // Bottom edge glow
-      this.bladeGraphics.beginPath()
-      this.bladeGraphics.moveTo(p1.x - perp1.px * halfWidth, p1.y - perp1.py * halfWidth)
-      this.bladeGraphics.lineTo(p2.x - perp2.px * halfWidth, p2.y - perp2.py * halfWidth)
-      this.bladeGraphics.strokePath()
-    }
+    // === Layer 4: Crisp white edge cores ===
+    this.bladeGraphics.fillStyle(0xffffff, 0.9)
+    this.bladeGraphics.fillPoints(topEdgePoly, true, true)
+    this.bladeGraphics.fillPoints(btmEdgePoly, true, true)
 
     // === Layer 5: Head glow - bright point at the current position ===
     const headGlowSize = this.isMobile ? 8 : 6
