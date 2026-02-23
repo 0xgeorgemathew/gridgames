@@ -95,20 +95,20 @@ export class GridBackgroundSystem {
       tileHeight / 2,
       Math.max(tileWidth, tileHeight)
     )
-    bgGradient.addColorStop(0, 'rgba(0, 150, 255, 0.03)')
+    bgGradient.addColorStop(0, 'rgba(0, 188, 255, 0.0375)')
     bgGradient.addColorStop(1, 'rgba(0, 50, 100, 0.0)')
     ctx.fillStyle = bgGradient
     ctx.fillRect(0, 0, tileWidth, tileHeight)
 
     const drawH = (y: number) => {
-      ctx.strokeStyle = 'rgba(0, 180, 255, 0.05)'
+      ctx.strokeStyle = 'rgba(0, 188, 255, 0.0625)'
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(0, y)
       ctx.lineTo(tileWidth, y)
       ctx.stroke()
 
-      ctx.strokeStyle = 'rgba(0, 243, 255, 0.2)'
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.25)'
       ctx.lineWidth = 0.8
       ctx.beginPath()
       ctx.moveTo(0, y)
@@ -117,14 +117,14 @@ export class GridBackgroundSystem {
     }
 
     const drawV = (x: number) => {
-      ctx.strokeStyle = 'rgba(0, 180, 255, 0.05)'
+      ctx.strokeStyle = 'rgba(0, 188, 255, 0.0625)'
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(x, 0)
       ctx.lineTo(x, tileHeight)
       ctx.stroke()
 
-      ctx.strokeStyle = 'rgba(0, 243, 255, 0.2)'
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.25)'
       ctx.lineWidth = 0.8
       ctx.beginPath()
       ctx.moveTo(x, 0)
@@ -151,7 +151,7 @@ export class GridBackgroundSystem {
       for (let j = 0; j < rows; j++) {
         const y = j * cellHeight
 
-        ctx.fillStyle = 'rgba(0, 243, 255, 0.3)'
+        ctx.fillStyle = 'rgba(0, 243, 255, 0.375)'
         ctx.fillRect(x - 0.5, y - 0.5, 1, 1)
       }
     }
@@ -209,7 +209,7 @@ export class GridBackgroundSystem {
 
     this.gridScrollX += (GRID_CONFIG.scrollSpeed * delta) / 1000
     this.gridLayer.tilePositionX = this.gridScrollX
-    this.gridLayer.setAlpha(0.84 + pulseIntensity * 0.14)
+    this.gridLayer.setAlpha(0.98 + pulseIntensity * 0.14)
   }
 
   private createVignetteBackground(): void {
@@ -227,7 +227,7 @@ export class GridBackgroundSystem {
     const maxRadius = Math.max(width, height) / 1.5
     const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius)
 
-    gradient.addColorStop(0, 'rgba(5, 16, 20, 0.4)')
+    gradient.addColorStop(0, 'rgba(8, 25, 32, 0.5)')
     gradient.addColorStop(0.6, 'rgba(3, 8, 10, 0.7)')
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0.95)')
 
