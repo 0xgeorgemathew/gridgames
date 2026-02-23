@@ -5,7 +5,6 @@ import { m, AnimatePresence } from 'framer-motion'
 import { GridScanBackground } from '@/components/GridScanBackground'
 import { games } from '@/games'
 import { useBaseMiniAppAuth } from '@/hooks/useBaseMiniAppAuth'
-import { useBaseName } from '@/hooks/useBaseName'
 import { PlayerName } from '@/components/ens/PlayerName'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -25,14 +24,9 @@ export function GameSelectionScreen() {
     isAuthenticated: miniAppAuthenticated,
     isAuthenticating: miniAppAuthenticating,
   } = useBaseMiniAppAuth()
-  
-  const { name: baseName, isLoading: isBaseNameLoading } = useBaseName(
-    isInMiniApp ? miniAppWallet : undefined
-  )
 
   const getDisplayName = useCallback(() => {
     if (isInMiniApp) {
-      if (baseName) return baseName
       if (miniAppUser?.username) return miniAppUser.username
       if (miniAppUser?.fid) return `fid:${miniAppUser.fid}`
       if (miniAppWallet) return 'Grid Runner'
@@ -43,13 +37,11 @@ export function GameSelectionScreen() {
     if (googleName) return googleName
     if (user?.wallet?.address) return 'Grid Runner'
     return null
-  }, [isInMiniApp, baseName, miniAppUser, miniAppWallet, user])
+  }, [isInMiniApp, miniAppUser, miniAppWallet, user])
 
   const displayName = getDisplayName()
 
   const [isEntering, setIsEntering] = useState(false)
-
-  const isInitializing = isInMiniApp && isBaseNameLoading
 
   const authState = useMemo(() => {
     if (isInMiniApp) {
@@ -62,13 +54,13 @@ export function GameSelectionScreen() {
     return 'login'
   }, [isInMiniApp, authenticated, user?.wallet])
 
-  if (isInitializing) {
+  if (miniAppAuthenticating) {
     return (
       <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
         <GridScanBackground
-          scanDirection={0} // 0 = away from user.
-          scanRange={[2.0, 2.0]} // Lock it exactly at max depth
-          scanOpacity={0.0} // Hide entirely
+          scanDirection={0}
+          scanRange={[2.0, 2.0]}
+          scanOpacity={0.0}
           scanDuration={4.0}
           scanGlow={0.0}
         />
@@ -77,7 +69,7 @@ export function GameSelectionScreen() {
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
-          {miniAppAuthenticating ? 'AUTHENTICATING...' : 'INITIALIZING...'}
+          AUTHENTICATING...
         </m.p>
       </div>
     )
@@ -216,7 +208,9 @@ export function GameSelectionScreen() {
                   >
                     {game.name}
                     {game.status === 'coming-soon' && (
-                      <span className="ml-2 text-[10px] tracking-widest text-tron-cyan/60 border border-tron-cyan/30 px-1 py-0.5 rounded-sm bg-tron-cyan/10">COMING SOON</span>
+                      <span className="ml-2 text-[10px] tracking-widest text-tron-cyan/60 border border-tron-cyan/30 px-1 py-0.5 rounded-sm bg-tron-cyan/10">
+                        COMING SOON
+                      </span>
                     )}
                   </h2>
                   <p className="text-xs sm:text-sm text-tron-white-dim mt-1">{game.description}</p>
