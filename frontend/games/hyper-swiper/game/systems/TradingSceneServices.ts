@@ -35,15 +35,13 @@ export class TradingSceneServices {
       this.scene.cameras.main.height
     )
 
-    // Initialize all systems
+    // Initialize all systems (inputAudio already created in preload)
     this.gridBackground = new GridBackgroundSystem(this.scene)
     this.priceGraph = new PriceGraphSystem(this.scene, this.gridBackground.getScrollSpeed())
     this.coinLifecycle = new CoinLifecycleSystem(this.scene)
-    this.inputAudio = new InputAudioSystem(this.scene)
     this.collision = new CollisionSystem(this.scene)
 
     // Create systems in order
-    this.inputAudio.preload()
     this.gridBackground.create()
     this.priceGraph.create()
     this.coinLifecycle.create(this.isMobile)
