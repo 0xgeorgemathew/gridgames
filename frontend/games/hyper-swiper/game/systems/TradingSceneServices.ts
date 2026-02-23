@@ -28,7 +28,12 @@ export class TradingSceneServices {
 
   create(eventEmitter: Phaser.Events.EventEmitter): void {
     this.isMobile = this.scene.sys.game.device.os.android || this.scene.sys.game.device.os.iOS
-    this.scene.physics.world.setBounds(0, 0, this.scene.cameras.main.width, this.scene.cameras.main.height)
+    this.scene.physics.world.setBounds(
+      0,
+      0,
+      this.scene.cameras.main.width,
+      this.scene.cameras.main.height
+    )
 
     // Initialize all systems
     this.gridBackground = new GridBackgroundSystem(this.scene)

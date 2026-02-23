@@ -56,11 +56,7 @@ export class CollisionSystem {
     this.visualEffects?.destroy()
   }
 
-  handleOpponentSlice(data: {
-    playerName: string
-    coinType: CoinType
-    coinId: string
-  }): void {
+  handleOpponentSlice(data: { playerName: string; coinType: CoinType; coinId: string }): void {
     if (!this.scene.add || !this.scene.cameras || !this.coinLifecycle) return
 
     const tokenPool = this.coinLifecycle.getTokenPool()

@@ -53,7 +53,10 @@ export class GridBackgroundSystem {
   }
 
   private drawGridBackground(): void {
-    this.backgroundImage.setDisplaySize(this.scene.cameras.main.width, this.scene.cameras.main.height)
+    this.backgroundImage.setDisplaySize(
+      this.scene.cameras.main.width,
+      this.scene.cameras.main.height
+    )
     this.ensureGridLayer()
   }
 

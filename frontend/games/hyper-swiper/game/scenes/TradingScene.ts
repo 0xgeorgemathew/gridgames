@@ -2,7 +2,6 @@ import { Scene } from 'phaser'
 import { useTradingStore, type PhaserEventBridge } from '../stores/trading-store'
 import { TradingSceneServices } from '../systems/TradingSceneServices'
 
-
 export class TradingScene extends Scene {
   private services: TradingSceneServices
   private eventEmitter: Phaser.Events.EventEmitter
@@ -19,7 +18,8 @@ export class TradingScene extends Scene {
 
   create(): void {
     this.services.create(this.eventEmitter)
-    ;(window as { phaserEvents?: PhaserEventBridge }).phaserEvents = this.eventEmitter as PhaserEventBridge
+    ;(window as { phaserEvents?: PhaserEventBridge }).phaserEvents = this
+      .eventEmitter as PhaserEventBridge
     ;(window as { setSceneReady?: (ready: boolean) => void }).setSceneReady = (ready: boolean) => {
       useTradingStore.getState().isSceneReady = ready
     }

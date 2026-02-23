@@ -3,19 +3,19 @@ import type { GameObjects } from 'phaser'
 // Elegant, physics-based smoothing configuration
 const CONFIG = {
   // Constant X-axis speed (fraction of background scroll speed). NO time dilation.
-  scrollSpeedFactor: 0.6, 
+  scrollSpeedFactor: 0.6,
 
   // Price smoothing: how fast the displayed path catches up to raw market data
   priceHalfLifeMs: 300,
 
   // Camera Zoom (Amplitude) smoothing: dampens high vol, amplifies low vol
-  zoomHalfLifeMs: 2500, 
+  zoomHalfLifeMs: 2500,
 
   // Camera Center tracking: smoothly pans up/down to keep price centered
   centerHalfLifeMs: 3500,
 
   // Time window to evaluate recent high/lows - widened for better UX stability
-  windowMs: 30000, 
+  windowMs: 30000,
 
   // What percentage of available vertical screen space should the recent range fill
   targetViewRatio: 0.65,
@@ -25,7 +25,7 @@ const CONFIG = {
 
   // Absolute limits on zoom
   maxZoom: 9000, // Max amplification for extremely calm markets
-  minZoom: 40,   // Max dampening for extremely volatile markets
+  minZoom: 40, // Max dampening for extremely volatile markets
 
   // Ribbon Visuals
   ribbonHeight: 45, // How tall the solid light wall is (Tron Trail)
@@ -49,10 +49,10 @@ export class SnakePriceGraph {
   private history: { time: number; price: number; pct: number }[] = []
   private currentDisplayedPrice: number | null = null
   private startPrice: number | null = null
-  
+
   private currentZoom: number | null = null
   private currentCenterPct: number | null = null
-  
+
   private graphics: GameObjects.Graphics
 
   constructor(graphics: GameObjects.Graphics) {
@@ -121,9 +121,9 @@ export class SnakePriceGraph {
     }
 
     const headX = width / 2
-    
+
     // Cull old points
-    const maxAgeMs = (headX / effectiveSpd) + 2000
+    const maxAgeMs = headX / effectiveSpd + 2000
     this.history = this.history.filter((p) => now - p.time <= maxAgeMs)
 
     if (this.history.length < 2) return
@@ -141,7 +141,7 @@ export class SnakePriceGraph {
     }
 
     let range = windowMax - windowMin
-    if (range < 0.001) range = 0.001 
+    if (range < 0.001) range = 0.001
 
     const hudHeight = 128
     const graphHeight = height - hudHeight
@@ -196,7 +196,7 @@ export class SnakePriceGraph {
     const coreColor = isAboveStart ? 0x00f3ff : 0xff6600
 
     // --- TRON LIGHT CYCLE RIBBON (WALL OF LIGHT) --- //
-    
+
     // Layer 1: Ambient Ribbon Wall (Fills downward to create a 3D strip)
     this.graphics.fillStyle(coreColor, 0.15)
     this.graphics.beginPath()
@@ -256,7 +256,7 @@ export class SnakePriceGraph {
     // Pulse Ring 1
     const phase1 = (now % duration) / duration
     // Radius expands outward strictly from the innermost core (12px) to 60px
-    const radius1 = 12 + (phase1 * 50.55) 
+    const radius1 = 12 + phase1 * 50.55
     // Opacity peaks at 25% and softly fades out as it expands
     const alpha1 = 0.25 * Math.max(0, 1 - phase1)
     this.graphics.lineStyle(2, coreColor, alpha1)
@@ -264,7 +264,7 @@ export class SnakePriceGraph {
 
     // Pulse Ring 2 (Offset by half the duration for continuous emission)
     const phase2 = ((now + duration / 2) % duration) / duration
-    const radius2 = 12 + (phase2 * 50.55)
+    const radius2 = 12 + phase2 * 50.55
     const alpha2 = 0.25 * Math.max(0, 1 - phase2)
     this.graphics.lineStyle(2, coreColor, alpha2)
     this.graphics.strokeCircle(headX, currentY, radius2)
@@ -287,13 +287,13 @@ export class SnakePriceGraph {
     // Local rotation helper
     const rotate = (dx: number, dy: number) => ({
       rx: headX + dx * cosA - dy * sinA,
-      ry: currentY + dx * sinA + dy * cosA
+      ry: currentY + dx * sinA + dy * cosA,
     })
 
-    const p1 = rotate(6, 0)         // Forward nose
-    const p2 = rotate(-6, -6)       // Top wing
-    const p3 = rotate(-2, 0)        // Inner swallowtail
-    const p4 = rotate(-6, 6)        // Bottom wing
+    const p1 = rotate(6, 0) // Forward nose
+    const p2 = rotate(-6, -6) // Top wing
+    const p3 = rotate(-2, 0) // Inner swallowtail
+    const p4 = rotate(-6, 6) // Bottom wing
 
     this.graphics.moveTo(p1.rx, p1.ry)
     this.graphics.lineTo(p2.rx, p2.ry)
@@ -301,6 +301,5 @@ export class SnakePriceGraph {
     this.graphics.lineTo(p4.rx, p4.ry)
     this.graphics.closePath()
     this.graphics.fillPath()
-
   }
 }
