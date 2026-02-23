@@ -24,6 +24,9 @@ export class InputAudioSystem {
     this.bladeRenderer = new BladeRenderer(this.scene, isMobile)
     this.audio.create()
 
+    // Notify audio manager that scene is ready
+    this.audio.setSceneReady(true)
+
     eventEmitter.on('sound_muted', (muted: boolean) => {
       this.audio.setMuted(muted)
     })
