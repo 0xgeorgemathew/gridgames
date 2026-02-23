@@ -8,10 +8,53 @@ import type { WaitingPlayer } from './types'
  * Centralized room and player management with cleanup.
  * Handles matchmaking pool and player-to-room lookups.
  */
+/** Snapshot of a player's last game metadata — survives room deletion for rematch. */
+export interface LastGameMeta {
+  name: string
+  walletAddress?: string
+  sceneWidth: number
+  sceneHeight: number
+  leverage: number
+  gameDuration: number
+  opponentSocketId: string
+}
+
 export class RoomManager {
   private rooms = new Map<string, GameRoom>()
   private waitingPlayers = new Map<string, WaitingPlayer>()
   private playerToRoom = new Map<string, string>()
+  private lastGameMeta = new Map<string, LastGameMeta>()
+
+  /** Persist player metadata from the room that just ended. */
+  storeLastGameMeta(room: GameRoom): void {
+    const ids = room.getPlayerIds()
+    if (ids.length !== 2) return
+
+    for (let i = 0; i < 2; i++) {
+      const pid = ids[i]
+      const opponent = ids[1 - i]
+      const player = room.players.get(pid)
+      if (!player) continue
+
+      this.lastGameMeta.set(pid, {
+        name: player.name,
+        walletAddress: room.getWalletAddressPublic(pid),
+        sceneWidth: player.sceneWidth,
+        sceneHeight: player.sceneHeight,
+        leverage: player.leverage,
+        gameDuration: room.GAME_DURATION,
+        opponentSocketId: opponent,
+      })
+    }
+  }
+
+  getLastGameMeta(socketId: string): LastGameMeta | undefined {
+    return this.lastGameMeta.get(socketId)
+  }
+
+  clearLastGameMeta(socketId: string): void {
+    this.lastGameMeta.delete(socketId)
+  }
 
   // Room operations
   createRoom(roomId: string, gameDuration: number = 60000): GameRoom {

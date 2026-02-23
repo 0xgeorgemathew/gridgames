@@ -71,7 +71,7 @@ export class GameRoom {
   }
 
   // Helper to get wallet address for player
-  private getWalletAddress(playerId: string): string | undefined {
+  getWalletAddressPublic(playerId: string): string | undefined {
     if (
       this.player1Address &&
       this.addressToSocketId.get(this.player1Address.toLowerCase()) === playerId
