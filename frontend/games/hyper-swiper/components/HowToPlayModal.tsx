@@ -72,7 +72,7 @@ export function HowToPlayModal({ isOpen, onClose }: HowToPlayModalProps) {
                 <div>
                   <h3 className="font-bold text-tron-cyan mb-1">💰 Scoring</h3>
                   <p>
-                    Start with $10. Best of 3 rounds. Win: +$1 (opponent -$1). Lose: -$1. Game over
+                    Start with $100. Best of 3 rounds. Win: +$10 (opponent -$10). Lose: -$10. Game over
                     at $0 or first to 2 round wins.
                   </p>
                 </div>

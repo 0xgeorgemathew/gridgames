@@ -27,8 +27,8 @@ forge test -vvv      # Verbose output with traces
 | Aspect | Value |
 |--------|-------|
 | Game duration | 2.5 minutes (150,000ms) |
-| Starting cash | $10 per player |
-| Position collateral | $1 per position |
+| Starting cash | $100 per player |
+| Position collateral | $10 per position |
 | Leverage | Fixed at 500X |
 | Position style | Perp-style (open until game end) |
 | Liquidation threshold | 80% collateral health ratio |
