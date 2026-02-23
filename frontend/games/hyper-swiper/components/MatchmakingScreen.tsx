@@ -244,7 +244,6 @@ export function MatchmakingScreen() {
     user: miniAppUser,
     walletAddress: miniAppWallet,
     isConnected: miniAppConnected,
-    isAuthenticated: miniAppAuthenticated,
     isAuthenticating: miniAppAuthenticating,
   } = useBaseMiniAppAuth()
   const {
@@ -267,7 +266,9 @@ export function MatchmakingScreen() {
     isInMiniApp ? miniAppWallet : undefined
   )
 
-  const getDisplayName = useCallback(() => {
+  const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
+
+  const displayName = useMemo(() => {
     if (isInMiniApp) {
       if (baseName) return baseName
       if (miniAppUser?.username) return miniAppUser.username
@@ -282,11 +283,9 @@ export function MatchmakingScreen() {
     return null
   }, [isInMiniApp, baseName, miniAppUser, miniAppWallet, user])
 
-  const displayName = getDisplayName()
-
   const authState = useMemo((): AuthMatchState => {
     if (isInMiniApp) {
-      if (miniAppConnected && miniAppUser && !isBaseNameLoading && miniAppAuthenticated) {
+      if (miniAppConnected && miniAppUser && !isBaseNameLoading) {
         return 'ready'
       }
       return 'login'
@@ -296,22 +295,19 @@ export function MatchmakingScreen() {
       return 'ready'
     }
     return 'login'
-  }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, miniAppAuthenticated, authenticated, user?.wallet])
+  }, [isInMiniApp, miniAppConnected, miniAppUser, isBaseNameLoading, authenticated, user?.wallet])
 
   const matchState = userState || authState
 
-  // Redirect to Game Selection Screen if not authenticated to handle login
   useEffect(() => {
-    if (isInMiniApp) {
-      if (!miniAppAuthenticating && !isBaseNameLoading && !miniAppAuthenticated) {
-        router.push('/')
-      }
-    } else {
-      if (ready && !authenticated) {
-        router.push('/')
-      }
+    const shouldRedirectMiniApp =
+      isInMiniApp && !miniAppAuthenticating && !isBaseNameLoading && !miniAppConnected && !miniAppUser
+    const shouldRedirectWeb = !isInMiniApp && ready && !authenticated
+
+    if (shouldRedirectMiniApp || shouldRedirectWeb) {
+      router.push('/')
     }
-  }, [isInMiniApp, miniAppAuthenticating, isBaseNameLoading, miniAppAuthenticated, ready, authenticated, router])
+  }, [isInMiniApp, miniAppAuthenticating, isBaseNameLoading, miniAppConnected, miniAppUser, ready, authenticated, router])
 
   const [showOnboarding, setShowOnboarding] = useState(false)
 
@@ -329,28 +325,15 @@ export function MatchmakingScreen() {
   }, [])
 
   useEffect(() => {
-    if (matchState === 'lobby') {
-      const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
-      if (displayName && walletAddress) {
-        joinWaitingPool(displayName, walletAddress)
-      }
-      getLobbyPlayers()
+    if (matchState !== 'lobby') return
+    if (displayName && walletAddress) {
+      joinWaitingPool(displayName, walletAddress)
     }
-  }, [
-    matchState,
-    joinWaitingPool,
-    getLobbyPlayers,
-    displayName,
-    user?.wallet,
-    isInMiniApp,
-    miniAppWallet,
-  ])
+    getLobbyPlayers()
+  }, [matchState, joinWaitingPool, getLobbyPlayers, displayName, walletAddress])
 
   const handleEnter = useCallback(() => {
-    if (!isConnected || isMatching) return
-
-    const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
-    if (!walletAddress) return
+    if (!isConnected || isMatching || !walletAddress) return
 
     setUserState('entering')
 
@@ -363,21 +346,17 @@ export function MatchmakingScreen() {
       )
     }
 
-    const playerName = displayName || 'Grid Runner'
-    findMatch(playerName, walletAddress)
-  }, [displayName, findMatch, isConnected, isInMiniApp, isMatching, miniAppWallet, user?.wallet])
+    findMatch(displayName || 'Grid Runner', walletAddress)
+  }, [displayName, findMatch, isConnected, isMatching, walletAddress])
 
   const handleSelectOpponent = useCallback(
     (opponentSocketId: string) => {
-      if (!isConnected || isMatching) return
-
-      const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
-      if (!walletAddress) return
+      if (!isConnected || isMatching || !walletAddress) return
 
       setUserState('entering')
       selectOpponent(opponentSocketId)
     },
-    [isConnected, isMatching, isInMiniApp, miniAppWallet, user?.wallet, selectOpponent]
+    [isConnected, isMatching, walletAddress, selectOpponent]
   )
 
   if (!ready || miniAppAuthenticating) {
