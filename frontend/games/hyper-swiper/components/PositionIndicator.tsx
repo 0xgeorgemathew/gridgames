@@ -37,11 +37,28 @@ function PositionCard({
   // Border and glow styles based on PnL
   const isInProfit = pnlPercent > 0
   const isNearZero = Math.abs(pnlPercent) < 0.5
-  const borderStyle = isNearZero
-    ? 'border border-tron-cyan/30'
-    : isInProfit
-      ? 'border-2 border-green-500/60 shadow-[0_0_18px_rgba(74,222,128,0.35)]'
-      : 'border-2 border-red-500/60 shadow-[0_0_18px_rgba(248,113,113,0.35)]'
+
+  function getBorderStyle(): string {
+    if (isNearZero) {
+      return 'border border-tron-cyan/30'
+    }
+    if (isInProfit) {
+      return 'border-2 border-green-500/60 shadow-[0_0_18px_rgba(74,222,128,0.35)]'
+    }
+    return 'border-2 border-red-500/60 shadow-[0_0_18px_rgba(248,113,113,0.35)]'
+  }
+
+  function getPnlTextColor(nearZero: boolean, inProfit: boolean): string {
+    if (nearZero) {
+      return 'text-tron-cyan'
+    }
+    if (inProfit) {
+      return 'text-green-400 drop-shadow-[0_0_6px_rgba(74,222,128,0.7)]'
+    }
+    return 'text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.7)]'
+  }
+
+  const borderStyle = getBorderStyle()
 
   // Faster, snappy spring config
   const smoothSpring = {
@@ -184,11 +201,7 @@ function PositionCard({
               className={cn(
                 'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5',
                 'min-w-[48px]',
-                isNearZero
-                  ? 'text-tron-cyan'
-                  : isInProfit
-                    ? 'text-green-400 drop-shadow-[0_0_6px_rgba(74,222,128,0.7)]'
-                    : 'text-red-400 drop-shadow-[0_0_6px_rgba(248,113,113,0.7)]'
+                getPnlTextColor(isNearZero, isInProfit)
               )}
             >
               {isInProfit ? '+' : ''}

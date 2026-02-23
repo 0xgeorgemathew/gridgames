@@ -38,6 +38,18 @@ export const GameOverModal = React.memo(function GameOverModal() {
   const localFinalBalance = localPlayerResult?.finalBalance ?? localPlayer?.dollars ?? 0
   const opponentFinalBalance = opponentResult?.finalBalance ?? opponent?.dollars ?? 0
 
+  function getResultStyle(): { text: string; colorClass: string } {
+    if (isTie) {
+      return { text: 'TIE', colorClass: 'text-white' }
+    }
+    if (isWinner) {
+      return { text: 'VICTORY', colorClass: 'text-tron-cyan' }
+    }
+    return { text: 'DEFEAT', colorClass: 'text-tron-orange' }
+  }
+
+  const resultStyle = getResultStyle()
+
   return (
     <m.div
       initial={{ opacity: 0 }}
@@ -60,10 +72,10 @@ export const GameOverModal = React.memo(function GameOverModal() {
           <h2
             className={cn(
               'font-[family-name:var(--font-orbitron)] text-3xl font-black tracking-[0.15em]',
-              isTie ? 'text-white' : isWinner ? 'text-tron-cyan' : 'text-tron-orange'
+              resultStyle.colorClass
             )}
           >
-            {isTie ? 'TIE' : isWinner ? 'VICTORY' : 'DEFEAT'}
+            {resultStyle.text}
           </h2>
           {!isTie && gameOverData.winnerName && (
             <div className="text-white/50 mt-1 text-[10px] tracking-[0.2em] flex items-center justify-center gap-1.5">

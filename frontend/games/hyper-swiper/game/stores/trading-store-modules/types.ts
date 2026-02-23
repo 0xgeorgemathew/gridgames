@@ -126,7 +126,6 @@ export interface TradingState
   handlePositionLiquidated: (liquidation: LiquidationEvent) => void
   handleGameStart: (data: GameStartEvent) => void
   handleGameOver: (data: GameOverEvent) => void
-  handlePlayerHit: (data: { playerId: string; damage: number; reason: string }) => void
   connectPriceFeed: (symbol: CryptoSymbol) => void
   disconnectPriceFeed: () => void
   manualReconnect: () => void

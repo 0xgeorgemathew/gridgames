@@ -62,14 +62,17 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   openPositions: new Map<string, Position>(), // Open positions (no settlement timer)
   gameSettlement: null, // Settlement data at game end
   toasts: [],
-  leverage: 500, // Fixed leverage at 500X
+  leverage: FIXED_LEVERAGE, // Fixed leverage at 500X
 
   // Matchmaking settings (pre-game)
   selectedGameDuration: 60000, // Default 1 minute
-  selectedLeverage: 500, // Fixed at 500X
+  selectedLeverage: FIXED_LEVERAGE, // Fixed at 500X
 
   // Audio state
-  isSoundMuted: typeof window !== 'undefined' ? localStorage.getItem('hyperSwiper_soundMuted') === 'true' : false,
+  isSoundMuted:
+    typeof window !== 'undefined'
+      ? localStorage.getItem('hyperSwiper_soundMuted') === 'true'
+      : false,
 
   // Price feed state
   priceSocket: null,
@@ -159,13 +162,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
     // Perp-style position events
     nextSocket.on('position_opened', (position: PositionOpenedEvent) => {
-      // console.log('[Socket] position_opened event received:', position)
       get().handlePositionOpened(position)
     })
     nextSocket.on(
       'position_closed',
       (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => {
-        // console.log('[Socket] position_closed event received:', data)
         get().handlePositionClosed(data)
       }
     )
@@ -174,7 +175,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     )
     // Liquidation events - position force-closed due to low collateral health
     nextSocket.on('position_liquidated', (data: LiquidationEvent) => {
-      // console.log('[Socket] position_liquidated event received:', data)
       get().handlePositionLiquidated(data)
     })
     nextSocket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
@@ -328,9 +328,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Perp-style position opened - no settlement timer
   handlePositionOpened: (positionEvent) => {
-    // console.log('[Store] position_opened received:', positionEvent)
-    // console.log('[Store] localPlayerId:', get().localPlayerId)
-
     const { openPositions } = get()
     const newPosition: Position = {
       id: positionEvent.positionId,
@@ -347,14 +344,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       status: 'open',
     }
 
-    // console.log('[Store] New position:', newPosition)
-    // console.log('[Store] playerId match:', newPosition.playerId === get().localPlayerId)
-
     const newPositions = new Map(openPositions)
     newPositions.set(positionEvent.positionId, newPosition)
     set({ openPositions: newPositions })
-
-    // console.log('[Store] openPositions size after update:', newPositions.size)
   },
 
   handlePositionClosed: (data: {
@@ -363,7 +355,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     realizedPnl: number
     playerId: string
   }) => {
-    // console.log('[Store] position_closed received:', data)
     const { openPositions, localPlayerId } = get()
 
     const newPositions = new Map(openPositions)
@@ -412,7 +403,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Position liquidated - force-closed due to low collateral health (<= 80%)
   handlePositionLiquidated: (liquidationEvent) => {
-    // console.log('[Store] position_liquidated received:', liquidationEvent)
     const { openPositions, localPlayerId } = get()
 
     // Remove the liquidated position from open positions
@@ -472,9 +462,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     set({ isGameOver: true, gameOverData: data })
   },
-
-  // No-op: Perp-style positions don't use player hits
-  handlePlayerHit: () => {},
 
   connectPriceFeed: (symbol: CryptoSymbol) => {
     set({ selectedCrypto: symbol })

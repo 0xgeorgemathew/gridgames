@@ -1,23 +1,54 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useEffect } from 'react'
+
 import { sdk } from '@farcaster/miniapp-sdk'
+
 import { useTradingStore } from '@/games/hyper-swiper/game/stores/trading-store'
-import { MatchmakingScreen } from '@/games/hyper-swiper/components/MatchmakingScreen'
-import { GameHUD } from '@/games/hyper-swiper/components/GameHUD'
-import { PositionIndicator } from '@/games/hyper-swiper/components/PositionIndicator'
+import GameCanvas from '@/components/GameCanvas'
 import { GameCanvasBackground } from '@/components/GameCanvasBackground'
 import { ToastNotifications } from '@/components/ToastNotifications'
+import { GameHUD } from '@/games/hyper-swiper/components/GameHUD'
+import { MatchmakingScreen } from '@/games/hyper-swiper/components/MatchmakingScreen'
+import { PositionIndicator } from '@/games/hyper-swiper/components/PositionIndicator'
 import { GameOverModal } from '@/games/hyper-swiper/components/GameOverModal'
 import { RoundEndFlash } from '@/games/hyper-swiper/components/RoundEndFlash'
-import GameCanvas from '@/components/GameCanvas'
 
-export function HyperSwiperClient() {
-  const { isPlaying, connect, disconnect, toasts, removeToast } = useTradingStore()
+function GameUI(): ReactNode {
+  const { toasts, removeToast } = useTradingStore()
+
+  return (
+    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
+      <ToastNotifications toasts={toasts} onRemove={removeToast} />
+      <GameOverModal />
+      <RoundEndFlash />
+      <GameCanvasBackground />
+      <GameHUD />
+      <GameCanvas scene="TradingScene" />
+      <PositionIndicator />
+    </div>
+  )
+}
+
+function MatchmakingUI(): ReactNode {
+  const { toasts, removeToast } = useTradingStore()
+
+  return (
+    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
+      <ToastNotifications toasts={toasts} onRemove={removeToast} />
+      <GameOverModal />
+      <RoundEndFlash />
+      <MatchmakingScreen />
+    </div>
+  )
+}
+
+export function HyperSwiperClient(): ReactNode {
+  const { isPlaying, connect, disconnect } = useTradingStore()
 
   useEffect(() => {
     sdk.actions.ready().catch(console.error)
-
     connect()
 
     return () => {
@@ -25,27 +56,9 @@ export function HyperSwiperClient() {
     }
   }, [connect, disconnect])
 
-  return (
-    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
-      <ToastNotifications toasts={toasts} onRemove={removeToast} />
+  if (!isPlaying) {
+    return <MatchmakingUI />
+  }
 
-      <GameOverModal />
-
-      <RoundEndFlash />
-
-      {!isPlaying ? (
-        <MatchmakingScreen />
-      ) : (
-        <>
-          <GameCanvasBackground />
-
-          <GameHUD />
-
-          <GameCanvas scene="TradingScene" />
-
-          <PositionIndicator />
-        </>
-      )}
-    </div>
-  )
+  return <GameUI />
 }
