@@ -9,13 +9,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { MotionProvider } from '@/components/MotionProvider'
 
+// RPC URLs from environment or fallback to public endpoints
+const baseRpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org'
+const baseSepoliaRpcUrl = process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
+
 // Wagmi config for Base and Base Sepolia with Farcaster Mini App connector
 const wagmiConfig = createConfig({
   chains: [base, baseSepolia],
   connectors: [farcasterMiniApp()],
   transports: {
-    [base.id]: http(),
-    [baseSepolia.id]: http(),
+    [base.id]: http(baseRpcUrl),
+    [baseSepolia.id]: http(baseSepoliaRpcUrl),
   },
 })
 
