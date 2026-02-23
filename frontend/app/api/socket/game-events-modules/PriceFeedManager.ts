@@ -11,6 +11,7 @@ class PriceFeedManager {
   private ws: WebSocket | null = null
   private latestPrice: number = DEFAULT_BTC_PRICE
   private firstPrice: number = DEFAULT_BTC_PRICE
+  private firstPriceTimestamp: number = 0
   private subscribers: Set<(price: number) => void> = new Set()
   private reconnectTimeout: NodeJS.Timeout | null = null
   private symbol: string = 'btcusdt'
@@ -44,10 +45,12 @@ class PriceFeedManager {
       if (this.isShutdown) return
       const raw = JSON.parse(event.data.toString())
       const price = parseFloat(raw.p)
+      const now = Date.now()
 
-      // Initialize firstPrice on first message
-      if (this.firstPrice === DEFAULT_BTC_PRICE) {
+      // Initialize firstPrice on first message or recalculate every 1 min (60000 ms)
+      if (this.firstPrice === DEFAULT_BTC_PRICE || now - this.firstPriceTimestamp >= 60000) {
         this.firstPrice = price
+        this.firstPriceTimestamp = now
       }
 
       // Update latest price
@@ -55,7 +58,6 @@ class PriceFeedManager {
       this.subscribers.forEach((cb) => cb(price))
 
       // Throttled broadcast to clients (100ms)
-      const now = Date.now()
       if (this.broadcastCallback && now - this.lastBroadcastTime >= this.BROADCAST_THROTTLE_MS) {
         this.lastBroadcastTime = now
         const change = price - this.firstPrice
@@ -130,6 +132,7 @@ class PriceFeedManager {
     // Reset prices to defaults for fresh game session
     this.latestPrice = DEFAULT_BTC_PRICE
     this.firstPrice = DEFAULT_BTC_PRICE
+    this.firstPriceTimestamp = 0
     this.lastBroadcastTime = 0
   }
 

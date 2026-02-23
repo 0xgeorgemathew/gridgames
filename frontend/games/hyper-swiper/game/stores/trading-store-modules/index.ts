@@ -114,16 +114,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on(
       'btc_price',
       (data: { price: number; change: number; changePercent: number; timestamp: number }) => {
-        const { firstPrice: currentFirstPrice } = get()
-
-        if (!currentFirstPrice && data.price > 0) {
-          set({ firstPrice: data.price, isPriceConnected: true, priceError: null })
-          return
-        }
-
-        if (!currentFirstPrice) return
+        // Server recalculates its baseline frequently; keep the client in sync
+        const expectedFirstPrice = data.price - data.change
 
         set({
+          firstPrice: expectedFirstPrice,
           priceData: {
             symbol: 'BTC',
             price: data.price,
