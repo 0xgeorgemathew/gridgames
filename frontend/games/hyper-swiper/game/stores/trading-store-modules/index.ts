@@ -69,7 +69,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   selectedLeverage: 500, // Fixed at 500X
 
   // Audio state
-  isSoundMuted: false,
+  isSoundMuted: typeof window !== 'undefined' ? localStorage.getItem('hyperSwiper_soundMuted') === 'true' : false,
 
   // Price feed state
   priceSocket: null,
@@ -591,6 +591,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const { isSoundMuted } = get()
     const newMutedState = !isSoundMuted
     set({ isSoundMuted: newMutedState })
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hyperSwiper_soundMuted', String(newMutedState))
+    }
     window.phaserEvents?.emit('sound_muted', newMutedState)
   },
 }))

@@ -4,6 +4,8 @@ type AudioSpriteSound = Phaser.Sound.BaseSound & {
   play(markerName: string, config?: Phaser.Types.Sound.SoundConfig): boolean
 }
 
+const AUDIO_UNLOCKED_KEY = 'hyperSwiper_audioUnlocked'
+
 export class AudioManager {
   private scene: Scene
   private gameSfx: AudioSpriteSound | null = null
@@ -13,9 +15,11 @@ export class AudioManager {
   private swipeDuckTween: Phaser.Tweens.Tween | null = null
   private isUnlocked: boolean = false
   private isSwipePlaying: boolean = false
+  private documentUnlockHandler: (() => void) | null = null
 
   constructor(scene: Scene) {
     this.scene = scene
+    this.setupDocumentUnlockListener()
   }
 
   preload(): void {
@@ -45,10 +49,56 @@ export class AudioManager {
    */
   setUnlocked(unlocked: boolean): void {
     this.isUnlocked = unlocked
+    if (unlocked && typeof window !== 'undefined') {
+      localStorage.setItem(AUDIO_UNLOCKED_KEY, 'true')
+    }
+  }
+
+  private setupDocumentUnlockListener(): void {
+    if (typeof document === 'undefined') return
+
+    const wasUnlocked = localStorage.getItem(AUDIO_UNLOCKED_KEY) === 'true'
+    if (wasUnlocked) {
+      this.isUnlocked = true
+    }
+
+    this.documentUnlockHandler = () => {
+      if (this.isUnlocked) return
+      this.attemptUnlock()
+    }
+
+    document.addEventListener('touchstart', this.documentUnlockHandler, { once: true })
+    document.addEventListener('click', this.documentUnlockHandler, { once: true })
+  }
+
+  private attemptUnlock(): void {
+    if (this.isUnlocked) return
+
+    const audioContext = (this.scene.sound as any).context as AudioContext | undefined
+    if (audioContext?.state === 'suspended') {
+      audioContext.resume().then(() => {
+        this.setUnlocked(true)
+        console.log('[AudioManager] AudioContext resumed via user gesture')
+      }).catch((err) => {
+        console.warn('[AudioManager] Failed to resume AudioContext:', err)
+      })
+    }
+
+    this.scene.sound.unlock()
+  }
+
+  private checkAudioContextState(): boolean {
+    const audioContext = (this.scene.sound as any).context as AudioContext | undefined
+    if (audioContext?.state === 'suspended') {
+      this.attemptUnlock()
+      return false
+    }
+    return true
   }
 
   playSwipe(): void {
     if (this.isMuted || !this.isLoaded || !this.gameSfx) return
+    if (!this.checkAudioContextState()) return
 
     // Don't start new swipe if one is already playing
     if (this.isSwipePlaying) return
@@ -74,6 +124,7 @@ export class AudioManager {
 
   playSlice(): void {
     if (this.isMuted || !this.isLoaded || !this.gameSfx) return
+    if (!this.checkAudioContextState()) return
 
     try {
       this.gameSfx.play('slice', { volume: 0.5 })
@@ -84,6 +135,7 @@ export class AudioManager {
 
   playSliceAt(x: number, screenWidth: number): void {
     if (this.isMuted || !this.isLoaded || !this.gameSfx) return
+    if (!this.checkAudioContextState()) return
 
     try {
       // Duck any ongoing swipe sound
@@ -136,5 +188,11 @@ export class AudioManager {
     this.gameSfx?.destroy()
     this.gameSfx = null
     this.isLoaded = false
+
+    if (this.documentUnlockHandler) {
+      document.removeEventListener('touchstart', this.documentUnlockHandler)
+      document.removeEventListener('click', this.documentUnlockHandler)
+      this.documentUnlockHandler = null
+    }
   }
 }

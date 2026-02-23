@@ -103,7 +103,11 @@ function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.Gam
         fps: targetFrameRate,
       },
     },
-    input: inputConfig, // Add input config
+    audio: {
+      disableWebAudio: false,
+      noAudio: false,
+    },
+    input: inputConfig,
     scene: [scene],
   }
 
