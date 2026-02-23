@@ -24,7 +24,7 @@ const GRID_CONFIG = {
   maxCellHeight: 56,
   majorXEvery: 3,
   majorYEvery: 3,
-  scrollSpeed: 50,
+  scrollSpeed: 35,
   textureKey: 'trading-grid-tile',
 } as const
 
@@ -35,6 +35,12 @@ const ARCADE_GRAPH_CONFIG = {
   autoScalePadding: 1.333, // Target ~75% graph utilization
   leverage: 500, // For liquidation calculation
 } as const
+
+const VOLATILITY_WINDOW_MS = 30000
+const BASE_SMOOTHING_HALF_LIFE_MS = 180
+const MIN_SMOOTHING_HALF_LIFE_MS = 120
+const MAX_SMOOTHING_HALF_LIFE_MS = 420
+const TARGET_VOLATILITY_RANGE_PCT = 0.12
 
 export class TradingScene extends Scene {
   // Game objects
@@ -68,6 +74,7 @@ export class TradingScene extends Scene {
 
   // Snake Graph
   private priceHistory: { time: number; price: number }[] = []
+  private rawPriceHistory: { time: number; price: number }[] = []
   private snakeGraphics!: Phaser.GameObjects.Graphics
   private displayedPrice: number | null = null
   private momentumBoost = 0
@@ -245,14 +252,36 @@ export class TradingScene extends Scene {
 
     const now = Date.now()
 
+    this.rawPriceHistory.push({ time: now, price: priceData.price })
+    this.rawPriceHistory = this.rawPriceHistory.filter((p) => now - p.time <= VOLATILITY_WINDOW_MS)
+
+    const rawPcts = this.rawPriceHistory.map(
+      (p) => ((p.price - firstPrice) / firstPrice) * 100
+    )
+    const currentRawPct = ((priceData.price - firstPrice) / firstPrice) * 100
+    const rawMinPct = Math.min(...rawPcts, currentRawPct)
+    const rawMaxPct = Math.max(...rawPcts, currentRawPct)
+    const rawRangePct = Math.max(0.01, rawMaxPct - rawMinPct)
+
+    const volatilityScale = Phaser.Math.Clamp(
+      rawRangePct / TARGET_VOLATILITY_RANGE_PCT,
+      0.6,
+      2.5
+    )
+    const smoothingHalfLifeMs = Phaser.Math.Clamp(
+      BASE_SMOOTHING_HALF_LIFE_MS * volatilityScale,
+      MIN_SMOOTHING_HALF_LIFE_MS,
+      MAX_SMOOTHING_HALF_LIFE_MS
+    )
+
     // Initialize displayedPrice if null
     if (this.displayedPrice === null) {
       this.displayedPrice = priceData.price
     }
 
     // Smoothly interpolate displayedPrice towards the actual price
-    // Half-life of ~100ms for snappy but smooth movement (allows larger visible motion per bucket)
-    const t = 1 - Math.pow(0.5, delta / 100)
+    // Volatility-adjusted half-life for consistent on-screen speed
+    const t = 1 - Math.pow(0.5, delta / smoothingHalfLifeMs)
     this.displayedPrice = Phaser.Math.Linear(this.displayedPrice, priceData.price, t)
 
     const width = this.cameras.main.width
@@ -281,7 +310,6 @@ export class TradingScene extends Scene {
     const startPrice = firstPrice
 
     // Track live volatility envelope over last 30 seconds
-    const VOLATILITY_WINDOW_MS = 30000
     const recentHistory = this.priceHistory.filter((p) => now - p.time <= VOLATILITY_WINDOW_MS)
 
     // Convert history points to percentage from startPrice
