@@ -20,11 +20,11 @@ function PositionCard({
 }) {
   const [isMinimized, setIsMinimized] = useState(false)
 
-  // Auto minimize after 5 seconds
+  // Auto minimize faster
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsMinimized(true)
-    }, 2000)
+    }, 800)
     return () => clearTimeout(timer)
   }, [])
 
@@ -43,12 +43,12 @@ function PositionCard({
       ? 'border-2 border-green-500/60 shadow-[0_0_18px_rgba(74,222,128,0.35)]'
       : 'border-2 border-red-500/60 shadow-[0_0_18px_rgba(248,113,113,0.35)]'
 
-  // Very slow, buttery smooth spring config
+  // Faster, snappy spring config
   const smoothSpring = {
     type: 'spring' as const,
-    stiffness: 50,
-    damping: 20,
-    mass: 0.8,
+    stiffness: 300,
+    damping: 25,
+    mass: 0.5,
   }
 
   return (
@@ -209,15 +209,23 @@ export function PositionIndicator() {
   return (
     <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-32 pointer-events-none">
       <div className="max-w-2xl mx-auto flex flex-col items-end">
-        {localPositions.map((position, index) => (
-          <PositionCard
-            key={position.id}
-            position={position}
-            index={index}
-            priceData={priceData}
-            onClose={closePosition}
-          />
-        ))}
+        <div 
+          className="flex flex-col items-end overflow-y-auto pointer-events-auto overscroll-contain [&::-webkit-scrollbar]:hidden"
+          style={{ 
+            maxHeight: '260px',
+            scrollbarWidth: 'none',
+          }}
+        >
+          {localPositions.map((position, index) => (
+            <PositionCard
+              key={position.id}
+              position={position}
+              index={index}
+              priceData={priceData}
+              onClose={closePosition}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
