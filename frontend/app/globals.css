@@ -807,7 +807,6 @@
     linear-gradient(90deg, transparent 95%, rgba(0, 243, 255, 0.1) 95%, rgba(0, 243, 255, 0.05) 96%);
   background-size: var(--grid-size) var(--grid-size);
   transform-origin: center top;
-  will-change: background-position, opacity;
   animation:
     grid-scroll var(--duration-grid-scroll) linear infinite,
     grid-pulse var(--duration-slowest) ease-in-out infinite;
@@ -856,7 +855,6 @@
   height: var(--scanline-height);
   background: linear-gradient(180deg, transparent, rgba(0, 243, 255, 0.3), transparent);
   box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
-  will-change: transform;
   animation: scanline-move var(--duration-scanline) linear infinite;
   pointer-events: none;
   z-index: var(--z-scanline-moving);

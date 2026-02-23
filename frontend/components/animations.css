@@ -31,7 +31,6 @@
 
 .glow-text-grid {
   animation: glow-pulse-grid 2s ease-in-out infinite;
-  will-change: opacity, filter;
   contain: layout style paint;
 }
 
@@ -50,7 +49,6 @@
 
 .glow-text-label {
   animation: glow-pulse-label 2s ease-in-out infinite;
-  will-change: opacity, filter;
   contain: layout style paint;
 }
 
@@ -69,7 +67,6 @@
 
 .glow-text-stats {
   animation: glow-pulse-stats 2s ease-in-out infinite;
-  will-change: opacity, filter;
   contain: layout style paint;
 }
 
@@ -92,7 +89,6 @@
   /* Static radial gradient, opacity animated */
   background: radial-gradient(ellipse at center, rgba(0, 243, 255, 1) 0%, transparent 70%);
   animation: background-glow-username 3s ease-in-out infinite;
-  will-change: opacity;
   contain: layout style paint;
 }
 
@@ -115,7 +111,6 @@
   /* Static shadow instead of animated */
   box-shadow: 0 0 15px rgba(0, 217, 255, 0.15);
   animation: scale-pulse-button 2s ease-in-out infinite;
-  will-change: transform;
   contain: layout style paint;
 }
 
@@ -125,7 +120,6 @@
 
 /* General GPU acceleration hint for animated elements */
 .gpu-accelerated {
-  will-change: transform, opacity, filter;
   contain: layout style paint;
 }
 
