@@ -296,11 +296,19 @@ function determineWinner(
 // Coin Spawning
 // =============================================================================
 
-function spawnCoin(room: GameRoom): SpawnedCoin | null {
-  const coinData = room.getNextCoinData()
-  if (!coinData) return null
+function spawnCoin(room: GameRoom, forceType?: 'long' | 'short'): SpawnedCoin | null {
+  if (!room.canSpawnCoin()) {
+    return null
+  }
+
+  const coinData = room.getNextCoinData(forceType)
+  if (!coinData) {
+    console.warn('[CoinSync] Coin spawn attempted while sequence exhausted')
+    return null
+  }
 
   const coinId = `coin-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+  const sequenceIndex = room.getCoinSequenceIndex()
 
   const coin: SpawnedCoin = {
     id: coinId,
@@ -308,9 +316,11 @@ function spawnCoin(room: GameRoom): SpawnedCoin | null {
     xNormalized: coinData.xNormalized,
     velocityX: coinData.velocityX,
     velocityY: coinData.velocityY,
+    sequenceIndex,
   }
 
   room.addCoin({ id: coinId, type: coinData.type, x: 0, y: 0 })
+  room.addActiveCoin(coinId, coinData.type)
   return coin
 }
 
@@ -340,47 +350,26 @@ function startGameLoop(io: SocketIOServer, manager: RoomManager, room: GameRoom)
       xNormalized: coin.xNormalized,
       velocityX: coin.velocityX,
       velocityY: coin.velocityY,
+      sequenceIndex: coin.sequenceIndex,
     })
   }
 
   const scheduleNextSpawn = () => {
     if (!manager.hasRoom(room.id) || room.players.size < 2 || room.isShutdown) return
 
-    const elapsedMs = Date.now() - gameStartTime
-    const spawnConfig = room.getSpawnInterval(elapsedMs)
+    room.expireOldCoins()
 
-    const rng = Math.random()
-    let burstCount = 1
-    if (rng < spawnConfig.burstChance) {
-      burstCount = rng < spawnConfig.burstChance * 0.3 ? 3 : 2
-    }
-
-    let actualBurstCount = burstCount
-    for (let i = 0; i < burstCount; i++) {
-      if (!room.peekNextCoinData()) {
-        actualBurstCount = i
-        break
-      }
-    }
-
-    for (let i = 0; i < actualBurstCount; i++) {
-      const coin = spawnCoin(room)
-      if (!coin) return
-
-      if (i === 0) {
+    if (room.canSpawnCoin()) {
+      const forceType = room.getRequiredCoinType()
+      const coin = spawnCoin(room, forceType)
+      if (coin) {
         emitCoinSpawn(coin)
-      } else {
-        const staggerTimeout = setTimeout(() => {
-          if (room.isShutdown || !manager.hasRoom(room.id)) return
-          emitCoinSpawn(coin)
-        }, i * 100)
-        room.trackTimeout(staggerTimeout)
       }
     }
 
-    const nextDelay =
-      Math.floor(Math.random() * (spawnConfig.maxMs - spawnConfig.minMs + 1)) + spawnConfig.minMs
-    const timeoutId = setTimeout(scheduleNextSpawn, nextDelay)
+    const elapsedMs = Date.now() - gameStartTime
+    const heartbeatInterval = room.getHeartbeatInterval(elapsedMs)
+    const timeoutId = setTimeout(scheduleNextSpawn, heartbeatInterval)
     room.trackTimeout(timeoutId)
   }
 
@@ -534,6 +523,7 @@ async function handleSlice(
   data: { coinId: string; coinType: string; priceAtSlice: number }
 ): Promise<void> {
   room.removeCoin(data.coinId)
+  room.removeActiveCoin(data.coinId)
 
   // Only call and put coins now - no gas or whale
   // console.log('[Server] handleSlice called with coinType:', data.coinType)

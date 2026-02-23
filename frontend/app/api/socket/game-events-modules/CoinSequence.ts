@@ -19,29 +19,37 @@ export class CoinSequence {
     const rng = new SeededRandom(seed)
     const types: Array<'long' | 'short'> = ['long', 'long', 'short', 'short']
 
-    const estimatedSpawns = Math.ceil(durationMs / minIntervalMs) + 10 // Extra for burst spawns
+    const estimatedSpawns = Math.ceil(durationMs / minIntervalMs) + 10
     for (let i = 0; i < estimatedSpawns; i++) {
       this.sequence.push({
         type: types[rng.nextInt(0, types.length - 1)],
-        xNormalized: 0.15 + rng.next() * 0.7, // 15%-85% screen width (avoid edges)
-        velocityX: rng.nextInt(-50, 50), // Standardized Fruit Ninja drift
-        velocityY: rng.nextInt(-600, -400), // Standardized Fruit Ninja upward toss
+        xNormalized: 0.15 + rng.next() * 0.7,
+        velocityX: rng.nextInt(-30, 30),
+        velocityY: rng.nextInt(-400, -280),
       })
     }
   }
 
-  next(): {
+  next(forceType?: 'long' | 'short'): {
     type: 'long' | 'short'
     xNormalized: number
     velocityX: number
     velocityY: number
   } | null {
     if (this.index >= this.sequence.length) return null
-    return this.sequence[this.index++]
+    const coin = { ...this.sequence[this.index++] }
+    if (forceType) {
+      coin.type = forceType
+    }
+    return coin
   }
 
   hasNext(): boolean {
     return this.index < this.sequence.length
+  }
+
+  getIndex(): number {
+    return this.index
   }
 
   peek(): {

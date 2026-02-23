@@ -10,6 +10,7 @@ export class CoinLifecycleSystem {
   private tokenPool!: GameObjects.Group
   private coinRenderer!: CoinRenderer
   private spatialGrid!: SpatialGrid
+  private lastSequenceIndex = -1
 
   constructor(scene: Scene) {
     this.scene = scene
@@ -54,6 +55,14 @@ export class CoinLifecycleSystem {
 
   handleCoinSpawn(data: CoinSpawnEvent): void {
     if (!this.tokenPool) return
+
+    if (data.sequenceIndex !== undefined && data.sequenceIndex !== this.lastSequenceIndex + 1) {
+      console.warn(
+        `[CoinSync] Non-monotonic sequence index: expected ${this.lastSequenceIndex + 1}, got ${data.sequenceIndex}. ` +
+          `Possible dropped event(s).`
+      )
+    }
+    this.lastSequenceIndex = data.sequenceIndex ?? this.lastSequenceIndex + 1
 
     const config = COIN_CONFIG[data.coinType]
     if (!config) return

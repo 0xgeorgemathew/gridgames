@@ -3,12 +3,15 @@ import { GAME_CONFIG } from '@/games/hyper-swiper/game/constants'
 import { CoinSequence } from './CoinSequence'
 import type { Coin, OpenPosition, PositionSettlementResult } from './types'
 
-/**
- * GameRoom - Encapsulates room state and lifecycle.
- *
- * Manages players, coins, positions, timers, and game state.
- * Includes timer tracking for proper cleanup to prevent memory leaks.
- */
+interface ActiveCoinEntry {
+  id: string
+  type: 'long' | 'short'
+  spawnedAt: number
+}
+
+const COIN_TTL_MS = 3000
+const MAX_ACTIVE_COINS = 3
+
 export class GameRoom {
   readonly id: string
   readonly players: Map<string, Player>
@@ -16,34 +19,29 @@ export class GameRoom {
   readonly openPositions: Map<string, OpenPosition>
   readonly closedPositions: PositionSettlementResult[]
   private isClosing = false
-  isShutdown = false // Prevents settlement timeouts from operating on deleted rooms
+  isShutdown = false
 
   private intervals = new Set<NodeJS.Timeout>()
   private timeouts = new Set<NodeJS.Timeout>()
 
-  // Fruit Ninja-style spawn mechanics
   readonly gameStartTime: number
-  readonly GAME_DURATION: number // Configurable game duration (default 60000ms = 1 min)
+  readonly GAME_DURATION: number
 
-  // Deterministic coin sequence
   private coinSequence: CoinSequence | null = null
 
-  // Per-player leverage (manually controlled via HUD)
   private playerLeverage = new Map<string, number>()
 
-  // Wallet addresses for ENS leverage lookups
   player1Address: `0x${string}` | null = null
   player2Address: `0x${string}` | null = null
   addressToSocketId: Map<string, string> = new Map()
 
-  // Client ready tracking
   clientsReady = new Set<string>()
 
-  // Track if game loop is active
   gameLoopActive = false
 
-  // Game timeout tracker
   gameTimeout: NodeJS.Timeout | null = null
+
+  private activeCoins: Map<string, ActiveCoinEntry> = new Map()
 
   constructor(roomId: string, gameDuration: number = 60000) {
     this.id = roomId
@@ -200,28 +198,10 @@ export class GameRoom {
     this.isClosing = true
   }
 
-  // Wave-based spawn intensity (scaled for 150s game)
+  // Heartbeat interval for rhythmic spawning (scales down over game duration)
   getSpawnInterval(elapsedMs: number = 0): { minMs: number; maxMs: number; burstChance: number } {
-    const waves = [
-      { endMs: 30000, intervalMs: { min: 1500, max: 2000 }, burstChance: 0.08 }, // Warmup (0-30s)
-      { endMs: 60000, intervalMs: { min: 1400, max: 1800 }, burstChance: 0.12 }, // Early (30-60s)
-      { endMs: 90000, intervalMs: { min: 1200, max: 1600 }, burstChance: 0.18 }, // Mid (60-90s)
-      { endMs: 120000, intervalMs: { min: 1000, max: 1400 }, burstChance: 0.25 }, // Late (90-120s)
-      { endMs: 150000, intervalMs: { min: 800, max: 1200 }, burstChance: 0.35 }, // Climax (120-150s)
-    ]
-
-    for (const wave of waves) {
-      if (elapsedMs < wave.endMs) {
-        return {
-          minMs: wave.intervalMs.min,
-          maxMs: wave.intervalMs.max,
-          burstChance: wave.burstChance,
-        }
-      }
-    }
-
-    const last = waves[waves.length - 1]
-    return { minMs: last.intervalMs.min, maxMs: last.intervalMs.max, burstChance: last.burstChance }
+    const interval = this.getHeartbeatInterval(elapsedMs)
+    return { minMs: interval, maxMs: interval, burstChance: 0 }
   }
 
   // Initialize deterministic coin sequence for the game
@@ -248,13 +228,13 @@ export class GameRoom {
   }
 
   // Get next coin from deterministic sequence
-  getNextCoinData(): {
+  getNextCoinData(forceType?: 'long' | 'short'): {
     type: 'long' | 'short'
     xNormalized: number
     velocityX: number
     velocityY: number
   } | null {
-    return this.coinSequence?.next() ?? null
+    return this.coinSequence?.next(forceType) ?? null
   }
 
   // Peek at next coin without consuming it
@@ -265,5 +245,74 @@ export class GameRoom {
     velocityY: number
   } | null {
     return this.coinSequence?.peek() ?? null
+  }
+
+  // Get current sequence index for coin sync validation
+  getCoinSequenceIndex(): number {
+    return this.coinSequence?.getIndex() ?? -1
+  }
+
+  addActiveCoin(id: string, type: 'long' | 'short'): void {
+    this.activeCoins.set(id, {
+      id,
+      type,
+      spawnedAt: Date.now(),
+    })
+  }
+
+  removeActiveCoin(id: string): void {
+    this.activeCoins.delete(id)
+  }
+
+  getActiveCoinCount(): number {
+    return this.activeCoins.size
+  }
+
+  getActiveLongCount(): number {
+    let count = 0
+    for (const coin of this.activeCoins.values()) {
+      if (coin.type === 'long') count++
+    }
+    return count
+  }
+
+  getActiveShortCount(): number {
+    let count = 0
+    for (const coin of this.activeCoins.values()) {
+      if (coin.type === 'short') count++
+    }
+    return count
+  }
+
+  expireOldCoins(): string[] {
+    const now = Date.now()
+    const expiredIds: string[] = []
+    for (const [id, entry] of this.activeCoins) {
+      if (now - entry.spawnedAt > COIN_TTL_MS) {
+        expiredIds.push(id)
+        this.activeCoins.delete(id)
+      }
+    }
+    return expiredIds
+  }
+
+  canSpawnCoin(): boolean {
+    return this.activeCoins.size < MAX_ACTIVE_COINS
+  }
+
+  getRequiredCoinType(): 'long' | 'short' | null {
+    const longCount = this.getActiveLongCount()
+    const shortCount = this.getActiveShortCount()
+    if (longCount === 0 && shortCount > 0) return 'long'
+    if (shortCount === 0 && longCount > 0) return 'short'
+    return null
+  }
+
+  getHeartbeatInterval(elapsedMs: number = 0): number {
+    if (elapsedMs < 30000) return 1200
+    if (elapsedMs < 60000) return 1100
+    if (elapsedMs < 90000) return 1000
+    if (elapsedMs < 120000) return 950
+    return 900
   }
 }

@@ -37,6 +37,7 @@ export type CoinSpawnEvent = {
   xNormalized: number // 0.0 to 1.0 (relative screen position, synced between players)
   velocityX: number
   velocityY: number
+  sequenceIndex: number // Monotonic index for detecting dropped/reordered events
 }
 
 /**

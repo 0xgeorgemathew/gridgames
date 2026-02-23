@@ -121,13 +121,11 @@ export class Token extends GameObjects.Container {
     const isBottomToss = y > sceneHeight // Spawned from bottom edge
 
     if (isBottomToss) {
-      // Use exact velocities provided by server for deterministic deterministic sync
       this.body.setVelocity(velocityX, velocityY)
-      this.body.setGravity(0, 180) // Gravity pulls arc back down
+      this.body.setGravity(0, 120)
     } else {
-      // Legacy falling behavior
       this.body.setVelocity(velocityX, velocityY)
-      this.body.setGravity(0, 150) // Low gravity
+      this.body.setGravity(0, 120)
     }
     this.body.setBounce(0) // No bounce
     this.body.setCollideWorldBounds(false) // Fall through edges

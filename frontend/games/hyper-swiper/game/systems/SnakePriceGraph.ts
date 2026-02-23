@@ -43,6 +43,7 @@ type SnakeGraphUpdateArgs = {
   width: number
   height: number
   pixelsPerMs: number
+  hudHeight?: number
 }
 
 export class SnakePriceGraph {
@@ -76,6 +77,7 @@ export class SnakePriceGraph {
     width,
     height,
     pixelsPerMs,
+    hudHeight = 128,
   }: SnakeGraphUpdateArgs): void {
     if (!priceData || !isPlaying || !firstPrice) {
       this.reset()
@@ -143,9 +145,17 @@ export class SnakePriceGraph {
     let range = windowMax - windowMin
     if (range < 0.001) range = 0.001
 
-    const hudHeight = 128
     const graphHeight = height - hudHeight
     const centerY = graphHeight / 2
+
+    // Padding to keep chevron and trail within visible graph area
+    const topPadding = 30
+    const bottomPadding = 80
+    const minY = topPadding
+    const maxY = graphHeight - bottomPadding
+
+    // Clamp helper for Y values
+    const clampY = (y: number) => Math.max(minY, Math.min(maxY, y))
 
     // 4. Calculate Targets for dynamic scaling
     const targetZoom = (graphHeight * CONFIG.targetViewRatio) / range
@@ -169,15 +179,15 @@ export class SnakePriceGraph {
     // 6. Draw the Blade / Light Cycle Trail
     this.graphics.clear()
 
-    // Map history to screen coordinates
+    // Map history to screen coordinates with Y clamping
     const curvePoints = this.history.map((p) => {
       const x = headX - (now - p.time) * effectiveSpd
-      const y = centerY - (p.pct - this.currentCenterPct!) * this.currentZoom!
+      const y = clampY(centerY - (p.pct - this.currentCenterPct!) * this.currentZoom!)
       return { x, y }
     })
 
-    // Attach true current head position
-    const currentY = centerY - (currentPct - this.currentCenterPct) * this.currentZoom
+    // Attach true current head position with Y clamping
+    const currentY = clampY(centerY - (currentPct - this.currentCenterPct) * this.currentZoom)
     curvePoints.push({ x: headX, y: currentY })
 
     // UX Visual Anchor: Zero Line (Start Price Baseline)
