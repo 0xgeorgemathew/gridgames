@@ -33,7 +33,9 @@ export class AudioManager {
 
   /** Helper to get the Web Audio API context from Phaser's sound manager */
   private getAudioContext(): AudioContext | undefined {
-    return (this.scene.sound as Phaser.Sound.WebAudioSoundManager).context as AudioContext | undefined
+    return (this.scene.sound as Phaser.Sound.WebAudioSoundManager).context as
+      | AudioContext
+      | undefined
   }
 
   preload(): void {
