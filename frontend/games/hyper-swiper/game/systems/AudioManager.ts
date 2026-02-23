@@ -4,20 +4,23 @@ type AudioSpriteSound = Phaser.Sound.BaseSound & {
   play(markerName: string, config?: Phaser.Types.Sound.SoundConfig): boolean
 }
 
+// States that require resume attempt
+const RESUME_STATES = ['suspended', 'interrupted'] as const
+
 export class AudioManager {
   private scene: Scene
   private gameSfx: AudioSpriteSound | null = null
-  private isMuted: boolean = false
-  private isLoaded: boolean = false
-  private currentSwipeSound: any = null
+  private isMuted = false
+  private isLoaded = false
+  private currentSwipeSound: Phaser.Sound.BaseSound | null = null
   private swipeDuckTween: Phaser.Tweens.Tween | null = null
-  private isUnlocked: boolean = false
-  private isSwipePlaying: boolean = false
+  private isUnlocked = false
+  private isSwipePlaying = false
   private documentUnlockHandler: (() => void) | null = null
   private visibilityHandler: (() => void) | null = null
   private stateChangeHandler: (() => void) | null = null
-  private isMobile: boolean = false
-  private sceneReady: boolean = false
+  private isMobile = false
+  private sceneReady = false
 
   constructor(scene: Scene) {
     this.scene = scene
@@ -26,6 +29,11 @@ export class AudioManager {
       /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     this.setupDocumentUnlockListener()
     this.setupVisibilityHandler()
+  }
+
+  /** Helper to get the Web Audio API context from Phaser's sound manager */
+  private getAudioContext(): AudioContext | undefined {
+    return (this.scene.sound as Phaser.Sound.WebAudioSoundManager).context as AudioContext | undefined
   }
 
   preload(): void {
@@ -57,16 +65,14 @@ export class AudioManager {
     if (typeof document === 'undefined') return
 
     this.documentUnlockHandler = () => {
-      // Check actual state, not just flag - allow retry if not running
-      const audioContext = (this.scene.sound as any).context as AudioContext | undefined
-      if (audioContext && audioContext.state !== 'running') {
+      const ctx = this.getAudioContext()
+      if (ctx && ctx.state !== 'running') {
         console.log('[AudioManager] Document event: attempting unlock')
         this.attemptUnlock()
       }
     }
 
     // On mobile, keep trying to unlock until successful
-    // Remove { once: true } to allow multiple attempts
     document.addEventListener('touchstart', this.documentUnlockHandler, { passive: true })
     document.addEventListener('click', this.documentUnlockHandler)
   }
@@ -75,13 +81,13 @@ export class AudioManager {
     if (typeof document === 'undefined') return
 
     this.visibilityHandler = () => {
-      if (!document.hidden) {
-        const audioContext = (this.scene.sound as any).context as AudioContext | undefined
-        if (audioContext && audioContext.state !== 'running') {
-          console.log(`[AudioManager] Visibility change: state=${audioContext.state}`)
-          this.isUnlocked = false
-          this.attemptUnlock()
-        }
+      if (document.hidden) return
+
+      const ctx = this.getAudioContext()
+      if (ctx && ctx.state !== 'running') {
+        console.log(`[AudioManager] Visibility change: state=${ctx.state}`)
+        this.isUnlocked = false
+        this.attemptUnlock()
       }
     }
 
@@ -89,19 +95,17 @@ export class AudioManager {
   }
 
   private setupStateChangeListener(): void {
-    const audioContext = (this.scene.sound as any).context as AudioContext | undefined
-    if (!audioContext) return
+    const ctx = this.getAudioContext()
+    if (!ctx) return
 
     this.stateChangeHandler = () => {
-      console.log(`[AudioManager] State changed: ${audioContext.state}`)
-      if (audioContext.state === 'interrupted' || audioContext.state === 'suspended') {
+      console.log(`[AudioManager] State changed: ${ctx.state}`)
+      if (RESUME_STATES.includes(ctx.state as (typeof RESUME_STATES)[number])) {
         this.isUnlocked = false
       }
     }
 
-    if (audioContext.onstatechange !== undefined) {
-      audioContext.onstatechange = this.stateChangeHandler
-    }
+    ctx.onstatechange = this.stateChangeHandler
   }
 
   setSceneReady(ready: boolean): void {
@@ -120,18 +124,21 @@ export class AudioManager {
   attemptUnlock(): void {
     if (this.isUnlocked) return
 
-    const audioContext = (this.scene.sound as any).context as AudioContext | undefined
-    if (!audioContext) {
+    const ctx = this.getAudioContext()
+    if (!ctx) {
       this.scene.sound.unlock()
       return
     }
 
-    if (audioContext.state === 'suspended') {
-      // Resume AudioContext - must be called from user gesture
-      audioContext
+    // Handle states that require resume
+    if (RESUME_STATES.includes(ctx.state as (typeof RESUME_STATES)[number])) {
+      const stateLabel = ctx.state
+      console.log(`[AudioManager] AudioContext ${stateLabel}, attempting resume`)
+
+      ctx
         .resume()
         .then(() => {
-          const success = this.playSilentBuffer(audioContext)
+          const success = this.playSilentBuffer(ctx)
           if (success) {
             this.isUnlocked = true
           }
@@ -139,28 +146,15 @@ export class AudioManager {
         })
         .catch((err) => {
           console.warn('[AudioManager] Failed to resume AudioContext:', err)
-        })
-    } else if (audioContext.state === 'interrupted') {
-      console.log('[AudioManager] AudioContext interrupted, attempting resume')
-      audioContext
-        .resume()
-        .then(() => {
-          const success = this.playSilentBuffer(audioContext)
-          if (success) {
-            this.isUnlocked = true
-          }
-        })
-        .catch((err) => {
-          console.warn('[AudioManager] Failed to recover from interruption:', err)
           this.isUnlocked = false
         })
-    } else if (audioContext.state === 'running') {
+    } else if (ctx.state === 'running') {
       // Context already running, but may need silent buffer on Android
-      const success = this.playSilentBuffer(audioContext)
+      const success = this.playSilentBuffer(ctx)
       if (success) {
         this.isUnlocked = true
       }
-    } else if (audioContext.state === 'closed') {
+    } else if (ctx.state === 'closed') {
       console.error('[AudioManager] AudioContext closed - cannot recover')
     }
 
@@ -173,19 +167,17 @@ export class AudioManager {
    * This is crucial for Android Chrome which often requires
    * actual audio playback to complete the unlock process.
    */
-  private playSilentBuffer(context: AudioContext): boolean {
+  private playSilentBuffer(ctx: AudioContext): boolean {
     try {
       // Use device's actual sample rate (was hardcoded 22050)
-      const sampleRate = context.sampleRate
-
+      const sampleRate = ctx.sampleRate
       // Create 0.5 second buffer (was 1 sample = ~0.00005s)
-      const duration = 0.5
-      const frameCount = Math.ceil(sampleRate * duration)
+      const frameCount = Math.ceil(sampleRate * 0.5)
 
-      const buffer = context.createBuffer(1, frameCount, sampleRate)
-      const source = context.createBufferSource()
+      const buffer = ctx.createBuffer(1, frameCount, sampleRate)
+      const source = ctx.createBufferSource()
       source.buffer = buffer
-      source.connect(context.destination)
+      source.connect(ctx.destination)
       source.start(0)
 
       source.onended = () => {
@@ -210,8 +202,8 @@ export class AudioManager {
   }
 
   private checkAudioContextState(): boolean {
-    const audioContext = (this.scene.sound as any).context as AudioContext | undefined
-    if (audioContext?.state === 'suspended') {
+    const ctx = this.getAudioContext()
+    if (ctx?.state === 'suspended') {
       this.attemptUnlock()
       return false
     }
@@ -312,6 +304,7 @@ export class AudioManager {
     this.isLoaded = false
     this.isUnlocked = false
 
+    // Remove document event listeners
     if (this.documentUnlockHandler) {
       document.removeEventListener('touchstart', this.documentUnlockHandler)
       document.removeEventListener('click', this.documentUnlockHandler)
@@ -323,10 +316,11 @@ export class AudioManager {
       this.visibilityHandler = null
     }
 
-    const ctx = (this.scene.sound as any).context as AudioContext | undefined
-    if (ctx && this.stateChangeHandler) {
+    // Clear AudioContext state listener
+    const ctx = this.getAudioContext()
+    if (ctx) {
       ctx.onstatechange = null
-      this.stateChangeHandler = null
     }
+    this.stateChangeHandler = null
   }
 }

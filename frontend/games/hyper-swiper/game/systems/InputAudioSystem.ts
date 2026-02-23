@@ -4,7 +4,6 @@ import { AudioManager } from './AudioManager'
 
 export class InputAudioSystem {
   private scene: Scene
-  private isMobile = false
   private audio!: AudioManager
   private bladeRenderer!: BladeRenderer
   private visibilityChangeHandler?: () => void
@@ -20,7 +19,6 @@ export class InputAudioSystem {
   }
 
   create(eventEmitter: Phaser.Events.EventEmitter, isMobile: boolean): void {
-    this.isMobile = isMobile
     this.bladeRenderer = new BladeRenderer(this.scene, isMobile)
     this.audio.create()
 
