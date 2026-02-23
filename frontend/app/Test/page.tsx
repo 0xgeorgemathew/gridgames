@@ -1,5 +1,11 @@
 import React from 'react'
+import type { Metadata } from 'next'
 import { TestGridBackground } from '@/components/TestGridBackground'
+
+export const metadata: Metadata = {
+  title: 'Grid Test | Grid Games',
+  description: 'Internal grid background test page for Grid Games.',
+}
 
 export default function TestPage() {
   return (

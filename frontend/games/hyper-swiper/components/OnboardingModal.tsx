@@ -22,7 +22,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 
   const nextStep = () => {
     if (step < 3) {
-      setStep(step + 1)
+      setStep((prev) => prev + 1)
     } else {
       onClose()
     }
@@ -30,7 +30,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
 
   const prevStep = () => {
     if (step > 1) {
-      setStep(step - 1)
+      setStep((prev) => prev - 1)
     }
   }
 
@@ -125,11 +125,11 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
             {/* Navigation / Footer */}
             <div className="relative z-10 mt-8 flex flex-col gap-4">
               <div className="flex justify-center gap-2 mb-2">
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3].map((dot) => (
                   <div
-                    key={i}
+                    key={`step-${dot}`}
                     className={`h-1 rounded-full transition-all duration-300 ${
-                      i === step ? 'w-8 bg-tron-cyan shadow-[0_0_8px_var(--color-tron-cyan)]' : 'w-2 bg-tron-cyan/20'
+                      dot === step ? 'w-8 bg-tron-cyan shadow-[0_0_8px_var(--color-tron-cyan)]' : 'w-2 bg-tron-cyan/20'
                     }`}
                   />
                 ))}
