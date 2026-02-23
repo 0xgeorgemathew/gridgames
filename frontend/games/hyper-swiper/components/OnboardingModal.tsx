@@ -79,7 +79,8 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                       THE ULTIMATE PVP PERP GAME
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Welcome to Hyper Swiper. Test your trading intuition against opponents in real-time, high-stakes matches.
+                      Welcome to Hyper Swiper. Test your trading intuition against opponents in
+                      real-time, high-stakes matches.
                     </p>
                   </m.div>
                 )}
@@ -97,7 +98,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                       SWIPE TO TRADE
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Swipe <strong className="text-green-400 font-bold">UP to LONG</strong> or <strong className="text-red-400 font-bold">DOWN to SHORT</strong>. Defend your margin and drain your opponent&apos;s health before time runs out.
+                      Swipe <strong className="text-green-400 font-bold">UP to LONG</strong> or{' '}
+                      <strong className="text-red-400 font-bold">DOWN to SHORT</strong>. Defend your
+                      margin and drain your opponent&apos;s health before time runs out.
                     </p>
                   </m.div>
                 )}
@@ -115,7 +118,8 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                       CONNECT & CONQUER
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Connect your wallet, find a match in the lobby, and prepare for combat on the Grid.
+                      Connect your wallet, find a match in the lobby, and prepare for combat on the
+                      Grid.
                     </p>
                   </m.div>
                 )}
@@ -129,7 +133,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                   <div
                     key={`step-${dot}`}
                     className={`h-1 rounded-full transition-all duration-300 ${
-                      dot === step ? 'w-8 bg-tron-cyan shadow-[0_0_8px_var(--color-tron-cyan)]' : 'w-2 bg-tron-cyan/20'
+                      dot === step
+                        ? 'w-8 bg-tron-cyan shadow-[0_0_8px_var(--color-tron-cyan)]'
+                        : 'w-2 bg-tron-cyan/20'
                     }`}
                   />
                 ))}

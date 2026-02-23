@@ -70,7 +70,10 @@ function PositionCard({
           delay: index * 0.08,
         },
       }}
-      className={cn('glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto', borderStyle)}
+      className={cn(
+        'glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto',
+        borderStyle
+      )}
       style={{ willChange: 'transform, opacity' }}
       onClick={() => onClose(position.id)}
     >
@@ -209,9 +212,9 @@ export function PositionIndicator() {
   return (
     <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-32 pointer-events-none">
       <div className="max-w-2xl mx-auto flex flex-col items-end">
-        <div 
+        <div
           className="flex flex-col items-end overflow-y-auto pointer-events-auto overscroll-contain [&::-webkit-scrollbar]:hidden"
-          style={{ 
+          style={{
             maxHeight: '260px',
             scrollbarWidth: 'none',
           }}

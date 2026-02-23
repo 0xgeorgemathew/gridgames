@@ -192,20 +192,12 @@ function PlayerRow({
         >
           {label}
         </span>
-        <span className="text-[9px] text-white/30">
-          {positions} pos
-        </span>
+        <span className="text-[9px] text-white/30">{positions} pos</span>
       </div>
 
       {/* Right: PnL + Balance */}
       <div className="relative z-10 flex items-center gap-3">
-        <span
-          className={cn(
-            'text-[10px] font-mono text-white/40'
-          )}
-        >
-          ${balance.toFixed(2)}
-        </span>
+        <span className={cn('text-[10px] font-mono text-white/40')}>${balance.toFixed(2)}</span>
         <span
           className={cn(
             'font-[family-name:var(--font-orbitron)] text-base font-bold tracking-wider',

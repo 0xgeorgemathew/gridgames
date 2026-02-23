@@ -34,14 +34,14 @@ export function TestGridBackground({
     if (!ctx) return
 
     // ── Tunnel geometry constants ────────────────────────────────────────────
-    const DEPTH = 1     // Near Z (camera is just in front of 0)
-    const FAR   = 20    // Far Z (vanishing point region)
-    const GRID  = 1     // Grid cell size in world units
+    const DEPTH = 1 // Near Z (camera is just in front of 0)
+    const FAR = 20 // Far Z (vanishing point region)
+    const GRID = 1 // Grid cell size in world units
 
     // Half-width and half-height of the tunnel (world units)
     // Wider than tall matches the reference image
-    const HW = 3.5  // half-width  (side walls at ±HW)
-    const HH = 2.5  // half-height (floor at -HH, ceiling at +HH)
+    const HW = 3.5 // half-width  (side walls at ±HW)
+    const HH = 2.5 // half-height (floor at -HH, ceiling at +HH)
 
     // ── How many grid lines along depth ─────────────────────────────────────
     const zSteps = Math.ceil((FAR - DEPTH) / GRID) + 1
@@ -51,15 +51,12 @@ export function TestGridBackground({
     // fov factor: higher = narrower (more zoomed in).
     const fov = 1.0 // adjust if needed
 
-    function project(
-      x: number, y: number, z: number,
-      W: number, H: number
-    ): [number, number] {
+    function project(x: number, y: number, z: number, W: number, H: number): [number, number] {
       const cx = W / 2
       const cy = H / 2
-      const scale = (fov / z) // perspective divide
+      const scale = fov / z // perspective divide
       return [
-        cx + x * scale * H,  // use H so FOV is consistent across aspect ratios
+        cx + x * scale * H, // use H so FOV is consistent across aspect ratios
         cy - y * scale * H,
       ]
     }
@@ -76,29 +73,40 @@ export function TestGridBackground({
       // ─ Draw floor fill (opaque dark slab so floor is not transparent) ──────
       // Project the 4 corners of the floor at near and far Z
       const floorNearL = project(-HW, -HH, DEPTH, W, H)
-      const floorNearR = project( HW, -HH, DEPTH, W, H)
-      const floorFarL  = project(-HW, -HH, FAR,   W, H)
-      const floorFarR  = project( HW, -HH, FAR,   W, H)
+      const floorNearR = project(HW, -HH, DEPTH, W, H)
+      const floorFarL = project(-HW, -HH, FAR, W, H)
+      const floorFarR = project(HW, -HH, FAR, W, H)
 
       ctx!.beginPath()
       ctx!.moveTo(floorNearL[0], floorNearL[1])
       ctx!.lineTo(floorNearR[0], floorNearR[1])
-      ctx!.lineTo(floorFarR[0],  floorFarR[1])
-      ctx!.lineTo(floorFarL[0],  floorFarL[1])
+      ctx!.lineTo(floorFarR[0], floorFarR[1])
+      ctx!.lineTo(floorFarL[0], floorFarL[1])
       ctx!.closePath()
       ctx!.fillStyle = '#010108'
       ctx!.fill()
 
       // ─ Collect all line segments to draw ────────────────────────────────────
-      type Segment = { ax: number; ay: number; bx: number; by: number; alpha: number; color: string }
+      type Segment = {
+        ax: number
+        ay: number
+        bx: number
+        by: number
+        alpha: number
+        color: string
+      }
       const segments: Segment[] = []
 
       // Helper: push a segment, applying depth-based alpha
       const addLine = (
-        x0: number, y0: number, z0: number,
-        x1: number, y1: number, z1: number,
+        x0: number,
+        y0: number,
+        z0: number,
+        x1: number,
+        y1: number,
+        z1: number,
         color: string,
-        alpha = 0.6,
+        alpha = 0.6
       ) => {
         const [ax, ay] = project(x0, y0, z0, W, H)
         const [bx, by] = project(x1, y1, z1, W, H)
@@ -115,7 +123,7 @@ export function TestGridBackground({
         // Floor
         addLine(x, -HH, DEPTH, x, -HH, FAR, lineColor)
         // Ceiling
-        addLine(x,  HH, DEPTH, x,  HH, FAR, lineColor)
+        addLine(x, HH, DEPTH, x, HH, FAR, lineColor)
       }
 
       // Walls: lines running along Z at regular Y intervals
@@ -125,7 +133,7 @@ export function TestGridBackground({
         // Left wall
         addLine(-HW, y, DEPTH, -HW, y, FAR, lineColor)
         // Right wall
-        addLine( HW, y, DEPTH,  HW, y, FAR, lineColor)
+        addLine(HW, y, DEPTH, HW, y, FAR, lineColor)
       }
 
       // ── Cross-lines (perpendicular to Z) on each face ────────────────────────
@@ -136,18 +144,18 @@ export function TestGridBackground({
         // Floor cross-lines
         addLine(-HW, -HH, z, HW, -HH, z, lineColor)
         // Ceiling cross-lines
-        addLine(-HW,  HH, z, HW,  HH, z, lineColor)
+        addLine(-HW, HH, z, HW, HH, z, lineColor)
         // Left wall cross-lines
         addLine(-HW, -HH, z, -HW, HH, z, lineColor)
         // Right wall cross-lines
-        addLine( HW, -HH, z,  HW, HH, z, lineColor)
+        addLine(HW, -HH, z, HW, HH, z, lineColor)
       }
 
       // ── Corner edges (the 4 long vertical/horizontal lines ) ─────────────────
       addLine(-HW, -HH, DEPTH, -HW, -HH, FAR, lineColor)
-      addLine( HW, -HH, DEPTH,  HW, -HH, FAR, lineColor)
-      addLine(-HW,  HH, DEPTH, -HW,  HH, FAR, lineColor)
-      addLine( HW,  HH, DEPTH,  HW,  HH, FAR, lineColor)
+      addLine(HW, -HH, DEPTH, HW, -HH, FAR, lineColor)
+      addLine(-HW, HH, DEPTH, -HW, HH, FAR, lineColor)
+      addLine(HW, HH, DEPTH, HW, HH, FAR, lineColor)
 
       // ── Render all segments ───────────────────────────────────────────────────
       for (const s of segments) {
@@ -166,7 +174,7 @@ export function TestGridBackground({
     // ── Resize handler ────────────────────────────────────────────────────────
     function resize() {
       if (!canvas || !canvas.parentElement) return
-      canvas.width  = canvas.parentElement.clientWidth
+      canvas.width = canvas.parentElement.clientWidth
       canvas.height = canvas.parentElement.clientHeight
     }
 
