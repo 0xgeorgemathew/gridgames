@@ -123,6 +123,7 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
         <button
           onClick={() => {
             if (typeof window !== 'undefined' && (window as any).phaserEvents) {
+              // Always attempt unlock when toggling sound - this fixes mobile audio
               ;(window as any).phaserEvents.emit('unlock_audio')
             }
             onToggleSound()

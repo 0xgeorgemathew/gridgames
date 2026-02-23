@@ -34,7 +34,7 @@ export class InputAudioSystem {
     })
 
     eventEmitter.on('unlock_audio', () => {
-      this.scene.sound.unlock()
+      this.audio.forceUnlock()
     })
 
     this.scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {

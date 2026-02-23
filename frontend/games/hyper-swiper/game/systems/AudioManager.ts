@@ -4,8 +4,6 @@ type AudioSpriteSound = Phaser.Sound.BaseSound & {
   play(markerName: string, config?: Phaser.Types.Sound.SoundConfig): boolean
 }
 
-const AUDIO_UNLOCKED_KEY = 'hyperSwiper_audioUnlocked'
-
 export class AudioManager {
   private scene: Scene
   private gameSfx: AudioSpriteSound | null = null
@@ -16,9 +14,13 @@ export class AudioManager {
   private isUnlocked: boolean = false
   private isSwipePlaying: boolean = false
   private documentUnlockHandler: (() => void) | null = null
+  private isMobile: boolean = false
 
   constructor(scene: Scene) {
     this.scene = scene
+    this.isMobile =
+      typeof navigator !== 'undefined' &&
+      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     this.setupDocumentUnlockListener()
   }
 
@@ -43,48 +45,86 @@ export class AudioManager {
     }
   }
 
-  /**
-   * Set unlocked state from Phaser's built-in unlock mechanism.
-   * Phaser handles the user gesture chain correctly for both Android and iOS.
-   */
   setUnlocked(unlocked: boolean): void {
     this.isUnlocked = unlocked
-    if (unlocked && typeof window !== 'undefined') {
-      localStorage.setItem(AUDIO_UNLOCKED_KEY, 'true')
-    }
   }
 
   private setupDocumentUnlockListener(): void {
     if (typeof document === 'undefined') return
-
-    const wasUnlocked = localStorage.getItem(AUDIO_UNLOCKED_KEY) === 'true'
-    if (wasUnlocked) {
-      this.isUnlocked = true
-    }
 
     this.documentUnlockHandler = () => {
       if (this.isUnlocked) return
       this.attemptUnlock()
     }
 
-    document.addEventListener('touchstart', this.documentUnlockHandler, { once: true })
-    document.addEventListener('click', this.documentUnlockHandler, { once: true })
+    // On mobile, keep trying to unlock until successful
+    // Remove { once: true } to allow multiple attempts
+    document.addEventListener('touchstart', this.documentUnlockHandler, { passive: true })
+    document.addEventListener('click', this.documentUnlockHandler)
   }
 
-  private attemptUnlock(): void {
+  /**
+   * Attempt to unlock audio context on mobile devices.
+   * Uses multiple strategies to ensure audio works on both iOS and Android.
+   */
+  attemptUnlock(): void {
     if (this.isUnlocked) return
 
     const audioContext = (this.scene.sound as any).context as AudioContext | undefined
-    if (audioContext?.state === 'suspended') {
-      audioContext.resume().then(() => {
-        this.setUnlocked(true)
-        console.log('[AudioManager] AudioContext resumed via user gesture')
-      }).catch((err) => {
-        console.warn('[AudioManager] Failed to resume AudioContext:', err)
-      })
+    if (!audioContext) {
+      this.scene.sound.unlock()
+      return
     }
 
+    if (audioContext.state === 'suspended') {
+      // Resume AudioContext - must be called from user gesture
+      audioContext
+        .resume()
+        .then(() => {
+          this.playSilentBuffer(audioContext)
+          this.isUnlocked = true
+          console.log('[AudioManager] AudioContext resumed successfully')
+        })
+        .catch((err) => {
+          console.warn('[AudioManager] Failed to resume AudioContext:', err)
+        })
+    } else if (audioContext.state === 'running') {
+      // Context already running, but may need silent buffer on Android
+      this.playSilentBuffer(audioContext)
+      this.isUnlocked = true
+    }
+
+    // Also call Phaser's unlock method
     this.scene.sound.unlock()
+  }
+
+  /**
+   * Play a silent buffer to fully unlock audio on Android.
+   * This is crucial for Android Chrome which often requires
+   * actual audio playback to complete the unlock process.
+   */
+  private playSilentBuffer(context: AudioContext): void {
+    try {
+      const buffer = context.createBuffer(1, 1, 22050)
+      const source = context.createBufferSource()
+      source.buffer = buffer
+      source.connect(context.destination)
+      source.start(0)
+      source.onended = () => {
+        source.disconnect()
+      }
+    } catch (e) {
+      // Silent fail - this is a best-effort unlock
+    }
+  }
+
+  /**
+   * Force unlock attempt - called when user explicitly toggles sound on.
+   * This ensures we always try to unlock when user wants sound.
+   */
+  forceUnlock(): void {
+    this.isUnlocked = false
+    this.attemptUnlock()
   }
 
   private checkAudioContextState(): boolean {
