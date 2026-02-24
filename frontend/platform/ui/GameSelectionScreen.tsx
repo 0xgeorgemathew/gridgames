@@ -6,6 +6,7 @@ import { GridScanBackground } from '@/platform/ui/GridScanBackground'
 import { games } from '@/domains'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { PlayerName } from '@/platform/ui/PlayerName'
+import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useCallback, useMemo } from 'react'
@@ -94,6 +95,24 @@ export function GameSelectionScreen() {
         <div className="absolute inset-0 tron-grid opacity-30" />
       </div>
 
+      {/* Top Right Profile Badge */}
+      <AnimatePresence>
+        {authState === 'ready' && displayName && (
+          <m.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="fixed top-4 right-4 z-30 glass-panel-vibrant px-3 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] bg-tron-black/80 backdrop-blur-md"
+          >
+            <UserProfileBadge
+              displayName={displayName}
+              pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
+              compact={true}
+            />
+          </m.div>
+        )}
+      </AnimatePresence>
+
       <div className="relative z-20 flex flex-col items-center gap-8 py-12 px-6 w-full max-w-xl">
         <div className="text-center">
           <m.h1
@@ -114,7 +133,7 @@ export function GameSelectionScreen() {
           </m.p>
         </div>
 
-        {/* Player Profile / Auth Section */}
+        {/* Login Button - Only for web users not authenticated */}
         <AnimatePresence mode="popLayout">
           {authState === 'login' && !isInMiniApp && (
             <m.div
@@ -126,37 +145,6 @@ export function GameSelectionScreen() {
               <ActionButton onClick={login} color="cyan">
                 LOGIN WITH GOOGLE
               </ActionButton>
-            </m.div>
-          )}
-
-          {authState === 'ready' && displayName && (
-            <m.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="flex flex-col items-center gap-2 z-20 w-full max-w-xs"
-            >
-              <div className="flex flex-row items-center gap-3 glass-panel-vibrant px-4 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] w-full justify-center">
-                <div className="flex items-center gap-4">
-                  {miniAppUser?.pfpUrl && (
-                    <div className="relative">
-                      <div className="absolute -inset-1 rounded-sm bg-tron-cyan/20 blur-sm" />
-                      <Image
-                        src={miniAppUser.pfpUrl}
-                        alt=""
-                        width={32}
-                        height={32}
-                        unoptimized
-                        className="relative rounded-sm border border-tron-cyan/80 object-cover"
-                      />
-                    </div>
-                  )}
-                  <PlayerName
-                    username={displayName}
-                    className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.1em] text-tron-cyan drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
-                  />
-                </div>
-              </div>
             </m.div>
           )}
         </AnimatePresence>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.store'
 import { AnimatePresence, m } from 'framer-motion'
@@ -9,6 +8,7 @@ import { GridScanBackground } from '@/platform/ui/GridScanBackground'
 import { usePrivy } from '@privy-io/react-auth'
 import { ActionButton } from '@/platform/ui/ActionButton'
 import { PlayerName } from '@/platform/ui/PlayerName'
+import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { GameSettingsSelector } from '@/domains/hyper-swiper/client/components/settings/GameSettingsSelector'
 import { OnboardingModal } from '@/domains/hyper-swiper/client/components/modals/OnboardingModal'
@@ -17,70 +17,6 @@ import { cn } from '@/platform/utils/classNames.utils'
 type AuthMatchState = 'login' | 'ready'
 type UserMatchState = 'lobby' | 'entering'
 type MatchState = AuthMatchState | UserMatchState
-
-interface PlayingAsPanelProps {
-  displayName: string | null
-  matchState: MatchState
-  isInMiniApp: boolean
-  miniAppPfpUrl?: string
-}
-
-function PlayingAsPanel({
-  displayName,
-  matchState,
-  isInMiniApp,
-  miniAppPfpUrl,
-}: PlayingAsPanelProps) {
-  return (
-    <div className="mt-4 min-h-[100px]">
-      <AnimatePresence>
-        {displayName && matchState !== 'login' && (
-          <div className="flex flex-col items-center">
-            <div className="flex items-center gap-3 mb-2">
-              <m.p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/70 text-[9px] tracking-[0.3em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-                PLAYING AS
-              </m.p>
-            </div>
-
-            <m.div
-              className="relative flex flex-row items-center gap-3"
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            >
-              {isInMiniApp && miniAppPfpUrl && (
-                <div className="relative">
-                  <div className="absolute -inset-1 rounded-sm bg-tron-cyan/20 blur-md" />
-                  <m.div
-                    className="absolute -inset-2 rounded-sm border border-tron-cyan/60 hologram"
-                    animate={{
-                      scale: [1, 1.05, 1],
-                      opacity: [0.6, 0.3, 0.6],
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                  <Image
-                    src={miniAppPfpUrl}
-                    alt=""
-                    width={40}
-                    height={40}
-                    unoptimized
-                    className="relative rounded-sm border-2 border-tron-cyan/80 object-cover"
-                  />
-                </div>
-              )}
-              <div className="relative z-10 glass-panel-vibrant px-6 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] flex items-center justify-center">
-                <PlayerName
-                  username={displayName}
-                  className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg tracking-[0.1em] text-tron-cyan drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
-                />
-              </div>
-            </m.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
 
 interface MatchmakingAuthPanelProps {
   matchState: MatchState
@@ -399,30 +335,39 @@ export function MatchmakingScreen() {
         />
       </div>
 
-      <button
-        onClick={() => router.push('/')}
-        className="fixed top-4 left-4 z-30 px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan hover:shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md hologram"
-      >
-        ← BACK
-      </button>
+      {/* Top Bar: Back button (left) + Profile badge (right) */}
+      <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
+        <button
+          onClick={() => router.push('/')}
+          className="pointer-events-auto px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan hover:shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md hologram"
+        >
+          ← BACK
+        </button>
 
-      <div className="relative z-20 flex flex-col items-center gap-4 px-4 mt-6 w-full max-w-[400px]">
+        {/* User Profile Badge - Top Right */}
+        <AnimatePresence>
+          {displayName && matchState !== 'login' && (
+            <div className="pointer-events-auto glass-panel-vibrant px-3 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] bg-tron-black/80 backdrop-blur-md">
+              <UserProfileBadge
+                displayName={displayName}
+                pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
+                compact={true}
+              />
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="relative z-20 flex flex-col items-center gap-4 px-4 mt-16 w-full max-w-[400px]">
         <div className="text-center relative">
           <h1 className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg font-bold tracking-[0.3em] text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] mb-1">
             ENTER THE GRID
           </h1>
-          <div className="relative inline-block mb-2">
+          <div className="relative inline-block mb-4">
             <h2 className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
               HYPER SWIPER
             </h2>
           </div>
-
-          <PlayingAsPanel
-            displayName={displayName}
-            matchState={matchState}
-            isInMiniApp={isInMiniApp}
-            miniAppPfpUrl={miniAppUser?.pfpUrl}
-          />
         </div>
 
         {/* We place MatchmakingAuthPanel FIRST so the action buttons are above the subsetting */}
