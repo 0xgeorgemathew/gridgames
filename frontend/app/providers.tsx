@@ -1,13 +1,13 @@
 'use client'
 
 import { PrivyProvider } from '@privy-io/react-auth'
-import { privyConfig } from '@/privy/config'
+import { privyConfig } from '@/platform/auth/privy.config'
 import { WagmiProvider, createConfig, http } from 'wagmi'
 import { base, baseSepolia } from 'wagmi/chains'
 import { farcasterMiniApp } from '@farcaster/miniapp-wagmi-connector'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { MotionProvider } from '@/components/MotionProvider'
+import { MotionProvider } from '@/platform/ui/MotionProvider'
 
 // RPC URLs from environment or fallback to public endpoints
 const baseRpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org'

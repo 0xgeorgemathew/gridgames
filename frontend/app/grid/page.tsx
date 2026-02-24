@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import GameCanvas from '@/components/GameCanvas'
+import GameCanvas from '@/platform/ui/GameCanvas'
 
 export const metadata: Metadata = {
   title: 'Grid Scene Test | Grid Games',

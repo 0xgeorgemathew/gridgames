@@ -5,15 +5,15 @@ import { useEffect } from 'react'
 
 import { sdk } from '@farcaster/miniapp-sdk'
 
-import { useTradingStore } from '@/games/hyper-swiper/game/stores/trading-store'
-import GameCanvas from '@/components/GameCanvas'
-import { GameCanvasBackground } from '@/components/GameCanvasBackground'
-import { ToastNotifications } from '@/components/ToastNotifications'
-import { GameHUD } from '@/games/hyper-swiper/components/GameHUD'
-import { MatchmakingScreen } from '@/games/hyper-swiper/components/MatchmakingScreen'
-import { PositionIndicator } from '@/games/hyper-swiper/components/PositionIndicator'
-import { GameOverModal } from '@/games/hyper-swiper/components/GameOverModal'
-import { RoundEndFlash } from '@/games/hyper-swiper/components/RoundEndFlash'
+import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.store'
+import GameCanvas from '@/platform/ui/GameCanvas'
+import { GameCanvasBackground } from '@/platform/ui/GameCanvasBackground'
+import { ToastNotifications } from '@/platform/ui/ToastNotifications'
+import { GameHUD } from '@/domains/hyper-swiper/client/components/hud/GameHUD'
+import { MatchmakingScreen } from '@/domains/hyper-swiper/client/components/screens/MatchmakingScreen'
+import { PositionIndicator } from '@/domains/hyper-swiper/client/components/effects/PositionIndicator'
+import { GameOverModal } from '@/domains/hyper-swiper/client/components/screens/GameOverModal'
+import { RoundEndFlash } from '@/domains/hyper-swiper/client/components/effects/RoundEndFlash'
 
 function GameUI(): ReactNode {
   const { toasts, removeToast } = useTradingStore()

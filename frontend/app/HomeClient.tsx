@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { sdk } from '@farcaster/miniapp-sdk'
-import { GameSelectionScreen } from '@/components/GameSelectionScreen'
+import { GameSelectionScreen } from '@/platform/ui/GameSelectionScreen'
 
 export function HomeClient() {
   useEffect(() => {

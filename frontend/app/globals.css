@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import '../components/animations.css';
+@import '../platform/ui/animations.css';
 
 @custom-variant dark (&:is(.dark *));
 

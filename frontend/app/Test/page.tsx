@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Metadata } from 'next'
-import { TestGridBackground } from '@/components/TestGridBackground'
+import { TestGridBackground } from '@/platform/ui/TestGridBackground'
 
 export const metadata: Metadata = {
   title: 'Grid Test | Grid Games',

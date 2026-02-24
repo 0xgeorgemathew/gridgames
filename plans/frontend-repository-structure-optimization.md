@@ -42,7 +42,21 @@ A developer sees "game" everywhere and can't distinguish:
 | `GameRoom.ts` | PascalCase file, but what layer? |
 | `game-events-modules/index.ts` | ~33K bytes, monolithic handler |
 
----
+### Issue 4: Duplicate Type Definitions (Server ↔ Client)
+
+The following types are **defined in both** `app/api/socket/game-events-modules/types.ts` (server) and `games/hyper-swiper/game/types/trading.ts` (client):
+
+| Interface | Server `types.ts` | Client `trading.ts` |
+|-----------|-------------------|---------------------|
+| `PositionSettlementResult` | ✅ lines 44-56 | ✅ lines 237-249 |
+| `PlayerSettlementResult` | ✅ lines 59-66 | ✅ lines 254-259 |
+| `LiquidationEvent` | ✅ lines 91-102 | ✅ lines 267-278 |
+| `GameSettlementData` / `GameSettlementEvent` | ✅ lines 69-78 | ✅ lines 261-270 (slightly different name) |
+
+Additionally, `GameRoom.ts` imports `Player` from `@/games/hyper-swiper/game/types/trading`, creating **cross-layer coupling** where server-side code depends on client-side type definitions.
+
+> [!CAUTION]
+> This duplication means changes to these types must be made in two places today. The restructuring should **deduplicate** by placing shared types in one canonical location.
 
 ## Current File Inventory
 
@@ -62,6 +76,10 @@ frontend/
 ├── components.json                    # SHADCN config
 ├── railpack.json                      # Railway build config
 ├── railway.json                       # Railway deploy config
+├── .prettierignore                    # Prettier ignore rules
+├── .env.example                       # Environment variable template
+├── README.md                          # Project documentation
+├── next-env.d.ts                      # Auto-generated Next.js types
 │
 ├── app/
 │   ├── page.tsx                       # Home: Game Selection
@@ -238,6 +256,9 @@ frontend/
 ├── components.json
 ├── railpack.json
 ├── railway.json
+├── .prettierignore                          # (unchanged)
+├── .env.example                             # (unchanged)
+├── README.md                                # Update paths after migration
 │
 ├── app/
 │   ├── page.tsx                             # Home: Game Selection
@@ -277,10 +298,11 @@ frontend/
 │               ├── matchmaking.server.ts    # SPLIT from index.ts
 │               ├── settlement.server.ts     # SPLIT from index.ts
 │               ├── liquidation.server.ts    # SPLIT from index.ts
+│               ├── game-loop.server.ts      # SPLIT from index.ts (spawning, game loop, endGame)
 │               ├── price-feed.server.ts     # RENAMED: was PriceFeedManager.ts
 │               ├── coin-sequence.server.ts  # RENAMED: was CoinSequence.ts
 │               ├── seeded-random.utils.ts   # RENAMED: was SeededRandom.ts
-│               ├── events.types.ts          # RENAMED: was types.ts
+│               ├── events.types.ts          # RENAMED: was types.ts (server-side handler types, room/match state)
 │               └── validation.utils.ts      # RENAMED: was validation.ts
 │
 ├── domains/                                 # NEW: Domain modules
@@ -322,6 +344,7 @@ frontend/
 │       │   │   ├── systems/
 │       │   │   │   ├── AudioManager.ts
 │       │   │   │   ├── BladeRenderer.ts
+│       │   │   │   ├── [DELETE] BladeRenderer.ts.patch  # Remove obsolete patch file
 │       │   │   │   ├── CoinLifecycleSystem.ts
 │       │   │   │   ├── CoinRenderer.ts
 │       │   │   │   ├── CollisionSystem.ts
@@ -343,16 +366,16 @@ frontend/
 │       │           └── index.ts             # was trading-store-modules/index.ts
 │       │
 │       └── shared/                          # Shared client/server
-│           ├── position.types.ts            # Extracted from types/trading.ts
-│           ├── player.types.ts              # Extracted from types/trading.ts
-│           ├── coin.types.ts                # Extracted from types/trading.ts
-│           └── events.types.ts              # Socket event payloads
+│           ├── [NEW] position.types.ts      # SPLIT from types/trading.ts
+│           ├── [NEW] player.types.ts        # SPLIT from types/trading.ts
+│           ├── [NEW] coin.types.ts          # SPLIT from types/trading.ts
+│           └── [DELETE] types/trading.ts    # Original removed after split above
 │
 ├── platform/                                # NEW: Cross-cutting
 │   ├── auth/
 │   │   ├── privy.config.ts                  # was privy/config.ts
 │   │   ├── mini-app.hook.ts                 # RENAMED: was useBaseMiniAppAuth.ts
-│   │   └── auth.types.ts
+│   │   └── [NEW] auth.types.ts              # New file: auth-related type definitions
 │   │
 │   ├── ui/                                  # Shared UI components
 │   │   ├── GameSelectionScreen.tsx           # was components/GameSelectionScreen.tsx
@@ -369,7 +392,7 @@ frontend/
 │   │   └── animations.css
 │   │
 │   ├── hooks/
-│   │   └── usePlatform.ts                   # Platform detection (new)
+│   │   └── [NEW] usePlatform.ts             # New file: platform detection utility
 │   │
 │   └── utils/
 │       ├── classNames.utils.ts              # RENAMED: was lib/utils.ts (cn() helper)
@@ -414,6 +437,7 @@ frontend/
 matchmaking.server.ts      # Match creation logic
 settlement.server.ts       # Position settlement
 liquidation.server.ts      # Liquidation checks
+game-loop.server.ts        # Coin spawning, game loop, endGame
 price-feed.server.ts       # Binance WebSocket
 coin-sequence.server.ts    # Coin spawn sequencing
 room-registry.server.ts    # Room/player tracking
@@ -494,20 +518,54 @@ constants.ts               # Game constants
 
 **Estimated Time: 2-3 hours**
 
+> [!WARNING]
+> This is the **highest-risk phase**. The `index.ts` split requires understanding the full event handler flow. Test Socket.IO connections thoroughly after this phase.
+
 1. Rename `game-events-modules/` → `multiplayer/`
-2. Split `index.ts` (~33K bytes) into:
-   - `matchmaking.server.ts`
-   - `settlement.server.ts`
-   - `liquidation.server.ts`
+2. Split `index.ts` (1,060 lines, 32,964 bytes) using its existing section delimiters:
+
+   **`liquidation.server.ts`** — Liquidation logic (lines 68–190):
+   - `checkLiquidations()` — checks all open positions across active rooms
+   - `liquidatePosition()` — force-closes position, emits `position_liquidated`
+   - `calculatePositionPnl()` — computes PnL for a position
+   - `calculateCollateralHealthRatio()` — health ratio calculation
+   - `shouldLiquidate()` — threshold check (≤ 80%)
+
+   **`settlement.server.ts`** — Game-end settlement (lines 192–293):
+   - `settleAllPositions()` — settles all open + closed positions at game end
+   - `calculatePlayerResults()` — aggregates per-player PnL totals
+   - `determineWinner()` — picks winner by total PnL
+
+   **`matchmaking.server.ts`** — Match creation & lobby (lines 429–512, 646–1058):
+   - `createMatch()` — creates room, assigns players, emits `match_found`
+   - All socket event handlers inside `setupGameEvents()` that relate to matchmaking:
+     `find_match`, `join_waiting_pool`, `leave_waiting_pool`, `get_lobby_players`, `select_opponent`
+
+   **`game-loop.server.ts`** — Game lifecycle (lines 294–428):
+   - `spawnCoin()` — deterministic coin spawning
+   - `startGameLoop()` — main game loop with heartbeat scheduler
+   - `startGameWhenClientsReady()` — client readiness gate
+   - `endGame()` — ends game with settlement + cleanup
+
+   **`index.ts`** — Barrel/orchestrator (remains):
+   - `setupGameEvents()` — creates `RoomManager`, sets up cleanup/emergency, wires Socket.IO events
+   - Price feed management: `ensurePriceFeedConnected()`, `disconnectPriceFeedIfIdle()`
+   - Remaining inline event handlers: `scene_ready`, `slice_coin`, `close_position`, `end_game`, `set_leverage`, `disconnect`
+
+   > [!NOTE]
+   > The `setupGameEvents()` function (L607–L1058) contains all Socket.IO event handlers **inline** as `socket.on(...)` callbacks. These handlers call into the split files but the handler wiring itself stays in `index.ts` as the orchestrator.
+
 3. Rename files with layer suffixes:
    - `GameRoom.ts` → `room.manager.ts`
    - `RoomManager.ts` → `room-registry.server.ts`
    - `PriceFeedManager.ts` → `price-feed.server.ts`
    - `CoinSequence.ts` → `coin-sequence.server.ts`
    - `SeededRandom.ts` → `seeded-random.utils.ts`
-   - `types.ts` → `events.types.ts`
+   - `types.ts` → `events.types.ts` (server-side handler types: room state, match state, etc.)
    - `validation.ts` → `validation.utils.ts`
 4. Update `game-events.ts` barrel to import from `multiplayer/`
+5. **Fix cross-layer coupling**: `room.manager.ts` (was `GameRoom.ts`) imports `Player` from `@/games/hyper-swiper/game/types/trading`. After the restructuring, update this to import from `@/domains/hyper-swiper/shared/player.types`
+6. **Deduplicate types**: The 4 duplicate interfaces (`PositionSettlementResult`, `PlayerSettlementResult`, `LiquidationEvent`, `GameSettlementData`) should live in one place. Move them to `domains/hyper-swiper/shared/` and have `multiplayer/events.types.ts` re-export or import from there
 
 ### Phase 3: Move Client-Side Code
 
@@ -522,8 +580,12 @@ constants.ts               # Game constants
    - `components/` → `client/components/`
 5. Flatten `GameHUD-modules/` into `client/components/hud/`
 6. Move `GameSettingsSelector.tsx` → `client/components/settings/`
-7. Split `trading-store-modules/` into `client/state/slices/`
-8. Split `types/trading.ts` into `shared/` type files
+7. Move `trading-store-modules/` into `client/state/slices/` (rename dir, no content split needed — currently just `index.ts` + `types.ts`)
+8. Split `types/trading.ts` (7,505 bytes) into 3 new files under `shared/`:
+   - `position.types.ts` — position/trade-related types
+   - `player.types.ts` — player state types
+   - `coin.types.ts` — coin/token types
+   - Then **delete** the original `types/trading.ts`
 
 ### Phase 4: Move Shared Code
 
@@ -556,7 +618,11 @@ constants.ts               # Game constants
    }
    ```
 3. Update `game-events.ts` to re-export from new `multiplayer/` path
-4. Clean up `BladeRenderer.ts.patch` (delete if no longer needed)
+4. Delete `BladeRenderer.ts.patch` (obsolete patch file)
+5. Create new files:
+   - `platform/auth/auth.types.ts` — auth-related type definitions
+   - `platform/hooks/usePlatform.ts` — platform detection utility
+6. Update `README.md` with new directory structure
 
 ### Phase 6: Cleanup
 
@@ -565,8 +631,9 @@ constants.ts               # Game constants
 1. Remove empty directories (`games/`, `hooks/`, `lib/`, `privy/`, `components/ui/`, `components/ens/`)
 2. Remove `Test/` route or rename to `test/`
 3. Update `GEMINI.md` file paths
-4. Update documentation
-5. Verify all tests pass
+4. Update `.prettierignore` if any paths changed
+5. Update documentation (`README.md`)
+6. Verify all tests pass
 
 ---
 
@@ -655,6 +722,14 @@ import { PlayerName } from '@platform/ui/PlayerName'
 
 4. **Test/Grid Routes**: Keep `test/` and `grid/` routes or remove?
    - Recommendation: Keep during development, gate behind `NODE_ENV === 'development'`
+
+5. **Type Deduplication Strategy**: Where should the 4 duplicated interfaces (`PositionSettlementResult`, `PlayerSettlementResult`, `LiquidationEvent`, `GameSettlementData`) live?
+   - Recommendation: Single source of truth in `domains/hyper-swiper/shared/`. Server-side `multiplayer/events.types.ts` re-exports from there.
+   - Alternative: Keep server types separate if they diverge from client types (e.g., server adds fields for internal tracking)
+
+6. **`setupGameEvents` inline handlers**: The `setupGameEvents` function contains all Socket.IO event handlers as inline callbacks (L646–L1056). Should these be extracted further?
+   - Recommendation: Keep inline for now. The handlers are thin wrappers that call into the split files. Extracting them would add indirection without much benefit.
+   - Reconsider if a second game is added (at that point, per-game handler registrations would be needed)
 
 ---
 
