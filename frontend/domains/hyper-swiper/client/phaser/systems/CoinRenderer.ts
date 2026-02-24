@@ -46,7 +46,7 @@ export class CoinRenderer {
     size: number,
     fill: boolean = true
   ): void {
-    const height = size * Math.sqrt(3) / 2
+    const height = (size * Math.sqrt(3)) / 2
     const topY = cy - height * 0.6
     const bottomY = cy + height * 0.4
     const halfBase = size / 2
@@ -74,7 +74,7 @@ export class CoinRenderer {
     size: number,
     fill: boolean = true
   ): void {
-    const height = size * Math.sqrt(3) / 2
+    const height = (size * Math.sqrt(3)) / 2
     const topY = cy - height * 0.4
     const bottomY = cy + height * 0.6
     const halfBase = size / 2

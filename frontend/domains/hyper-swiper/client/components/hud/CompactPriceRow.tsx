@@ -62,7 +62,7 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
               {formatTime(gameTimeRemaining)}
             </span>
           </div>
-          
+
           {/* Player Balance */}
           {playerBalance !== undefined && (
             <div className="flex items-center gap-1 px-2 py-1 border-l border-tron-cyan/30 bg-tron-cyan/5">
