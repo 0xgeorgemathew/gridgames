@@ -129,6 +129,7 @@ export interface TradingState
   findMatch: (playerName: string, walletAddress?: string) => void
   spawnCoin: (coin: CoinSpawnEvent) => void
   sliceCoin: (coinId: string, coinType: CoinType) => void
+  expireCoin: (coinId: string) => void
   setLeverage: (leverage: number) => void
   setSelectedGameDuration: (duration: number) => void
   setSelectedLeverage: (leverage: number) => void

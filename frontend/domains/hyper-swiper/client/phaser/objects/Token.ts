@@ -25,6 +25,11 @@ export class Token extends GameObjects.Container {
   private breatheTween?: Tweens.Tween
   private glowGraphics?: GameObjects.Graphics
 
+  private velocityX: number = 0
+  private velocityY: number = 0
+  private gravity: number = 40
+  private angularVelocity: number = 0
+
   constructor(scene: Scene) {
     super(scene, 0, 0)
 
@@ -107,7 +112,13 @@ export class Token extends GameObjects.Container {
     this.setData('oldX', x)
     this.setData('oldY', y)
 
-    // Ensure physics body is enabled
+    // Store velocities for manual delta-based movement
+    this.velocityX = velocityX
+    this.velocityY = velocityY
+    this.gravity = 25
+    this.angularVelocity = rotationSpeed * 120
+
+    // Ensure physics body is enabled for collision detection only
     if (!this.body) {
       this.scene.physics.add.existing(this)
       if (!this.body) {
@@ -117,12 +128,12 @@ export class Token extends GameObjects.Container {
 
     this.body.reset(x, y)
     this.body.setAcceleration(0, 0)
-    this.body.setVelocity(velocityX, velocityY)
-
+    this.body.setVelocity(0, 0)
     this.body.setBounce(0)
     this.body.setCollideWorldBounds(false)
     this.body.setGravity(0, 0)
     this.body.setDrag(0, 0)
+    this.body.setAngularVelocity(0)
 
     // Hitbox: 85% of visual size (forgiving slicing), with hitbox multiplier
     const RENDER_SCALE = 4
@@ -138,9 +149,25 @@ export class Token extends GameObjects.Container {
 
     // Play spawn animation (elastic scale-in + rotation burst)
     this.playSpawnAnimation(scale)
+  }
 
-    // Set initial angular velocity
-    this.body.setAngularVelocity(rotationSpeed * 120)
+  preUpdate(_time: number, delta: number): void {
+    if (!this.active) return
+
+    const clampedDelta = Math.max(4, Math.min(50, delta))
+    const deltaSeconds = clampedDelta / 1000
+
+    this.velocityY += this.gravity * deltaSeconds
+
+    this.x += this.velocityX * deltaSeconds
+    this.y += this.velocityY * deltaSeconds
+
+    this.angle += this.angularVelocity * deltaSeconds
+
+    if (this.body) {
+      this.body.position.x = this.x - this.body.width / 2
+      this.body.position.y = this.y - this.body.height / 2
+    }
   }
 
   /**
@@ -275,6 +302,11 @@ export class Token extends GameObjects.Container {
 
     this.setActive(false)
     this.setVisible(false)
+
+    // Reset manual velocities
+    this.velocityX = 0
+    this.velocityY = 0
+    this.angularVelocity = 0
 
     // Hide ambient glow
     if (this.glowGraphics) {

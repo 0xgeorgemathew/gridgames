@@ -274,6 +274,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     socket.emit('slice_coin', { coinId, coinType })
   },
 
+  expireCoin: (coinId: string) => {
+    const { socket, localPlayerId } = get()
+    if (!socket || !localPlayerId) return
+    socket.emit('coin_expired', { coinId })
+  },
+
   closePosition: (positionId: string) => {
     const { socket, localPlayerId } = get()
     if (!socket || !localPlayerId) return
@@ -389,7 +395,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           updatedClosing.delete(data.positionId)
           updatedOpen.delete(data.positionId)
           updatedTimeouts.delete(data.positionId)
-          set({ closingPositions: updatedClosing, openPositions: updatedOpen, positionCloseTimeouts: updatedTimeouts })
+          set({
+            closingPositions: updatedClosing,
+            openPositions: updatedOpen,
+            positionCloseTimeouts: updatedTimeouts,
+          })
         }, 1200)
 
         // Track the timeout for cleanup on resetGame
@@ -459,7 +469,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           updatedClosing.delete(liquidationEvent.positionId)
           updatedOpen.delete(liquidationEvent.positionId)
           updatedTimeouts.delete(liquidationEvent.positionId)
-          set({ closingPositions: updatedClosing, openPositions: updatedOpen, positionCloseTimeouts: updatedTimeouts })
+          set({
+            closingPositions: updatedClosing,
+            openPositions: updatedOpen,
+            positionCloseTimeouts: updatedTimeouts,
+          })
         }, 1200)
 
         // Track the timeout for cleanup on resetGame

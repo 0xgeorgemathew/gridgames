@@ -3,6 +3,7 @@ import type { CoinType, CoinSpawnEvent } from '@/domains/hyper-swiper/shared/tra
 import { Token } from '@/domains/hyper-swiper/client/phaser/objects/Token'
 import { CoinRenderer, COIN_CONFIG } from './CoinRenderer'
 import { SpatialGrid } from './SpatialGrid'
+import { useTradingStore } from '@/domains/hyper-swiper/client/state/slices/index'
 
 export class CoinLifecycleSystem {
   private scene: Scene
@@ -36,7 +37,7 @@ export class CoinLifecycleSystem {
     })
   }
 
-  update(): void {
+  update(_delta: number): void {
     this.updateCoinPhysics()
   }
 
@@ -55,6 +56,7 @@ export class CoinLifecycleSystem {
 
   handleCoinSpawn(data: CoinSpawnEvent): void {
     if (!this.tokenPool) return
+    if (!this.scene.cameras?.main) return
 
     if (data.sequenceIndex !== undefined && data.sequenceIndex !== this.lastSequenceIndex + 1) {
       console.warn(
@@ -157,6 +159,9 @@ export class CoinLifecycleSystem {
       const gridY = (t.getData('gridY') as number) ?? t.y
 
       if (t.y > sceneHeight + 200) {
+        // Notify server that coin expired (fell below screen)
+        useTradingStore.getState().expireCoin(coinId)
+
         this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
         t.setActive(false)
         t.setVisible(false)

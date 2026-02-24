@@ -66,7 +66,7 @@ export class TradingSceneServices {
 
     this.gridBackground.update(delta)
     this.priceGraph.update(delta)
-    this.coinLifecycle.update()
+    this.coinLifecycle.update(delta)
     this.collision.update(delta)
     this.inputAudio.update()
   }
