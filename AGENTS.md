@@ -17,3 +17,7 @@ bun run format # Format code
 - Semicolons: disabled (enforced by Prettier)
 - Imports: use `@/*` path alias (maps to `./`)
 - TypeScript: `strict` mode is off - add explicit type checks
+
+## Architecture
+
+See [codebase.md](./frontend/codebase.md) for a quick reference of important files.
