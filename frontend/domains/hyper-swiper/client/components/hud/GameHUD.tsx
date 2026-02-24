@@ -173,6 +173,7 @@ export const GameHUD = React.memo(function GameHUD() {
                   onShowHowToPlay={() => setShowHowToPlay(true)}
                   onEndGame={endGame}
                   isGameReady={isGameReady}
+                  playerBalance={localPlayer?.dollars}
                 />
               )}
 

@@ -20,6 +20,7 @@ interface CompactPriceRowProps {
   onShowHowToPlay: () => void
   onEndGame: () => void
   isGameReady: boolean
+  playerBalance?: number
 }
 
 /**
@@ -36,28 +37,46 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
   onToggleSound,
   onEndGame,
   isGameReady,
+  playerBalance,
 }: CompactPriceRowProps) {
   const { color: priceColor, glow: priceGlow } = getPriceColor(priceData?.changePercent ?? 0)
   const isLowTime = gameTimeRemaining <= 30000
 
   return (
     <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2">
-      {/* Left: Timer */}
+      {/* Left: Timer + Balance */}
       {isGameReady && (
-        <div className="flex items-center justify-center min-w-[48px] px-2 py-1 border-l-2 border-tron-cyan/60 bg-tron-cyan/5 shrink-0">
-          <span
-            className={cn(
-              'text-sm font-black font-numeric tracking-wider',
-              isLowTime ? 'text-red-400' : 'text-tron-cyan'
-            )}
-            style={{
-              textShadow: isLowTime
-                ? '0 0 10px rgba(248,113,113,0.6)'
-                : '0 0 10px rgba(0,243,255,0.6)',
-            }}
-          >
-            {formatTime(gameTimeRemaining)}
-          </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center justify-center min-w-[48px] px-2 py-1 border-l-2 border-tron-cyan/60 bg-tron-cyan/5">
+            <span
+              className={cn(
+                'text-sm font-black font-numeric tracking-wider',
+                isLowTime ? 'text-red-400' : 'text-tron-cyan'
+              )}
+              style={{
+                textShadow: isLowTime
+                  ? '0 0 10px rgba(248,113,113,0.6)'
+                  : '0 0 10px rgba(0,243,255,0.6)',
+              }}
+            >
+              {formatTime(gameTimeRemaining)}
+            </span>
+          </div>
+          
+          {/* Player Balance */}
+          {playerBalance !== undefined && (
+            <div className="flex items-center gap-1 px-2 py-1 border-l border-tron-cyan/30 bg-tron-cyan/5">
+              <span className="text-[9px] text-tron-cyan/50 uppercase tracking-wider font-bold">
+                $
+              </span>
+              <span
+                className="text-sm font-black font-numeric text-tron-cyan"
+                style={{ textShadow: '0 0 8px rgba(0,243,255,0.5)' }}
+              >
+                {playerBalance.toLocaleString()}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
