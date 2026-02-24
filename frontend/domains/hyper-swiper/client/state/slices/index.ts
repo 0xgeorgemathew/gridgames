@@ -62,6 +62,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   gameSettlement: null, // Settlement data at game end
   toasts: [],
   leverage: CFG.FIXED_LEVERAGE,
+  closingPositions: new Map(), // Positions being animated for close/liquidation
 
   // Matchmaking settings (pre-game)
   selectedGameDuration: CFG.DURATION_OPTIONS_MS[0], // Default 1 minute
@@ -358,26 +359,41 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     realizedPnl: number
     playerId: string
   }) => {
-    const { openPositions, localPlayerId } = get()
+    const { openPositions, localPlayerId, closingPositions } = get()
 
-    const newPositions = new Map(openPositions)
-    const position = newPositions.get(data.positionId)
+    const position = openPositions.get(data.positionId)
 
     if (position) {
-      newPositions.delete(data.positionId)
-      set({ openPositions: newPositions })
-
       const isOwnPosition = data.playerId === localPlayerId
+      const newClosingPositions = new Map(closingPositions)
+
       if (isOwnPosition) {
-        const pnlText =
-          data.realizedPnl >= 0
-            ? `+$${data.realizedPnl.toFixed(2)}`
-            : `-$${Math.abs(data.realizedPnl).toFixed(2)}`
-        get().addToast({
-          message: `Position closed. PnL: ${pnlText}`,
-          type: data.realizedPnl >= 0 ? 'success' : 'error',
-          duration: 3000,
+        // Add to closing positions for animation - position stays in openPositions
+        // so the same card can animate the close transition
+        newClosingPositions.set(data.positionId, {
+          positionId: data.positionId,
+          reason: 'manual',
+          realizedPnl: data.realizedPnl,
+          timestamp: Date.now(),
         })
+
+        // Remove both from closing and open positions after animation completes
+        setTimeout(() => {
+          const currentClosing = get().closingPositions
+          const currentOpen = get().openPositions
+          const updatedClosing = new Map(currentClosing)
+          const updatedOpen = new Map(currentOpen)
+          updatedClosing.delete(data.positionId)
+          updatedOpen.delete(data.positionId)
+          set({ closingPositions: updatedClosing, openPositions: updatedOpen })
+        }, 1200)
+
+        set({ closingPositions: newClosingPositions })
+      } else {
+        // For other players' positions, remove immediately (no animation needed)
+        const newPositions = new Map(openPositions)
+        newPositions.delete(data.positionId)
+        set({ openPositions: newPositions })
       }
     }
   },
@@ -406,25 +422,43 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Position liquidated - force-closed due to low collateral health (<= 80%)
   handlePositionLiquidated: (liquidationEvent) => {
-    const { openPositions, localPlayerId } = get()
+    const { openPositions, localPlayerId, closingPositions } = get()
 
-    // Remove the liquidated position from open positions
-    const newPositions = new Map(openPositions)
-    newPositions.delete(liquidationEvent.positionId)
-    set({ openPositions: newPositions })
+    const position = openPositions.get(liquidationEvent.positionId)
 
-    // Show toast notification for the liquidated position
-    const isOwnPosition = liquidationEvent.playerId === localPlayerId
-    const direction = liquidationEvent.isLong ? 'LONG' : 'SHORT'
-    const healthPercent = (liquidationEvent.healthRatio * 100).toFixed(1)
+    if (position) {
+      const isOwnPosition = liquidationEvent.playerId === localPlayerId
+      const newClosingPositions = new Map(closingPositions)
 
-    get().addToast({
-      message: isOwnPosition
-        ? `Your ${direction} position was LIQUIDATED at ${healthPercent}% health!`
-        : `Opponent's ${direction} position was liquidated at ${healthPercent}% health`,
-      type: 'error',
-      duration: 5000,
-    })
+      if (isOwnPosition) {
+        // Add to closing positions for animation - position stays in openPositions
+        // so the same card can animate the liquidation transition
+        newClosingPositions.set(liquidationEvent.positionId, {
+          positionId: liquidationEvent.positionId,
+          reason: 'liquidated',
+          realizedPnl: liquidationEvent.pnlAtLiquidation,
+          timestamp: Date.now(),
+        })
+
+        // Remove both from closing and open positions after animation completes
+        setTimeout(() => {
+          const currentClosing = get().closingPositions
+          const currentOpen = get().openPositions
+          const updatedClosing = new Map(currentClosing)
+          const updatedOpen = new Map(currentOpen)
+          updatedClosing.delete(liquidationEvent.positionId)
+          updatedOpen.delete(liquidationEvent.positionId)
+          set({ closingPositions: updatedClosing, openPositions: updatedOpen })
+        }, 1200)
+
+        set({ closingPositions: newClosingPositions })
+      } else {
+        // For other players' positions, remove immediately (no animation needed)
+        const newPositions = new Map(openPositions)
+        newPositions.delete(liquidationEvent.positionId)
+        set({ openPositions: newPositions })
+      }
+    }
 
     // Emit event for Phaser scene to handle visual effects
     window.phaserEvents?.emit('position_liquidated', liquidationEvent)

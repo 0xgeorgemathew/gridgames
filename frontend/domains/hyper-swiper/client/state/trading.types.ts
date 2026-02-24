@@ -66,12 +66,23 @@ interface TimerState {
   gameTimerInterval: number | null
 }
 
+// Position closing state for animated notifications
+export type PositionCloseReason = 'manual' | 'liquidated'
+
+export interface PositionClosingState {
+  positionId: string
+  reason: PositionCloseReason
+  realizedPnl: number
+  timestamp: number
+}
+
 // Game state slice - Perp-style positions
 interface GameState {
   openPositions: Map<string, Position> // Open positions (no settlement timer)
   gameSettlement: GameSettlementEvent | null // Settlement data at game end
   toasts: Toast[]
   leverage: number // In-game leverage (fixed at 500X)
+  closingPositions: Map<string, PositionClosingState> // Positions being animated
 }
 
 // Matchmaking settings slice

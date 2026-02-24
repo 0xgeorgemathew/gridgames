@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { m } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { m, AnimatePresence } from 'framer-motion'
 import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.store'
 import { cn } from '@/platform/utils/classNames.utils'
 import { formatPrice } from '@/platform/utils/price.utils'
@@ -12,13 +12,20 @@ function PositionCard({
   index,
   priceData,
   onClose,
+  isClosing,
+  closingReason,
+  realizedPnl,
 }: {
   position: Position
   index: number
   priceData: any
   onClose: (id: string) => void
+  isClosing: boolean
+  closingReason?: 'manual' | 'liquidated'
+  realizedPnl?: number
 }) {
   const [isMinimized, setIsMinimized] = useState(false)
+  const hasAnimatedClose = useRef(false)
 
   // Auto minimize faster
   useEffect(() => {
@@ -28,6 +35,13 @@ function PositionCard({
     return () => clearTimeout(timer)
   }, [])
 
+  // When closing starts, ensure we show the close animation
+  useEffect(() => {
+    if (isClosing) {
+      hasAnimatedClose.current = true
+    }
+  }, [isClosing])
+
   // Real-time PnL calculation
   const currentPrice = priceData?.price ?? position.openPrice
   const priceChangePercent = (currentPrice - position.openPrice) / position.openPrice
@@ -35,10 +49,17 @@ function PositionCard({
   const pnlPercent = priceChangePercent * directionMultiplier * position.leverage * 100
 
   // Border and glow styles based on PnL
-  const isInProfit = pnlPercent > 0
+  const isInProfit = (realizedPnl ?? pnlPercent) > 0
   const isNearZero = Math.abs(pnlPercent) < 0.5
+  const isLiquidated = closingReason === 'liquidated'
 
   function getBorderStyle(): string {
+    if (isLiquidated) {
+      return 'border-2 border-red-500/80 shadow-[0_0_25px_rgba(248,113,113,0.5)]'
+    }
+    if (isClosing) {
+      return 'border-2 border-tron-cyan/60 shadow-[0_0_20px_rgba(0,243,255,0.4)]'
+    }
     if (isNearZero) {
       return 'border border-tron-cyan/30'
     }
@@ -68,13 +89,27 @@ function PositionCard({
     mass: 0.5,
   }
 
+  // Get PnL display values
+  const displayPnl = realizedPnl ?? pnlPercent
+  const pnlText = isClosing
+    ? `${displayPnl >= 0 ? '+' : ''}$${Math.abs(displayPnl).toFixed(2)}`
+    : `${isInProfit ? '+' : ''}${displayPnl.toFixed(2)}%`
+
+  // When closing, always show minimized state (collapsed content)
+  const showCollapsedContent = isMinimized || isClosing
+
   return (
     <m.div
       key={position.id}
       layout
       initial={{ y: 80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 40, opacity: 0, scale: 0.9 }}
+      exit={{
+        y: -20,
+        opacity: 0,
+        scale: 0.9,
+        filter: 'blur(4px)',
+      }}
       transition={{
         y: {
           type: 'spring',
@@ -86,16 +121,20 @@ function PositionCard({
           duration: 0.3,
           delay: index * 0.08,
         },
+        exit: {
+          duration: 0.4,
+          ease: 'easeOut',
+        },
       }}
       className={cn(
-        'glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto',
+        'glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto overflow-hidden',
         borderStyle
       )}
       style={{ willChange: 'transform, opacity' }}
-      onClick={() => onClose(position.id)}
+      onClick={() => !isClosing && onClose(position.id)}
     >
       {/* Animated glow effect for profit/loss */}
-      {!isNearZero && (
+      {!isNearZero && !isClosing && (
         <m.div
           className="absolute inset-0 pointer-events-none rounded-xl"
           animate={{
@@ -113,10 +152,27 @@ function PositionCard({
         />
       )}
 
+      {/* Closing/Liquidation flash effect */}
+      <AnimatePresence>
+        {isClosing && (
+          <m.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: isLiquidated
+                ? 'radial-gradient(circle at center, rgba(248,113,113,0.3) 0%, transparent 70%)'
+                : 'radial-gradient(circle at center, rgba(0,243,255,0.2) 0%, transparent 70%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="relative flex items-center p-2 gap-2">
         {/* Single arrow indicator with scale animation */}
         <m.div
-          animate={{ scale: isMinimized ? 0.85 : 1 }}
+          animate={{ scale: showCollapsedContent ? 0.85 : 1 }}
           transition={smoothSpring}
           className={cn(
             'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
@@ -130,17 +186,17 @@ function PositionCard({
         </m.div>
 
         {/* Content wrapper */}
-        <div className="relative flex items-center">
+        <div className="relative flex items-center flex-1 overflow-hidden">
           {/* Expanded content - width animation collapses layout space */}
           <m.div
             animate={{
-              width: isMinimized ? 0 : 'auto',
-              opacity: isMinimized ? 0 : 1,
+              width: showCollapsedContent ? 0 : 'auto',
+              opacity: showCollapsedContent ? 0 : 1,
             }}
             transition={smoothSpring}
             className="flex items-center gap-2 overflow-hidden origin-left"
             style={{
-              visibility: isMinimized ? 'hidden' : 'visible',
+              visibility: showCollapsedContent ? 'hidden' : 'visible',
               willChange: 'width, opacity',
             }}
           >
@@ -184,29 +240,71 @@ function PositionCard({
             </div>
           </m.div>
 
-          {/* Collapsed content - in flow, expands when minimized */}
+          {/* Collapsed content - shows PnL or Closing state */}
           <m.div
             animate={{
-              width: isMinimized ? 'auto' : 0,
-              opacity: isMinimized ? 1 : 0,
+              width: showCollapsedContent ? 'auto' : 0,
+              opacity: showCollapsedContent ? 1 : 0,
             }}
             transition={smoothSpring}
             className="flex items-center overflow-hidden"
             style={{
-              visibility: isMinimized ? 'visible' : 'hidden',
+              visibility: showCollapsedContent ? 'visible' : 'hidden',
               willChange: 'width, opacity',
             }}
           >
-            <span
-              className={cn(
-                'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5',
-                'min-w-[48px]',
-                getPnlTextColor(isNearZero, isInProfit)
+            {/* Closing/Liquidation animated text */}
+            <AnimatePresence mode="wait">
+              {isClosing ? (
+                <m.div
+                  key="closing"
+                  initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 400,
+                    damping: 20,
+                  }}
+                  className="flex items-center gap-1.5"
+                >
+                  <span
+                    className={cn(
+                      'text-[11px] font-black font-mono leading-none tracking-wider',
+                      isLiquidated ? 'text-red-400' : 'text-tron-cyan'
+                    )}
+                  >
+                    {isLiquidated ? 'LIQUIDATED' : 'CLOSED'}
+                  </span>
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold font-mono leading-none',
+                      realizedPnl !== undefined && realizedPnl >= 0
+                        ? 'text-green-400'
+                        : 'text-red-400'
+                    )}
+                  >
+                    {realizedPnl !== undefined
+                      ? `${realizedPnl >= 0 ? '+' : ''}$${Math.abs(realizedPnl).toFixed(2)}`
+                      : pnlText}
+                  </span>
+                </m.div>
+              ) : (
+                <m.span
+                  key="pnl"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className={cn(
+                    'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5',
+                    'min-w-[48px]',
+                    getPnlTextColor(isNearZero, isInProfit)
+                  )}
+                >
+                  {pnlText}
+                </m.span>
               )}
-            >
-              {isInProfit ? '+' : ''}
-              {pnlPercent.toFixed(2)}%
-            </span>
+            </AnimatePresence>
           </m.div>
         </div>
       </div>
@@ -215,9 +313,11 @@ function PositionCard({
 }
 
 export function PositionIndicator() {
-  const { openPositions, localPlayerId, priceData, closePosition } = useTradingStore()
+  const { openPositions, localPlayerId, priceData, closePosition, closingPositions } =
+    useTradingStore()
 
-  // Get local player's open positions
+  // Get local player's open positions - positions in closing state are still in openPositions
+  // until the animation completes
   const localPositions = Array.from(openPositions.values())
     .filter((pos) => pos.playerId === localPlayerId && pos.status === 'open')
     .sort((a, b) => b.openedAt - a.openedAt)
@@ -232,15 +332,23 @@ export function PositionIndicator() {
             scrollbarWidth: 'none',
           }}
         >
-          {localPositions.map((position, index) => (
-            <PositionCard
-              key={position.id}
-              position={position}
-              index={index}
-              priceData={priceData}
-              onClose={closePosition}
-            />
-          ))}
+          <AnimatePresence mode="popLayout">
+            {localPositions.map((position, index) => {
+              const closingState = closingPositions.get(position.id)
+              return (
+                <PositionCard
+                  key={position.id}
+                  position={position}
+                  index={index}
+                  priceData={priceData}
+                  onClose={closePosition}
+                  isClosing={!!closingState}
+                  closingReason={closingState?.reason}
+                  realizedPnl={closingState?.realizedPnl}
+                />
+              )
+            })}
+          </AnimatePresence>
         </div>
       </div>
     </div>
