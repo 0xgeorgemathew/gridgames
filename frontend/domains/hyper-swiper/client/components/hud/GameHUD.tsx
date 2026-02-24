@@ -5,7 +5,7 @@ import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.sto
 import { HowToPlayModal } from '@/domains/hyper-swiper/client/components/modals/HowToPlayModal'
 import { AnimatePresence, m } from 'framer-motion'
 
-import { CompactPriceRow, PriceLoadingState, SinglePlayerHealth, containerVariants } from './index'
+import { CompactPriceRow, PriceLoadingState, containerVariants } from './index'
 
 export const GameHUD = React.memo(function GameHUD() {
   const {
@@ -44,7 +44,7 @@ export const GameHUD = React.memo(function GameHUD() {
     <>
       <HowToPlayModal isOpen={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
 
-      {/* Price Feed Loading Overlay - Full screen when connecting */}
+      {/* Price Feed Loading Overlay */}
       <AnimatePresence>
         {isPlaying && isShowingLoading && (
           <m.div
@@ -58,7 +58,7 @@ export const GameHUD = React.memo(function GameHUD() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="glass-panel-vibrant rounded-2xl p-8 border border-tron-cyan/30"
+                className="glass-panel-vibrant p-8 border border-tron-cyan/30"
                 style={{
                   boxShadow: '0 0 40px rgba(0,243,255,0.2), inset 0 0 40px rgba(0,243,255,0.05)',
                 }}
@@ -85,87 +85,55 @@ export const GameHUD = React.memo(function GameHUD() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="pointer-events-auto text-center"
             >
-              {/* Game Over Panel - Angular TRON design */}
-              <div className="relative">
-                {/* Outer glow frame */}
-                <m.div
-                  className="absolute -inset-3 bg-tron-cyan/10"
-                  style={{ clipPath: 'polygon(0 10%, 10% 0, 90% 0, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0 90%)' }}
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
+              <div className="relative p-6 border border-tron-cyan/60 bg-tron-black/90">
+                {/* Corner accents */}
+                <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-tron-cyan" />
+                <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-tron-cyan" />
+                <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-tron-cyan" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-tron-cyan" />
 
-                {/* Main panel */}
-                <div
-                  className="relative glass-panel-vibrant p-6 border-2 border-tron-cyan/60 bg-tron-black/90"
-                  style={{ clipPath: 'polygon(0 8%, 8% 0, 92% 0, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0 92%)' }}
+                <h3
+                  className="font-[family-name:var(--font-orbitron)] text-lg tracking-[0.3em] text-tron-cyan mb-4"
+                  style={{ textShadow: '0 0 20px rgba(0,243,255,0.6)' }}
                 >
-                  {/* Corner accents */}
-                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-tron-cyan" />
-                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-tron-cyan" />
-                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-tron-cyan" />
-                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-tron-cyan" />
+                  GAME OVER
+                </h3>
 
-                  {/* Scanline effect */}
-                  <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,243,255,0.03)_50%)] bg-[length:100%_4px] pointer-events-none" />
-
-                  <h3
-                    className="font-[family-name:var(--font-orbitron)] text-xl tracking-[0.3em] text-tron-cyan mb-5"
-                    style={{ textShadow: '0 0 20px rgba(0,243,255,0.8), 0 0 40px rgba(0,243,255,0.4)' }}
-                  >
-                    GAME OVER
-                  </h3>
-
-                  {localPlayer && (
-                    <div className="mb-5 py-3 px-6 border border-tron-cyan/30 bg-tron-black/50">
-                      <p className="text-tron-cyan/60 text-[10px] tracking-[0.3em] mb-2 font-[family-name:var(--font-orbitron)]">
-                        FINAL BALANCE
-                      </p>
-                      <p
-                        className="font-numeric text-3xl font-bold text-tron-cyan"
-                        style={{ textShadow: '0 0 15px rgba(0,243,255,0.6)' }}
-                      >
-                        ${localPlayer.dollars.toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-
-                  <m.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={playAgain}
-                    className="relative px-10 py-3 bg-tron-black border border-tron-cyan group overflow-hidden"
-                    style={{
-                      clipPath: 'polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0 50%)',
-                    }}
-                  >
-                    {/* Hover glow effect */}
-                    <m.div
-                      className="absolute inset-0 bg-tron-cyan/20"
-                      initial={{ opacity: 0 }}
-                      whileHover={{ opacity: 1 }}
-                      transition={{ duration: 0.2 }}
-                    />
-
-                    {/* Animated edge lines */}
-                    <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-tron-cyan to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-tron-cyan to-transparent" />
-
-                    <span
-                      className="relative font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan font-medium"
-                      style={{ textShadow: '0 0 10px rgba(0,243,255,0.5)' }}
+                {localPlayer && (
+                  <div className="mb-5 py-3 px-6 border border-tron-cyan/30 bg-tron-black/50">
+                    <p className="text-tron-cyan/50 text-[10px] tracking-[0.3em] mb-1 font-[family-name:var(--font-orbitron)]">
+                      FINAL BALANCE
+                    </p>
+                    <p
+                      className="font-numeric text-2xl font-bold text-tron-cyan"
+                      style={{ textShadow: '0 0 15px rgba(0,243,255,0.5)' }}
                     >
-                      PLAY AGAIN
-                    </span>
-                  </m.button>
-                </div>
+                      ${localPlayer.dollars.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+
+                <m.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={playAgain}
+                  className="px-10 py-3 bg-tron-black border border-tron-cyan relative overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-tron-cyan/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span
+                    className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan font-medium"
+                    style={{ textShadow: '0 0 10px rgba(0,243,255,0.4)' }}
+                  >
+                    PLAY AGAIN
+                  </span>
+                </m.button>
               </div>
             </m.div>
           </m.div>
         )}
       </AnimatePresence>
 
-      {/* Bottom Navigation HUD */}
+      {/* Bottom Navigation HUD - Minimal TRON style */}
       <m.div
         className="fixed bottom-0 left-0 right-0 z-30 bottom-nav-container"
         variants={containerVariants}
@@ -174,24 +142,22 @@ export const GameHUD = React.memo(function GameHUD() {
       >
         <div className="pb-safe">
           <m.div
-            className="relative bg-tron-black/95 backdrop-blur-xl border-t border-tron-cyan/40"
+            className="relative bg-tron-black/95 backdrop-blur-xl"
             animate={{
               boxShadow: [
-                '0 -8px 24px rgba(0,243,255,0.08), inset 0 1px 8px rgba(0,243,255,0.1)',
-                '0 -8px 32px rgba(0,243,255,0.12), inset 0 1px 12px rgba(0,243,255,0.15)',
-                '0 -8px 24px rgba(0,243,255,0.08), inset 0 1px 8px rgba(0,243,255,0.1)',
+                '0 -5px 20px rgba(0,243,255,0.1)',
+                '0 -5px 30px rgba(0,243,255,0.15)',
+                '0 -5px 20px rgba(0,243,255,0.1)',
               ],
             }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            {/* Background Grid texture */}
-            <div className="absolute inset-0 opacity-15 tron-grid pointer-events-none" />
+            {/* Top accent line - TRON style */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-tron-cyan/80" />
 
-            {/* Top accent line with gradient */}
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-tron-cyan to-transparent opacity-90" />
-
-            {/* Secondary accent line */}
-            <div className="absolute top-[2px] left-1/4 right-1/4 h-[1px] bg-tron-cyan/40" />
+            {/* Corner accents */}
+            <div className="absolute top-[2px] left-0 w-4 h-[1px] bg-tron-cyan/50" />
+            <div className="absolute top-[2px] right-0 w-4 h-[1px] bg-tron-cyan/50" />
 
             <div className="relative z-10">
               {/* Compact Price Row - Always visible when playing */}
@@ -210,26 +176,13 @@ export const GameHUD = React.memo(function GameHUD() {
                 />
               )}
 
-              {/* Animated Divider */}
-              {isGameReady && (
-                <m.div
-                  className="h-[1px] bg-gradient-to-r from-transparent via-tron-cyan/40 to-transparent mx-2"
-                  animate={{ opacity: [0.2, 0.5, 0.2] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-              )}
-
-              {/* Single Player Health - Only when game is ready */}
-              {isGameReady && localPlayer && (
-                <div className="px-3 py-2 sm:py-3">
-                  <SinglePlayerHealth dollars={localPlayer.dollars} />
-                </div>
-              )}
-
-              {/* Game Over indicator in HUD (shown briefly before overlay) */}
+              {/* Game Over indicator in HUD */}
               {isGameOver && !isPlaying && (
                 <div className="py-2 text-center">
-                  <p className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/60">
+                  <p
+                    className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.25em] text-tron-cyan/50"
+                    style={{ textShadow: '0 0 8px rgba(0,243,255,0.3)' }}
+                  >
                     VIEWING RESULTS
                   </p>
                 </div>
