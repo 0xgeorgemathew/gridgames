@@ -1,11 +1,18 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { m, AnimatePresence } from 'framer-motion'
 import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.store'
 import { cn } from '@/platform/utils/classNames.utils'
 import { formatPrice } from '@/platform/utils/price.utils'
-import type { Position } from '@/domains/hyper-swiper/shared/trading.types'
+import type { Position, PriceData } from '@/domains/hyper-swiper/shared/trading.types'
+
+const SMOOTH_SPRING = {
+  type: 'spring' as const,
+  stiffness: 300,
+  damping: 25,
+  mass: 0.5,
+}
 
 function PositionCard({
   position,
@@ -18,14 +25,15 @@ function PositionCard({
 }: {
   position: Position
   index: number
-  priceData: any
+  priceData: PriceData | null
   onClose: (id: string) => void
   isClosing: boolean
   closingReason?: 'manual' | 'liquidated'
   realizedPnl?: number
 }) {
   const [isMinimized, setIsMinimized] = useState(false)
-  const hasAnimatedClose = useRef(false)
+
+  const handleClose = useCallback(() => onClose(position.id), [onClose, position.id])
 
   // Auto minimize faster
   useEffect(() => {
@@ -34,13 +42,6 @@ function PositionCard({
     }, 800)
     return () => clearTimeout(timer)
   }, [])
-
-  // When closing starts, ensure we show the close animation
-  useEffect(() => {
-    if (isClosing) {
-      hasAnimatedClose.current = true
-    }
-  }, [isClosing])
 
   // Real-time PnL calculation
   const currentPrice = priceData?.price ?? position.openPrice
@@ -81,14 +82,6 @@ function PositionCard({
 
   const borderStyle = getBorderStyle()
 
-  // Faster, snappy spring config
-  const smoothSpring = {
-    type: 'spring' as const,
-    stiffness: 300,
-    damping: 25,
-    mass: 0.5,
-  }
-
   // Get PnL display values
   const displayPnl = realizedPnl ?? pnlPercent
   const pnlText = isClosing
@@ -126,8 +119,7 @@ function PositionCard({
         'glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto overflow-hidden',
         borderStyle
       )}
-      style={{ willChange: 'transform, opacity' }}
-      onClick={() => !isClosing && onClose(position.id)}
+      onClick={isClosing ? undefined : handleClose}
     >
       {/* Animated glow effect for profit/loss */}
       {!isNearZero && !isClosing && (
@@ -169,12 +161,11 @@ function PositionCard({
         {/* Single arrow indicator with scale animation */}
         <m.div
           animate={{ scale: showCollapsedContent ? 0.85 : 1 }}
-          transition={smoothSpring}
+          transition={SMOOTH_SPRING}
           className={cn(
             'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
             position.isLong ? 'bg-green-500/20' : 'bg-red-500/20'
           )}
-          style={{ willChange: 'transform' }}
         >
           <span className={cn('text-base', position.isLong ? 'text-green-400' : 'text-red-400')}>
             {position.isLong ? '▲' : '▼'}
@@ -189,11 +180,10 @@ function PositionCard({
               width: showCollapsedContent ? 0 : 'auto',
               opacity: showCollapsedContent ? 0 : 1,
             }}
-            transition={smoothSpring}
+            transition={SMOOTH_SPRING}
             className="flex items-center gap-2 overflow-hidden origin-left"
             style={{
               visibility: showCollapsedContent ? 'hidden' : 'visible',
-              willChange: 'width, opacity',
             }}
           >
             {/* Entry price */}
@@ -242,11 +232,10 @@ function PositionCard({
               width: showCollapsedContent ? 'auto' : 0,
               opacity: showCollapsedContent ? 1 : 0,
             }}
-            transition={smoothSpring}
+            transition={SMOOTH_SPRING}
             className="flex items-center overflow-hidden"
             style={{
               visibility: showCollapsedContent ? 'visible' : 'hidden',
-              willChange: 'width, opacity',
             }}
           >
             {/* Closing/Liquidation animated text */}
@@ -309,14 +298,21 @@ function PositionCard({
 }
 
 export function PositionIndicator() {
-  const { openPositions, localPlayerId, priceData, closePosition, closingPositions } =
-    useTradingStore()
+  const openPositions = useTradingStore((s) => s.openPositions)
+  const localPlayerId = useTradingStore((s) => s.localPlayerId)
+  const priceData = useTradingStore((s) => s.priceData)
+  const closePosition = useTradingStore((s) => s.closePosition)
+  const closingPositions = useTradingStore((s) => s.closingPositions)
 
   // Get local player's open positions - positions in closing state are still in openPositions
   // until the animation completes
-  const localPositions = Array.from(openPositions.values())
-    .filter((pos) => pos.playerId === localPlayerId && pos.status === 'open')
-    .sort((a, b) => b.openedAt - a.openedAt)
+  const localPositions = useMemo(
+    () =>
+      Array.from(openPositions.values())
+        .filter((pos) => pos.playerId === localPlayerId && pos.status === 'open')
+        .sort((a, b) => b.openedAt - a.openedAt),
+    [openPositions, localPlayerId]
+  )
 
   return (
     <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-32 pointer-events-none">
