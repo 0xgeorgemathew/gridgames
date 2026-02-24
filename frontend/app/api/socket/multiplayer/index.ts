@@ -417,6 +417,16 @@ export function setupGameEvents(io: SocketIOServer): {
       }
     )
 
+    socket.on('coin_expired', ({ coinId }: { coinId: string }) => {
+      const roomId = manager.getPlayerRoomId(socket.id)
+      if (!roomId) return
+
+      const room = manager.getRoom(roomId)
+      if (room) {
+        room.expireCoin(coinId)
+      }
+    })
+
     socket.on('close_position', ({ positionId }: { positionId: string }) => {
       try {
         const roomId = manager.getPlayerRoomId(socket.id)

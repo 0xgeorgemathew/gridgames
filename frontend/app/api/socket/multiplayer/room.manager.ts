@@ -276,15 +276,25 @@ export class GameRoom {
     return expiredIds
   }
 
+  expireCoin(coinId: string): void {
+    this.activeCoins.delete(coinId)
+  }
+
   canSpawnCoin(): boolean {
-    return this.activeCoins.size < CFG.MAX_ACTIVE_COINS
+    const totalCoins = this.getActiveCoinCount()
+    // Only spawn if total active coins is below max
+    return totalCoins < CFG.MAX_ACTIVE_COINS
   }
 
   getRequiredCoinType(): 'long' | 'short' | null {
     const longCount = this.getActiveLongCount()
     const shortCount = this.getActiveShortCount()
-    if (longCount === 0 && shortCount > 0) return 'long'
-    if (shortCount === 0 && longCount > 0) return 'short'
+
+    // If one type is at 2 and the other isn't, prioritize the missing type
+    if (longCount < 2 && shortCount >= 2) return 'long'
+    if (shortCount < 2 && longCount >= 2) return 'short'
+
+    // If both types under 2, spawn randomly (no force)
     return null
   }
 

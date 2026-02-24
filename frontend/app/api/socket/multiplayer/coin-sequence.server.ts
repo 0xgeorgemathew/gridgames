@@ -15,11 +15,20 @@ export class CoinSequence {
 
     const estimatedSpawns = Math.ceil(durationMs / minIntervalMs) + 10
     for (let i = 0; i < estimatedSpawns; i++) {
+      const xNormalized = 0.15 + rng.next() * 0.7
+      const baseVelocityX = (0.5 - xNormalized) * 100
+      const randomDrift = rng.nextInt(-20, 20)
+      let velocityX = Math.round(baseVelocityX + randomDrift)
+      if (xNormalized < 0.5) {
+        velocityX = Math.max(20, velocityX)
+      } else {
+        velocityX = Math.min(-20, velocityX)
+      }
       this.sequence.push({
         type: types[rng.nextInt(0, types.length - 1)],
-        xNormalized: 0.15 + rng.next() * 0.7,
-        velocityX: rng.nextInt(-60, 60),
-        velocityY: rng.nextInt(-140, -80),
+        xNormalized,
+        velocityX,
+        velocityY: rng.nextInt(-175, -140),
       })
     }
   }

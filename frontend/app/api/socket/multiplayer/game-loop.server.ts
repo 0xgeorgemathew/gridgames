@@ -71,7 +71,8 @@ export function startGameLoop(
   const scheduleNextSpawn = () => {
     if (!manager.hasRoom(room.id) || room.players.size < 2 || room.isShutdown) return
 
-    room.expireOldCoins()
+    // Note: expireOldCoins() removed - client now handles expiry via coin_expired event
+    // This prevents spawning new coins while old ones are still visible on screen
 
     if (room.canSpawnCoin()) {
       const forceType = room.getRequiredCoinType()
@@ -87,7 +88,9 @@ export function startGameLoop(
     room.trackTimeout(timeoutId)
   }
 
-  scheduleNextSpawn()
+  const initialDelay = 500
+  const timeoutId = setTimeout(scheduleNextSpawn, initialDelay)
+  room.trackTimeout(timeoutId)
 
   if (room.gameTimeout) clearTimeout(room.gameTimeout)
 
