@@ -70,14 +70,14 @@ export const GameHUD = React.memo(function GameHUD() {
         )}
       </AnimatePresence>
 
-      {/* Game Over Overlay with improved design */}
+      {/* Game Over Overlay - TRON styled */}
       <AnimatePresence>
         {isGameOver && (
           <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-none"
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-none"
           >
             <m.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -85,42 +85,80 @@ export const GameHUD = React.memo(function GameHUD() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="pointer-events-auto text-center"
             >
-              {/* Game Over Panel */}
-              <div className="glass-panel-vibrant rounded-xl p-6 border border-tron-cyan/40 relative overflow-hidden">
-                {/* Animated border glow */}
+              {/* Game Over Panel - Angular TRON design */}
+              <div className="relative">
+                {/* Outer glow frame */}
                 <m.div
-                  className="absolute inset-0 rounded-xl border-2 border-tron-cyan/30"
-                  animate={{
-                    opacity: [0.3, 0.6, 0.3],
-                    scale: [1, 1.02, 1],
-                  }}
+                  className="absolute -inset-3 bg-tron-cyan/10"
+                  style={{ clipPath: 'polygon(0 10%, 10% 0, 90% 0, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0 90%)' }}
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 />
 
-                <h3 className="font-[family-name:var(--font-orbitron)] text-lg tracking-[0.2em] text-tron-cyan mb-4 drop-shadow-[0_0_10px_var(--color-tron-cyan)]">
-                  GAME OVER
-                </h3>
-
-                {localPlayer && (
-                  <div className="mb-4">
-                    <p className="text-tron-white-dim text-xs tracking-wider mb-1">FINAL BALANCE</p>
-                    <p className="font-numeric text-2xl font-bold text-white">
-                      ${localPlayer.dollars.toLocaleString()}
-                    </p>
-                  </div>
-                )}
-
-                <m.button
-                  whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(0,243,255,0.5)' }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={playAgain}
-                  className="px-8 py-3 hologram bg-tron-black/60 border border-tron-cyan relative overflow-hidden group rounded-sm"
+                {/* Main panel */}
+                <div
+                  className="relative glass-panel-vibrant p-6 border-2 border-tron-cyan/60 bg-tron-black/90"
+                  style={{ clipPath: 'polygon(0 8%, 8% 0, 92% 0, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0 92%)' }}
                 >
-                  <div className="absolute inset-0 bg-tron-cyan/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <span className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.15em] text-tron-cyan font-medium">
-                    PLAY AGAIN
-                  </span>
-                </m.button>
+                  {/* Corner accents */}
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-tron-cyan" />
+                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-tron-cyan" />
+                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-tron-cyan" />
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-tron-cyan" />
+
+                  {/* Scanline effect */}
+                  <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,243,255,0.03)_50%)] bg-[length:100%_4px] pointer-events-none" />
+
+                  <h3
+                    className="font-[family-name:var(--font-orbitron)] text-xl tracking-[0.3em] text-tron-cyan mb-5"
+                    style={{ textShadow: '0 0 20px rgba(0,243,255,0.8), 0 0 40px rgba(0,243,255,0.4)' }}
+                  >
+                    GAME OVER
+                  </h3>
+
+                  {localPlayer && (
+                    <div className="mb-5 py-3 px-6 border border-tron-cyan/30 bg-tron-black/50">
+                      <p className="text-tron-cyan/60 text-[10px] tracking-[0.3em] mb-2 font-[family-name:var(--font-orbitron)]">
+                        FINAL BALANCE
+                      </p>
+                      <p
+                        className="font-numeric text-3xl font-bold text-tron-cyan"
+                        style={{ textShadow: '0 0 15px rgba(0,243,255,0.6)' }}
+                      >
+                        ${localPlayer.dollars.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+
+                  <m.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={playAgain}
+                    className="relative px-10 py-3 bg-tron-black border border-tron-cyan group overflow-hidden"
+                    style={{
+                      clipPath: 'polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0 50%)',
+                    }}
+                  >
+                    {/* Hover glow effect */}
+                    <m.div
+                      className="absolute inset-0 bg-tron-cyan/20"
+                      initial={{ opacity: 0 }}
+                      whileHover={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                    />
+
+                    {/* Animated edge lines */}
+                    <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-tron-cyan to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-tron-cyan to-transparent" />
+
+                    <span
+                      className="relative font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan font-medium"
+                      style={{ textShadow: '0 0 10px rgba(0,243,255,0.5)' }}
+                    >
+                      PLAY AGAIN
+                    </span>
+                  </m.button>
+                </div>
               </div>
             </m.div>
           </m.div>
