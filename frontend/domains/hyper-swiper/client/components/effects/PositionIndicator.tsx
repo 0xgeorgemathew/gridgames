@@ -110,22 +110,18 @@ function PositionCard({
         scale: 0.9,
         filter: 'blur(4px)',
       }}
-      transition={{
-        y: {
-          type: 'spring',
-          damping: 20,
-          stiffness: 200,
-          delay: index * 0.08,
-        },
-        opacity: {
-          duration: 0.3,
-          delay: index * 0.08,
-        },
-        exit: {
-          duration: 0.4,
-          ease: 'easeOut',
-        },
-      }}
+        transition={{
+          y: {
+            type: 'spring',
+            damping: 20,
+            stiffness: 200,
+            delay: index * 0.08,
+          },
+          opacity: {
+            duration: 0.3,
+            delay: index * 0.08,
+          },
+        }}
       className={cn(
         'glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto overflow-hidden',
         borderStyle
