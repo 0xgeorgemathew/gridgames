@@ -83,6 +83,7 @@ interface GameState {
   toasts: Toast[]
   leverage: number // In-game leverage (fixed at 500X)
   closingPositions: Map<string, PositionClosingState> // Positions being animated
+  positionCloseTimeouts: Map<string, NodeJS.Timeout> // Tracked timeouts for cleanup
 }
 
 // Matchmaking settings slice

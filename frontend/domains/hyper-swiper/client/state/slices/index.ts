@@ -63,6 +63,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   toasts: [],
   leverage: CFG.FIXED_LEVERAGE,
   closingPositions: new Map(), // Positions being animated for close/liquidation
+  positionCloseTimeouts: new Map(), // Tracked timeouts for cleanup on resetGame
 
   // Matchmaking settings (pre-game)
   selectedGameDuration: CFG.DURATION_OPTIONS_MS[0], // Default 1 minute
@@ -359,7 +360,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     realizedPnl: number
     playerId: string
   }) => {
-    const { openPositions, localPlayerId, closingPositions } = get()
+    const { openPositions, localPlayerId, closingPositions, positionCloseTimeouts } = get()
 
     const position = openPositions.get(data.positionId)
 
@@ -378,17 +379,24 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         })
 
         // Remove both from closing and open positions after animation completes
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           const currentClosing = get().closingPositions
           const currentOpen = get().openPositions
+          const currentTimeouts = get().positionCloseTimeouts
           const updatedClosing = new Map(currentClosing)
           const updatedOpen = new Map(currentOpen)
+          const updatedTimeouts = new Map(currentTimeouts)
           updatedClosing.delete(data.positionId)
           updatedOpen.delete(data.positionId)
-          set({ closingPositions: updatedClosing, openPositions: updatedOpen })
+          updatedTimeouts.delete(data.positionId)
+          set({ closingPositions: updatedClosing, openPositions: updatedOpen, positionCloseTimeouts: updatedTimeouts })
         }, 1200)
 
-        set({ closingPositions: newClosingPositions })
+        // Track the timeout for cleanup on resetGame
+        const newTimeouts = new Map(positionCloseTimeouts)
+        newTimeouts.set(data.positionId, timeoutId)
+
+        set({ closingPositions: newClosingPositions, positionCloseTimeouts: newTimeouts })
       } else {
         // For other players' positions, remove immediately (no animation needed)
         const newPositions = new Map(openPositions)
@@ -422,7 +430,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Position liquidated - force-closed due to low collateral health (<= 80%)
   handlePositionLiquidated: (liquidationEvent) => {
-    const { openPositions, localPlayerId, closingPositions } = get()
+    const { openPositions, localPlayerId, closingPositions, positionCloseTimeouts } = get()
 
     const position = openPositions.get(liquidationEvent.positionId)
 
@@ -441,17 +449,24 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         })
 
         // Remove both from closing and open positions after animation completes
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           const currentClosing = get().closingPositions
           const currentOpen = get().openPositions
+          const currentTimeouts = get().positionCloseTimeouts
           const updatedClosing = new Map(currentClosing)
           const updatedOpen = new Map(currentOpen)
+          const updatedTimeouts = new Map(currentTimeouts)
           updatedClosing.delete(liquidationEvent.positionId)
           updatedOpen.delete(liquidationEvent.positionId)
-          set({ closingPositions: updatedClosing, openPositions: updatedOpen })
+          updatedTimeouts.delete(liquidationEvent.positionId)
+          set({ closingPositions: updatedClosing, openPositions: updatedOpen, positionCloseTimeouts: updatedTimeouts })
         }, 1200)
 
-        set({ closingPositions: newClosingPositions })
+        // Track the timeout for cleanup on resetGame
+        const newTimeouts = new Map(positionCloseTimeouts)
+        newTimeouts.set(liquidationEvent.positionId, timeoutId)
+
+        set({ closingPositions: newClosingPositions, positionCloseTimeouts: newTimeouts })
       } else {
         // For other players' positions, remove immediately (no animation needed)
         const newPositions = new Map(openPositions)
@@ -509,8 +524,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   resetGame: () => {
-    const { gameTimerInterval } = get()
+    const { gameTimerInterval, positionCloseTimeouts } = get()
     if (gameTimerInterval) clearInterval(gameTimerInterval)
+
+    // Clear all tracked position close timeouts to prevent stale state updates
+    positionCloseTimeouts.forEach((timeoutId) => clearTimeout(timeoutId))
 
     set({
       roomId: null,
@@ -529,6 +547,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       firstPrice: null,
       priceError: null,
       lastPriceUpdate: 0,
+      // Clear tracked timeouts and closing positions
+      positionCloseTimeouts: new Map(),
+      closingPositions: new Map(),
     })
   },
 
