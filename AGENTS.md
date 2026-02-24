@@ -1,19 +1,19 @@
 # AGENTS.md
 
-This file provides guidance to agents when working with code in this repository.
+Instructions for AI coding agents working on this repository.
 
-## Build Commands
+## Commands
+
+From `frontend/` directory:
 
 ```bash
-# Frontend (from frontend/)
-bun run dev          # Uses custom server.ts (NOT next dev)
-bun run types        # Type checking (tsc --noEmit)
-bun run format       # Prettier with semicolons disabled
+bun run dev    # Start custom server (use this, NOT 'next dev')
+bun run types  # Run type checking
+bun run format # Format code
+```
 
+## Code Rules
 
-
-
-- No semicolons (Prettier enforced)
-- Path alias: `@/*` maps to `./` in frontend
-- TypeScript `strict: false` - be explicit with type checks
-
+- Semicolons: disabled (enforced by Prettier)
+- Imports: use `@/*` path alias (maps to `./`)
+- TypeScript: `strict` mode is off - add explicit type checks
