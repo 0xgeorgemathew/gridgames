@@ -14,6 +14,23 @@ const SMOOTH_SPRING = {
   mass: 0.5,
 }
 
+function formatPnlCurrency(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    signDisplay: 'exceptZero',
+  }).format(value)
+}
+
+function formatPnlPercent(value: number): string {
+  const formatted = new Intl.NumberFormat('en-US', {
+    style: 'percent',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value / 100)
+  return value >= 0 ? `+${formatted}` : formatted
+}
+
 function PositionCard({
   position,
   index,
@@ -32,16 +49,38 @@ function PositionCard({
   realizedPnl?: number
 }) {
   const [isMinimized, setIsMinimized] = useState(false)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  })
 
-  const handleClose = useCallback(() => onClose(position.id), [onClose, position.id])
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
 
-  // Auto minimize faster
+  // Auto minimize after delay
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsMinimized(true)
-    }, 800)
+    }, 2000)
     return () => clearTimeout(timer)
   }, [])
+
+  // Click arrow to expand
+  const handleExpand = useCallback(() => {
+    if (isClosing || !isMinimized) return
+    setIsMinimized(false)
+    setTimeout(() => setIsMinimized(true), 2000)
+  }, [isClosing, isMinimized])
+
+  // Click PnL to close position
+  const handleClose = useCallback(() => {
+    if (isClosing) return
+    onClose(position.id)
+  }, [isClosing, onClose, position.id])
 
   // Real-time PnL calculation
   const currentPrice = priceData?.price ?? position.openPrice
@@ -84,9 +123,7 @@ function PositionCard({
 
   // Get PnL display values
   const displayPnl = realizedPnl ?? pnlPercent
-  const pnlText = isClosing
-    ? `${displayPnl >= 0 ? '+' : ''}$${Math.abs(displayPnl).toFixed(2)}`
-    : `${isInProfit ? '+' : ''}${displayPnl.toFixed(2)}%`
+  const pnlText = isClosing ? formatPnlCurrency(displayPnl) : formatPnlPercent(displayPnl)
 
   // When closing, always show minimized state (collapsed content)
   const showCollapsedContent = isMinimized || isClosing
@@ -100,26 +137,24 @@ function PositionCard({
       exit={{
         y: -20,
         opacity: 0,
-        scale: 0.9,
-        filter: 'blur(4px)',
+        scale: 0.95,
       }}
-        transition={{
-          y: {
-            type: 'spring',
-            damping: 20,
-            stiffness: 200,
-            delay: index * 0.08,
-          },
-          opacity: {
-            duration: 0.3,
-            delay: index * 0.08,
-          },
-        }}
+      transition={{
+        y: {
+          type: 'spring',
+          damping: 20,
+          stiffness: 200,
+          delay: index * 0.08,
+        },
+        opacity: {
+          duration: 0.3,
+          delay: index * 0.08,
+        },
+      }}
       className={cn(
-        'glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto overflow-hidden',
+        'glass-panel-vibrant mb-1.5 relative flex-shrink-0 pointer-events-auto overflow-hidden touch-manipulation',
         borderStyle
       )}
-      onClick={isClosing ? undefined : handleClose}
     >
       {/* Animated glow effect for profit/loss */}
       {!isNearZero && !isClosing && (
@@ -130,7 +165,7 @@ function PositionCard({
           }}
           transition={{
             duration: 1,
-            repeat: Infinity,
+            repeat: prefersReducedMotion ? 0 : Infinity,
           }}
           style={{
             background: isInProfit
@@ -158,12 +193,13 @@ function PositionCard({
       </AnimatePresence>
 
       <div className="relative flex items-center p-2 gap-2">
-        {/* Single arrow indicator with scale animation */}
+        {/* Arrow indicator - click to expand */}
         <m.div
           animate={{ scale: showCollapsedContent ? 0.85 : 1 }}
           transition={SMOOTH_SPRING}
+          onClick={handleExpand}
           className={cn(
-            'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
+            'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 cursor-pointer',
             position.isLong ? 'bg-green-500/20' : 'bg-red-500/20'
           )}
         >
@@ -259,19 +295,17 @@ function PositionCard({
                       isLiquidated ? 'text-red-400' : 'text-tron-cyan'
                     )}
                   >
-                    {isLiquidated ? 'LIQUIDATED' : 'CLOSED'}
+                    {isLiquidated ? 'Liquidated' : 'Closed'}
                   </span>
                   <span
                     className={cn(
-                      'text-[10px] font-bold font-mono leading-none',
+                      'text-[10px] font-bold font-mono leading-none tabular-nums',
                       realizedPnl !== undefined && realizedPnl >= 0
                         ? 'text-green-400'
                         : 'text-red-400'
                     )}
                   >
-                    {realizedPnl !== undefined
-                      ? `${realizedPnl >= 0 ? '+' : ''}$${Math.abs(realizedPnl).toFixed(2)}`
-                      : pnlText}
+                    {realizedPnl !== undefined ? formatPnlCurrency(realizedPnl) : pnlText}
                   </span>
                 </m.div>
               ) : (
@@ -280,8 +314,9 @@ function PositionCard({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
+                  onClick={handleClose}
                   className={cn(
-                    'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5',
+                    'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5 tabular-nums cursor-pointer',
                     'min-w-[48px]',
                     getPnlTextColor(isNearZero, isInProfit)
                   )}
@@ -341,6 +376,11 @@ export function PositionIndicator() {
               )
             })}
           </AnimatePresence>
+          {localPositions.length === 0 && (
+            <div className="text-tron-white-dim/60 text-xs text-right pr-2 py-2 italic">
+              No open positions
+            </div>
+          )}
         </div>
       </div>
     </div>
