@@ -116,11 +116,11 @@ export const UserProfileBadge = React.memo(function UserProfileBadge({
       </div>
 
       {/* Player Name */}
-      <div className="flex items-center min-w-0 max-w-[140px] sm:max-w-[180px]">
+      <div className="flex items-center min-w-0 max-w-[140px] sm:max-w-[180px] overflow-hidden">
         <PlayerName
           username={displayName}
           className={cn(
-            'font-[family-name:var(--font-orbitron)] text-tron-cyan drop-shadow-[0_0_8px_var(--color-tron-cyan)] truncate',
+            'font-[family-name:var(--font-orbitron)] text-tron-cyan drop-shadow-[0_0_8px_var(--color-tron-cyan)] block truncate',
             sizeClasses.name
           )}
           enableGlow={true}
