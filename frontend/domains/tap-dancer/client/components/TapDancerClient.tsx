@@ -23,7 +23,7 @@ function GameUI(): ReactNode {
       <GameOverModal />
       <GameCanvasBackground />
       <GameHUD />
-      <GameCanvas scene="TradingScene" />
+      <GameCanvas scene="TapDancerScene" />
       <PositionList />
     </div>
   )

@@ -22,18 +22,6 @@ export class PriceGraphSystem {
   update(delta: number): void {
     const { priceData, isPlaying, firstPrice } = useTradingStore.getState()
     const pixelsPerMs = this.scrollSpeed / 1000
-
-    // Debug: log why graph might not render
-    if (!priceData) {
-      console.log('[PriceGraphSystem] No priceData')
-    }
-    if (!isPlaying) {
-      console.log('[PriceGraphSystem] Not playing')
-    }
-    if (firstPrice === null || firstPrice === undefined) {
-      console.log('[PriceGraphSystem] No firstPrice')
-    }
-
     this.snakeGraph.update({
       delta,
       priceData,
