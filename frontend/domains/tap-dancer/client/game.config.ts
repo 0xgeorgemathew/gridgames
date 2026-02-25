@@ -1,0 +1,22 @@
+import type { SharedGameConfig } from '../shared/game-config.types'
+
+export const CLIENT_GAME_CONFIG: SharedGameConfig & {
+  DURATION_OPTIONS_MS: number[]
+  MAX_RECONNECT_ATTEMPTS: number
+  RECONNECT_DELAY_MS: number
+  SCENE_WIDTH: number
+  SCENE_HEIGHT: number
+} = {
+  STARTING_BALANCE: 100,
+  POSITION_COLLATERAL: 10,
+  FIXED_LEVERAGE: 500,
+  MAX_POSITIONS: 10,
+  LIQUIDATION_THRESHOLD: 0.8,
+  // Note: No MAX_ACTIVE_COINS - TapDancer has no coins
+
+  DURATION_OPTIONS_MS: [60000, 120000, 180000],
+  MAX_RECONNECT_ATTEMPTS: 10,
+  RECONNECT_DELAY_MS: 1000,
+  SCENE_WIDTH: 500,
+  SCENE_HEIGHT: 800,
+} as const
