@@ -77,7 +77,9 @@ export function PlayerName({
             </m.span>
           </m.span>
         ) : (
-          <span className={`font-[family-name:var(--font-orbitron)] inline ${className || 'text-white'}`}>
+          <span
+            className={`font-[family-name:var(--font-orbitron)] inline ${className || 'text-white'}`}
+          >
             <span>{parsedName.prefix}</span>
             <span className="text-cyan-400">{parsedName.suffix}</span>
           </span>
@@ -113,7 +115,9 @@ export function PlayerName({
           </m.span>
         </m.span>
       ) : (
-        <span className={`font-[family-name:var(--font-orbitron)] inline ${className || 'text-white'}`}>
+        <span
+          className={`font-[family-name:var(--font-orbitron)] inline ${className || 'text-white'}`}
+        >
           {displayName}
         </span>
       )

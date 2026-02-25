@@ -355,7 +355,8 @@ function PlayerRow({
             pnl >= 0 ? 'text-green-400' : 'text-red-400'
           )}
           style={{
-            textShadow: pnl >= 0 ? '0 0 10px rgba(74, 222, 128, 0.4)' : '0 0 10px rgba(248, 113, 113, 0.4)',
+            textShadow:
+              pnl >= 0 ? '0 0 10px rgba(74, 222, 128, 0.4)' : '0 0 10px rgba(248, 113, 113, 0.4)',
           }}
         >
           {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}

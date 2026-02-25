@@ -473,9 +473,7 @@ export function MatchmakingScreen() {
               <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-tron-cyan/40" />
               <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-tron-cyan/40" />
               <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-tron-cyan/40" />
-              <div
-                className="absolute inset-0 opacity-[0.04] tron-grid pointer-events-none"
-              />
+              <div className="absolute inset-0 opacity-[0.04] tron-grid pointer-events-none" />
               <UserProfileBadge
                 displayName={displayName}
                 pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
@@ -510,7 +508,8 @@ export function MatchmakingScreen() {
               }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               style={{
-                background: 'radial-gradient(ellipse at center, rgba(0, 243, 255, 0.15) 0%, transparent 70%)',
+                background:
+                  'radial-gradient(ellipse at center, rgba(0, 243, 255, 0.15) 0%, transparent 70%)',
               }}
             />
             <m.h2
