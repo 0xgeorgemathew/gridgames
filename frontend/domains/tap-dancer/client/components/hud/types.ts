@@ -1,0 +1,43 @@
+type CryptoSymbol = 'btcusdt'
+
+// Animation variants for Framer Motion
+export const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15, delayChildren: 0.2 },
+  },
+}
+
+export const itemVariants = {
+  hidden: { y: -20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: { type: 'spring' as const, stiffness: 300, damping: 24 },
+  },
+}
+
+// Crypto symbols mapping
+export const CRYPTO_SYMBOLS: Record<CryptoSymbol, string> = {
+  btcusdt: 'BTC',
+} as const
+
+// Helper function to format time (M:SS format from milliseconds)
+export function formatTime(ms: number): string {
+  const totalSeconds = Math.ceil(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+}
+
+// Helper function to get price color
+export function getPriceColor(changePercent: number): { color: string; glow: string } {
+  const isPositive = changePercent >= 0
+  return {
+    color: isPositive ? 'text-tron-cyan' : 'text-tron-orange',
+    glow: isPositive
+      ? '0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.4)'
+      : '0 0 10px rgba(255, 107, 0, 0.8), 0 0 20px rgba(255, 107, 0, 0.4)',
+  }
+}

@@ -1,0 +1,193 @@
+'use client'
+
+import React, { useState, useEffect, useRef } from 'react'
+import { useTradingStore } from '@/domains/tap-dancer/client/state/trading.store'
+import { AnimatePresence, m } from 'framer-motion'
+
+import { CompactPriceRow, PriceLoadingState, containerVariants } from './index'
+
+export const GameHUD = React.memo(function GameHUD() {
+  const {
+    players,
+    localPlayerId,
+    priceData,
+    isPriceConnected,
+    selectedCrypto,
+    connectPriceFeed,
+    isPlaying,
+    isGameOver,
+    playAgain,
+    endGame,
+    priceError,
+    gameTimeRemaining,
+    isSoundMuted,
+    toggleSound,
+  } = useTradingStore()
+
+  const hasAttemptedConnectionRef = useRef(false)
+
+  useEffect(() => {
+    if (!hasAttemptedConnectionRef.current && !isPriceConnected) {
+      connectPriceFeed(selectedCrypto)
+      hasAttemptedConnectionRef.current = true
+    }
+  }, [isPriceConnected, selectedCrypto, connectPriceFeed])
+
+  const localPlayer = players.find((p) => p.id === localPlayerId)
+
+  const isGameReady = isPriceConnected && priceData !== null && isPlaying && gameTimeRemaining > 0
+  const isShowingLoading = !isPriceConnected || priceData === null
+
+  return (
+    <>
+      {/* Price Feed Loading Overlay */}
+      <AnimatePresence>
+        {isPlaying && isShowingLoading && (
+          <m.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-none"
+          >
+            <div className="text-center">
+              <m.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="glass-panel-vibrant p-8 border border-tron-cyan/30"
+                style={{
+                  boxShadow: '0 0 40px rgba(0,243,255,0.2), inset 0 0 40px rgba(0,243,255,0.05)',
+                }}
+              >
+                <PriceLoadingState />
+              </m.div>
+            </div>
+          </m.div>
+        )}
+      </AnimatePresence>
+
+      {/* Game Over Overlay - TRON styled */}
+      <AnimatePresence>
+        {isGameOver && (
+          <m.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-none"
+          >
+            <m.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="pointer-events-auto text-center"
+            >
+              <div className="relative p-6 border border-tron-cyan/60 bg-tron-black/90">
+                {/* Corner accents */}
+                <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-tron-cyan" />
+                <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-tron-cyan" />
+                <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-tron-cyan" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-tron-cyan" />
+
+                <h3
+                  className="font-[family-name:var(--font-orbitron)] text-lg tracking-[0.3em] text-tron-cyan mb-4"
+                  style={{ textShadow: '0 0 20px rgba(0,243,255,0.6)' }}
+                >
+                  GAME OVER
+                </h3>
+
+                {localPlayer && (
+                  <div className="mb-5 py-3 px-6 border border-tron-cyan/30 bg-tron-black/50">
+                    <p className="text-tron-cyan/50 text-[10px] tracking-[0.3em] mb-1 font-[family-name:var(--font-orbitron)]">
+                      FINAL BALANCE
+                    </p>
+                    <p
+                      className="font-numeric text-2xl font-bold text-tron-cyan"
+                      style={{ textShadow: '0 0 15px rgba(0,243,255,0.5)' }}
+                    >
+                      ${localPlayer.dollars.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+
+                <m.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={playAgain}
+                  className="px-10 py-3 bg-tron-black border border-tron-cyan relative overflow-hidden group"
+                >
+                  <div className="absolute inset-0 bg-tron-cyan/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span
+                    className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan font-medium"
+                    style={{ textShadow: '0 0 10px rgba(0,243,255,0.4)' }}
+                  >
+                    PLAY AGAIN
+                  </span>
+                </m.button>
+              </div>
+            </m.div>
+          </m.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bottom Navigation HUD - Minimal TRON style */}
+      <m.div
+        className="fixed bottom-0 left-0 right-0 z-30 bottom-nav-container"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <div className="pb-safe">
+          <m.div
+            className="relative bg-tron-black/95 backdrop-blur-xl"
+            animate={{
+              boxShadow: [
+                '0 -5px 20px rgba(0,243,255,0.1)',
+                '0 -5px 30px rgba(0,243,255,0.15)',
+                '0 -5px 20px rgba(0,243,255,0.1)',
+              ],
+            }}
+            transition={{ duration: 3, repeat: Infinity }}
+          >
+            {/* Top accent line - TRON style */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-tron-cyan/80" />
+
+            {/* Corner accents */}
+            <div className="absolute top-[2px] left-0 w-4 h-[1px] bg-tron-cyan/50" />
+            <div className="absolute top-[2px] right-0 w-4 h-[1px] bg-tron-cyan/50" />
+
+            <div className="relative z-10">
+              {/* Compact Price Row - Always visible when playing */}
+              {isPlaying && (
+                <CompactPriceRow
+                  priceData={priceData}
+                  selectedCrypto={selectedCrypto}
+                  isPriceConnected={isPriceConnected}
+                  priceError={priceError}
+                  gameTimeRemaining={gameTimeRemaining}
+                  isSoundMuted={isSoundMuted}
+                  onToggleSound={toggleSound}
+                  onShowHowToPlay={() => {}}
+                  onEndGame={endGame}
+                  isGameReady={isGameReady}
+                  playerBalance={localPlayer?.dollars}
+                />
+              )}
+
+              {/* Game Over indicator in HUD */}
+              {isGameOver && !isPlaying && (
+                <div className="py-2 text-center">
+                  <p
+                    className="font-[family-name:var(--font-orbitron)] text-xs tracking-[0.25em] text-tron-cyan/50"
+                    style={{ textShadow: '0 0 8px rgba(0,243,255,0.3)' }}
+                  >
+                    VIEWING RESULTS
+                  </p>
+                </div>
+              )}
+            </div>
+          </m.div>
+        </div>
+      </m.div>
+    </>
+  )
+})
