@@ -102,6 +102,7 @@ export class TradingSceneServices {
 
   private cleanupCoins(): void {
     if (this.isShutdown) return
+    if (!this.coinLifecycle) return
     this.coinLifecycle.cleanupCoins()
   }
 }
