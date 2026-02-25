@@ -1,5 +1,25 @@
 export type CoinType = 'long' | 'short'
 
+export type SocketErrorCode =
+  | 'INSUFFICIENT_BALANCE'
+  | 'FIND_MATCH_FAILED'
+  | 'JOIN_POOL_FAILED'
+  | 'SLICE_FAILED'
+  | 'POSITION_NOT_FOUND'
+  | 'UNAUTHORIZED_POSITION'
+  | 'CLOSE_POSITION_FAILED'
+  | 'OPPONENT_UNAVAILABLE'
+  | 'NOT_IN_WAITING_POOL'
+  | 'DURATION_MISMATCH'
+  | 'OPPONENT_DISCONNECTED'
+  | 'MATCH_START_FAILED'
+
+export interface SocketErrorEvent {
+  code: SocketErrorCode
+  message: string
+  details?: Record<string, unknown>
+}
+
 /**
  * Coin visual and physics configuration
  * Used for rendering and hitbox calculation
