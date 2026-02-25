@@ -54,15 +54,34 @@ function MatchmakingAuthPanel({
       <div className="min-h-[200px] w-full max-w-md">
         {matchState === 'login' && (
           <div key="login" className="flex flex-col items-center gap-4">
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em] animate-pulse">
+            <m.p
+              className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em]"
+              animate={{
+                opacity: [0.5, 1, 0.5],
+                textShadow: [
+                  '0 0 10px rgba(0, 243, 255, 0.3)',
+                  '0 0 20px rgba(0, 243, 255, 0.6)',
+                  '0 0 10px rgba(0, 243, 255, 0.3)',
+                ],
+              }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
               {isInMiniApp ? 'CONNECTING TO GRID...' : 'VERIFYING CREDENTIALS...'}
-            </p>
+            </m.p>
           </div>
         )}
 
         {matchState === 'ready' && (
-          <div key="ready" className="flex flex-col items-center gap-3">
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+          <m.div
+            key="ready"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-3"
+          >
+            <p
+              className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em]"
+              style={{ textShadow: '0 0 15px rgba(0, 243, 255, 0.6)' }}
+            >
               SYSTEM READY
             </p>
 
@@ -74,34 +93,80 @@ function MatchmakingAuthPanel({
                 SELECT OPPONENT
               </ActionButton>
             </div>
-          </div>
+          </m.div>
         )}
 
         {matchState === 'entering' && (
           <div key="entering" className="flex flex-col items-center gap-3">
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] animate-pulse drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+            <m.p
+              className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em]"
+              animate={{
+                opacity: [0.6, 1, 0.6],
+                textShadow: [
+                  '0 0 10px rgba(0, 243, 255, 0.4)',
+                  '0 0 25px rgba(0, 243, 255, 0.8)',
+                  '0 0 10px rgba(0, 243, 255, 0.4)',
+                ],
+              }}
+              transition={{ duration: 1.2, repeat: Infinity }}
+            >
               SEARCHING GRID...
-            </p>
+            </m.p>
+            {/* Loading dots animation */}
+            <div className="flex gap-2">
+              {[0, 1, 2].map((i) => (
+                <m.div
+                  key={i}
+                  className="w-2 h-2 bg-tron-cyan rounded-full"
+                  animate={{
+                    opacity: [0.3, 1, 0.3],
+                    scale: [0.8, 1, 0.8],
+                  }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    delay: i * 0.2,
+                  }}
+                  style={{ boxShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {matchState === 'lobby' && (
-          <div key="lobby" className="flex flex-col items-center gap-4 w-full max-w-md">
+          <m.div
+            key="lobby"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-4 w-full max-w-md"
+          >
             <button
               onClick={onBackFromLobby}
               className="font-[family-name:var(--font-orbitron)] text-tron-cyan/60 hover:text-tron-cyan transition-colors text-xs tracking-[0.2em] mb-2"
+              style={{ textShadow: '0 0 8px rgba(0, 243, 255, 0.3)' }}
             >
               ← BACK
             </button>
 
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+            <p
+              className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em]"
+              style={{ textShadow: '0 0 15px rgba(0, 243, 255, 0.5)' }}
+            >
               AVAILABLE TARGETS
             </p>
 
             {lobbyPlayers.length === 0 ? (
-              <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/50 text-xs tracking-[0.1em] mt-4 mb-4">
-                GRID EMPTY
-              </p>
+              <div className="flex flex-col items-center gap-3 py-4">
+                <p
+                  className="font-[family-name:var(--font-orbitron)] text-tron-cyan/50 text-xs tracking-[0.1em]"
+                  style={{ textShadow: '0 0 8px rgba(0, 243, 255, 0.2)' }}
+                >
+                  GRID EMPTY
+                </p>
+                <div className="w-16 h-[1px] bg-tron-cyan/20" />
+                <p className="text-[10px] text-white/30 tracking-widest">NO PLAYERS DETECTED</p>
+              </div>
             ) : (
               <div className="flex flex-col gap-2 w-full">
                 <AnimatePresence mode="popLayout">
@@ -116,12 +181,33 @@ function MatchmakingAuthPanel({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         className={cn(
-                          'relative px-4 py-3 bg-tron-black/80 border rounded-sm overflow-hidden min-w-[200px] hologram group transition-all duration-300',
+                          'relative px-4 py-3 bg-tron-black/80 border rounded-sm overflow-hidden min-w-[200px] group transition-all duration-300',
                           hasMatchingSettings
-                            ? 'border-tron-cyan/50 hover:border-tron-cyan hover:bg-tron-cyan/10 shadow-[0_0_10px_rgba(0,243,255,0.1)] hover:shadow-[0_0_20px_rgba(0,243,255,0.3)]'
+                            ? 'border-tron-cyan/50 hover:border-tron-cyan hover:bg-tron-cyan/10'
                             : 'border-tron-cyan/20 hover:border-tron-cyan/40 opacity-70'
                         )}
                       >
+                        {/* Corner accents */}
+                        <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+                        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+
+                        {/* Grid background */}
+                        <div className="absolute inset-0 opacity-[0.04] tron-grid pointer-events-none" />
+
+                        {/* Hover glow */}
+                        <m.div
+                          className="absolute inset-0 pointer-events-none"
+                          initial={{ opacity: 0 }}
+                          whileHover={{ opacity: 1 }}
+                          animate={{
+                            boxShadow: hasMatchingSettings
+                              ? '0 0 20px rgba(0, 243, 255, 0.2)'
+                              : '0 0 10px rgba(0, 243, 255, 0.1)',
+                          }}
+                        />
+
                         <div className="relative z-10 flex flex-col items-center gap-1">
                           <PlayerName
                             username={player.name}
@@ -132,6 +218,11 @@ function MatchmakingAuthPanel({
                               className={
                                 hasMatchingSettings ? 'text-tron-cyan' : 'text-tron-cyan/50'
                               }
+                              style={{
+                                textShadow: hasMatchingSettings
+                                  ? '0 0 8px rgba(0, 243, 255, 0.4)'
+                                  : 'none',
+                              }}
                             >
                               {formatDuration(player.gameDuration)}
                             </span>
@@ -152,7 +243,7 @@ function MatchmakingAuthPanel({
             >
               REFRESH
             </ActionButton>
-          </div>
+          </m.div>
         )}
       </div>
     </div>
@@ -296,8 +387,15 @@ export function MatchmakingScreen() {
           scanGlow={0.0}
         />
         <m.p
-          className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
-          animate={{ opacity: [0.5, 1, 0.5] }}
+          className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium"
+          animate={{
+            opacity: [0.5, 1, 0.5],
+            textShadow: [
+              '0 0 10px rgba(0, 243, 255, 0.3)',
+              '0 0 20px rgba(0, 243, 255, 0.6)',
+              '0 0 10px rgba(0, 243, 255, 0.3)',
+            ],
+          }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           {miniAppAuthenticating ? 'AUTHENTICATING...' : 'INITIALIZING...'}
@@ -326,28 +424,56 @@ export function MatchmakingScreen() {
         scanGlow={matchState === 'entering' ? 1.0 : 0.0}
       />
 
+      {/* Animated grid background with scanline effect */}
       <div className="fixed inset-0 pointer-events-none z-10 opacity-20">
         <div className="absolute inset-0 tron-grid opacity-30" />
         <m.div
-          className="w-full h-[2px] bg-tron-cyan shadow-[0_0_15px_var(--color-tron-cyan)]"
+          className="w-full h-[2px] bg-tron-cyan"
           animate={{ y: ['-10%', '110%'] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+          style={{ boxShadow: '0 0 15px rgba(0, 243, 255, 0.5), 0 0 30px rgba(0, 243, 255, 0.2)' }}
         />
       </div>
+
+      {/* Top glow line */}
+      <m.div
+        className="absolute top-0 left-0 right-0 h-[1px] bg-tron-cyan/50 z-40"
+        animate={{
+          opacity: [0.3, 0.7, 0.3],
+          boxShadow: [
+            '0 0 10px rgba(0, 243, 255, 0.2)',
+            '0 0 20px rgba(0, 243, 255, 0.4)',
+            '0 0 10px rgba(0, 243, 255, 0.2)',
+          ],
+        }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+      />
 
       {/* Top Bar: Back button (left) + Profile badge (right) */}
       <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
         <button
           onClick={() => router.push('/')}
-          className="pointer-events-auto px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan hover:shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md hologram"
+          className="pointer-events-auto px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md relative overflow-hidden group"
         >
-          ← BACK
+          {/* Button corner accents */}
+          <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+          <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+          <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+          <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-tron-cyan/50 group-hover:border-tron-cyan transition-colors" />
+
+          <span style={{ textShadow: '0 0 10px rgba(0, 243, 255, 0.3)' }}>← BACK</span>
         </button>
 
         {/* User Profile Badge - Top Right */}
         <AnimatePresence>
           {displayName && matchState !== 'login' && (
-            <div className="pointer-events-auto glass-panel-vibrant px-3 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] bg-tron-black/80 backdrop-blur-md">
+            <div className="pointer-events-auto glass-panel-vibrant px-3 py-2 border border-tron-cyan/30 rounded-sm bg-tron-black/80 backdrop-blur-md relative overflow-hidden">
+              {/* Corner accents */}
+              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-tron-cyan/40" />
+              <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-tron-cyan/40" />
+              <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-tron-cyan/40" />
+              <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-tron-cyan/40" />
+              <div className="absolute inset-0 opacity-[0.04] tron-grid pointer-events-none" />
               <UserProfileBadge
                 displayName={displayName}
                 pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
@@ -360,13 +486,58 @@ export function MatchmakingScreen() {
 
       <div className="relative z-20 flex flex-col items-center gap-4 px-4 mt-16 w-full max-w-[400px]">
         <div className="text-center relative">
-          <h1 className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg font-bold tracking-[0.3em] text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] mb-1">
+          <m.h1
+            className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg font-bold tracking-[0.3em] text-white/90 mb-1"
+            animate={{
+              textShadow: [
+                '0 0 10px rgba(255, 255, 255, 0.1)',
+                '0 0 20px rgba(255, 255, 255, 0.2)',
+                '0 0 10px rgba(255, 255, 255, 0.1)',
+              ],
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
             ENTER THE GRID
-          </h1>
+          </m.h1>
           <div className="relative inline-block mb-4">
-            <h2 className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
+            {/* Title glow effect */}
+            <m.div
+              className="absolute -inset-4 pointer-events-none"
+              animate={{
+                opacity: [0.3, 0.5, 0.3],
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                background:
+                  'radial-gradient(ellipse at center, rgba(0, 243, 255, 0.15) 0%, transparent 70%)',
+              }}
+            />
+            <m.h2
+              className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan relative"
+              animate={{
+                textShadow: [
+                  '0 0 20px rgba(0, 243, 255, 0.5)',
+                  '0 0 40px rgba(0, 243, 255, 0.8)',
+                  '0 0 20px rgba(0, 243, 255, 0.5)',
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            >
               HYPER SWIPER
-            </h2>
+            </m.h2>
+            {/* Underline accent */}
+            <m.div
+              className="absolute -bottom-2 left-0 right-0 h-[2px] bg-tron-cyan/60 mx-auto w-3/4"
+              animate={{
+                opacity: [0.4, 0.8, 0.4],
+                boxShadow: [
+                  '0 0 10px rgba(0, 243, 255, 0.3)',
+                  '0 0 20px rgba(0, 243, 255, 0.5)',
+                  '0 0 10px rgba(0, 243, 255, 0.3)',
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            />
           </div>
         </div>
 

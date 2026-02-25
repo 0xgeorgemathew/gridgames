@@ -10,6 +10,7 @@ const RESUME_STATES = ['suspended', 'interrupted'] as const
 export class AudioManager {
   private scene: Scene
   private gameSfx: AudioSpriteSound | null = null
+  private bgm: Phaser.Sound.BaseSound | null = null
   private isMuted = false
   private isLoaded = false
   private currentSwipeSound: Phaser.Sound.BaseSound | null = null
@@ -46,6 +47,9 @@ export class AudioManager {
       'audio/sfx-game.mp3',
       'audio/sfx-game.wav',
     ])
+
+    // Load background music
+    this.scene.load.audio('bgm-game', 'audio/digital_dividend.mp3')
   }
 
   create(): void {
@@ -53,9 +57,21 @@ export class AudioManager {
 
     try {
       this.gameSfx = this.scene.sound.addAudioSprite('sfx-game')
+      this.bgm = this.scene.sound.add('bgm-game', { loop: true, volume: 0.3 })
       this.isLoaded = true
     } catch (error) {
       console.warn('[AudioManager] Failed to create audio sprite:', error)
+    }
+  }
+
+  playBackgroundMusic(): void {
+    if (!this.bgm || this.isMuted) return
+    if (!this.checkAudioContextState()) return
+
+    try {
+      this.bgm.play()
+    } catch (error) {
+      console.warn('[AudioManager] Failed to play background music:', error)
     }
   }
 
@@ -116,6 +132,7 @@ export class AudioManager {
       console.log('[AudioManager] Scene ready, setting up audio')
       this.setupStateChangeListener()
       this.attemptUnlock()
+      this.playBackgroundMusic()
     }
   }
 
@@ -291,6 +308,9 @@ export class AudioManager {
   setMuted(muted: boolean): void {
     this.isMuted = muted
     this.scene.sound.mute = muted
+    if (muted && this.bgm) {
+      this.bgm.stop()
+    }
   }
 
   isAudioLoaded(): boolean {
@@ -301,6 +321,8 @@ export class AudioManager {
     this.swipeDuckTween?.stop()
     this.swipeDuckTween = null
     this.currentSwipeSound = null
+    this.bgm?.destroy()
+    this.bgm = null
     this.gameSfx?.destroy()
     this.gameSfx = null
     this.isLoaded = false

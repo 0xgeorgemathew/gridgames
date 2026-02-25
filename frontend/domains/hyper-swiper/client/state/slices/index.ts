@@ -28,6 +28,7 @@ import type {
   Position,
   GameSettlementEvent,
   LiquidationEvent,
+  SocketErrorEvent,
 } from '@/domains/hyper-swiper/shared/trading.types'
 
 export * from '../trading.types'
@@ -216,10 +217,34 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('joined_waiting_pool', () => {})
     nextSocket.on('already_in_pool', () => {})
 
-    nextSocket.on('error', (error: { message: string }) => {
-      console.error('[Socket] Server error:', error.message)
-      get().addToast({ message: error.message, type: 'error', duration: 5000 })
-      set({ isMatching: false })
+    nextSocket.on('error', (error: SocketErrorEvent) => {
+      console.error('[Socket] Server error:', error.code, error.message)
+
+      const isGameplayError = error.code === 'INSUFFICIENT_BALANCE'
+      const isMatchingError = [
+        'FIND_MATCH_FAILED',
+        'JOIN_POOL_FAILED',
+        'OPPONENT_UNAVAILABLE',
+        'NOT_IN_WAITING_POOL',
+        'DURATION_MISMATCH',
+        'OPPONENT_DISCONNECTED',
+        'MATCH_START_FAILED',
+      ].includes(error.code)
+
+      if (error.code === 'INSUFFICIENT_BALANCE' && error.details) {
+        const { required, current } = error.details as { required: number; current: number }
+        get().addToast({
+          message: `Need $${required} to open position (you have $${Math.floor(current)})`,
+          type: 'warning',
+          duration: 7000,
+        })
+      } else {
+        get().addToast({ message: error.message, type: 'error', duration: 5000 })
+      }
+
+      if (isMatchingError) {
+        set({ isMatching: false })
+      }
     })
 
     set({ socket: nextSocket, socketCleanupFunctions: newCleanupFunctions })

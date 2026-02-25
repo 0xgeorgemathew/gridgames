@@ -35,10 +35,11 @@ export function PlayerName({
       const displayName = showFull ? username : username
 
       // Base Name with .base.eth styling
+      // Using plain spans (not inline-flex) to allow parent truncation to work
       if (parsedName.isBaseName && parsedName.suffix) {
         return enableGlow ? (
           <m.span
-            className="font-[family-name:var(--font-orbitron)] inline-flex items-baseline"
+            className="font-[family-name:var(--font-orbitron)] inline"
             animate={{
               textShadow: [
                 '0 0 10px rgba(0, 243, 255, 0.3)',
@@ -77,7 +78,7 @@ export function PlayerName({
           </m.span>
         ) : (
           <span
-            className={`font-[family-name:var(--font-orbitron)] inline-flex items-baseline ${className || 'text-white'}`}
+            className={`font-[family-name:var(--font-orbitron)] inline ${className || 'text-white'}`}
           >
             <span>{parsedName.prefix}</span>
             <span className="text-cyan-400">{parsedName.suffix}</span>
@@ -86,9 +87,10 @@ export function PlayerName({
       }
 
       // Non-Base Name (regular display)
+      // Using inline (not inline-block) to allow parent truncation to work
       return enableGlow ? (
         <m.span
-          className="font-[family-name:var(--font-orbitron)] inline-block"
+          className="font-[family-name:var(--font-orbitron)] inline"
           animate={{
             textShadow: [
               '0 0 10px rgba(0, 243, 255, 0.3)',
@@ -113,7 +115,9 @@ export function PlayerName({
           </m.span>
         </m.span>
       ) : (
-        <span className={`font-[family-name:var(--font-orbitron)] ${className || 'text-white'}`}>
+        <span
+          className={`font-[family-name:var(--font-orbitron)] inline ${className || 'text-white'}`}
+        >
           {displayName}
         </span>
       )

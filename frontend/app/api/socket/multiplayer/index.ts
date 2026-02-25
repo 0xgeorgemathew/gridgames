@@ -15,6 +15,7 @@ import {
 } from './game-loop.server'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import type { OpenPosition } from './events.types'
+import type { SocketErrorCode } from '@/domains/hyper-swiper/shared/trading.types'
 
 let priceFeedConnected = false
 
@@ -95,7 +96,11 @@ async function handleSlice(
   if (!player) return
 
   if (player.dollars < CFG.POSITION_COLLATERAL) {
-    io.to(playerId).emit('error', { message: 'Insufficient balance to open position' })
+    io.to(playerId).emit('error', {
+      code: 'INSUFFICIENT_BALANCE' as SocketErrorCode,
+      message: 'Insufficient balance to open position',
+      details: { required: CFG.POSITION_COLLATERAL, current: player.dollars },
+    })
     return
   }
 
@@ -290,7 +295,10 @@ export function setupGameEvents(io: SocketIOServer): {
             '[find_match] Error:',
             error instanceof Error ? error.message : String(error)
           )
-          socket.emit('error', { message: 'Failed to find match' })
+          socket.emit('error', {
+            code: 'FIND_MATCH_FAILED' as SocketErrorCode,
+            message: 'Failed to find match',
+          })
         }
       }
     )
@@ -349,7 +357,10 @@ export function setupGameEvents(io: SocketIOServer): {
 
           socket.emit('joined_waiting_pool')
         } catch (error) {
-          socket.emit('error', { message: 'Failed to join waiting pool' })
+          socket.emit('error', {
+            code: 'JOIN_POOL_FAILED' as SocketErrorCode,
+            message: 'Failed to join waiting pool',
+          })
         }
       }
     )
@@ -412,7 +423,10 @@ export function setupGameEvents(io: SocketIOServer): {
           await handleSlice(io, manager, room, socket.id, data, () => priceFeed.getLatestPrice())
         } catch (error) {
           console.log('[Server] slice_coin error:', error)
-          socket.emit('error', { message: 'Failed to slice coin' })
+          socket.emit('error', {
+            code: 'SLICE_FAILED' as SocketErrorCode,
+            message: 'Failed to slice coin',
+          })
         }
       }
     )
@@ -437,12 +451,18 @@ export function setupGameEvents(io: SocketIOServer): {
 
         const position = room.openPositions.get(positionId)
         if (!position) {
-          socket.emit('error', { message: 'Position not found' })
+          socket.emit('error', {
+            code: 'POSITION_NOT_FOUND' as SocketErrorCode,
+            message: 'Position not found',
+          })
           return
         }
 
         if (position.playerId !== socket.id) {
-          socket.emit('error', { message: 'Unauthorized to close this position' })
+          socket.emit('error', {
+            code: 'UNAUTHORIZED_POSITION' as SocketErrorCode,
+            message: 'Unauthorized to close this position',
+          })
           return
         }
 
@@ -492,7 +512,10 @@ export function setupGameEvents(io: SocketIOServer): {
         }
       } catch (error) {
         console.error('[Server] close_position error:', error)
-        socket.emit('error', { message: 'Failed to close position' })
+        socket.emit('error', {
+          code: 'CLOSE_POSITION_FAILED' as SocketErrorCode,
+          message: 'Failed to close position',
+        })
       }
     })
 
@@ -512,24 +535,36 @@ export function setupGameEvents(io: SocketIOServer): {
     socket.on('select_opponent', ({ opponentSocketId }: { opponentSocketId: string }) => {
       const opponent = manager.getWaitingPlayer(opponentSocketId)
       if (!opponent) {
-        socket.emit('error', { message: 'Opponent no longer available' })
+        socket.emit('error', {
+          code: 'OPPONENT_UNAVAILABLE' as SocketErrorCode,
+          message: 'Opponent no longer available',
+        })
         return
       }
 
       const localPlayer = manager.getWaitingPlayer(socket.id)
       if (!localPlayer) {
-        socket.emit('error', { message: 'You must join waiting pool first' })
+        socket.emit('error', {
+          code: 'NOT_IN_WAITING_POOL' as SocketErrorCode,
+          message: 'You must join waiting pool first',
+        })
         return
       }
 
       if (localPlayer.gameDuration !== opponent.gameDuration) {
-        socket.emit('error', { message: 'Cannot match: different game duration settings' })
+        socket.emit('error', {
+          code: 'DURATION_MISMATCH' as SocketErrorCode,
+          message: 'Cannot match: different game duration settings',
+        })
         return
       }
 
       const opponentSocket = io.of('/').sockets.get(opponentSocketId)
       if (!opponentSocket?.connected) {
-        socket.emit('error', { message: 'Opponent disconnected' })
+        socket.emit('error', {
+          code: 'OPPONENT_DISCONNECTED' as SocketErrorCode,
+          message: 'Opponent disconnected',
+        })
         manager.removeWaitingPlayer(opponentSocketId)
         return
       }
@@ -557,7 +592,10 @@ export function setupGameEvents(io: SocketIOServer): {
           )
       ).catch((error) => {
         console.error('[Match] Failed to create selected match:', error)
-        socket.emit('error', { message: 'Failed to start match' })
+        socket.emit('error', {
+          code: 'MATCH_START_FAILED' as SocketErrorCode,
+          message: 'Failed to start match',
+        })
       })
     })
 

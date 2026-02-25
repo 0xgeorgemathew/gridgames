@@ -98,29 +98,38 @@ export class CoinLifecycleSystem {
 
   cleanupCoins(): void {
     if (!this.tokenPool) return
+    if (!this.scene || !this.scene.sys?.isActive()) return
 
-    this.tokenPool.getChildren().forEach((child) => {
-      const token = child as Token
+    try {
+      const children = this.tokenPool.getChildren()
+      if (!children) return
 
-      if (!token.active) return
+      children.forEach((child) => {
+        const token = child as Token
 
-      token.setActive(false)
-      token.setVisible(false)
+        if (!token.active) return
 
-      if (token.body) {
-        this.scene.physics.world.disableBody(token.body)
+        token.setActive(false)
+        token.setVisible(false)
+
+        if (token.body) {
+          this.scene.physics.world.disableBody(token.body)
+        }
+
+        const coinId = token.getData('id')
+        if (coinId && this.spatialGrid) {
+          const gridX = (token.getData('gridX') as number) ?? token.x
+          const gridY = (token.getData('gridY') as number) ?? token.y
+          this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
+        }
+      })
+
+      if (this.spatialGrid) {
+        this.spatialGrid.clear()
       }
-
-      const coinId = token.getData('id')
-      if (coinId && this.spatialGrid) {
-        const gridX = (token.getData('gridX') as number) ?? token.x
-        const gridY = (token.getData('gridY') as number) ?? token.y
-        this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
-      }
-    })
-
-    if (this.spatialGrid) {
-      this.spatialGrid.clear()
+    } catch (e) {
+      // Group may have been destroyed during scene shutdown - silently ignore
+      console.warn('cleanupCoins: tokenPool already destroyed', e)
     }
   }
 
