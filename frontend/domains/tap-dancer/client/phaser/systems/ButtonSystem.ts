@@ -23,11 +23,11 @@ interface GridRipple {
 const RIPPLE_CONFIG = {
   initialRadius: 44, // Start at half button size
   maxRadiusFactor: 2.5, // Expand to 2.5x button size
-  duration: 400, // Animation duration in ms
-  ringCount: 3, // Number of rings per ripple
-  ringDelay: 80, // Delay between rings in ms
+  duration: 2666, // Animation duration in ms (matches SnakePriceGraph Tron-style)
+  ringCount: 2, // Number of rings per ripple
+  ringDelay: 1333, // Delay between rings in ms (half duration for staggered effect)
   lineWidth: 2,
-  initialAlpha: 0.6,
+  initialAlpha: 0.25, // Subtle alpha like SnakePriceGraph
 } as const
 
 const BUTTON_SIZES_BY_HEIGHT: Record<number, ButtonSizes> = {
