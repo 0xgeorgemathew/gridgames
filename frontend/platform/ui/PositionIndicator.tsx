@@ -2,10 +2,38 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { m, AnimatePresence } from 'framer-motion'
-import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.store'
 import { cn } from '@/platform/utils/classNames.utils'
 import { formatPrice } from '@/platform/utils/price.utils'
-import type { Position, PriceData } from '@/domains/hyper-swiper/shared/trading.types'
+
+export interface Position {
+  id: string
+  playerId: string
+  playerName: string
+  isLong: boolean
+  leverage: number
+  collateral: number
+  openPrice: number
+  closePrice: number | null
+  realizedPnl: number
+  openedAt: number
+  settledAt: number | null
+  status: 'open' | 'settled'
+}
+
+export interface PriceData {
+  symbol: string
+  price: number
+  change: number
+  changePercent: number
+  tradeSize?: number
+  tradeSide?: 'BUY' | 'SELL'
+  tradeTime?: number
+}
+
+export interface ClosingState {
+  reason?: 'manual' | 'liquidated'
+  realizedPnl?: number
+}
 
 const SMOOTH_SPRING = {
   type: 'spring' as const,
@@ -31,7 +59,7 @@ function formatPnlPercent(value: number): string {
   return value >= 0 ? `+${formatted}` : formatted
 }
 
-function PositionCard({
+export function PositionCard({
   position,
   index,
   priceData,
@@ -61,7 +89,6 @@ function PositionCard({
     return () => mediaQuery.removeEventListener('change', handler)
   }, [])
 
-  // Auto minimize after delay
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsMinimized(true)
@@ -69,14 +96,12 @@ function PositionCard({
     return () => clearTimeout(timer)
   }, [])
 
-  // Click arrow to expand
   const handleExpand = useCallback(() => {
     if (isClosing || !isMinimized) return
     setIsMinimized(false)
     setTimeout(() => setIsMinimized(true), 2000)
   }, [isClosing, isMinimized])
 
-  // Click PnL to close position
   const handleClose = useCallback(() => {
     if (isClosing) return
     onClose(position.id)
@@ -127,7 +152,6 @@ function PositionCard({
     [displayPnl, isClosing]
   )
 
-  // When closing, always show minimized state (collapsed content)
   const showCollapsedContent = isMinimized || isClosing
 
   return (
@@ -159,7 +183,6 @@ function PositionCard({
       )}
       style={{ touchAction: 'manipulation' }}
     >
-      {/* Animated glow effect for profit/loss */}
       {!isNearZero && !isClosing && (
         <m.div
           className="absolute inset-0 pointer-events-none rounded-xl"
@@ -178,7 +201,6 @@ function PositionCard({
         />
       )}
 
-      {/* Closing/Liquidation flash effect */}
       <AnimatePresence>
         {isClosing && (
           <m.div
@@ -196,7 +218,6 @@ function PositionCard({
       </AnimatePresence>
 
       <div className="relative flex items-center p-2 gap-2">
-        {/* Arrow indicator - click to expand */}
         <m.div
           animate={{ scale: showCollapsedContent ? 0.85 : 1 }}
           transition={SMOOTH_SPRING}
@@ -211,9 +232,7 @@ function PositionCard({
           </span>
         </m.div>
 
-        {/* Content wrapper */}
         <div className="relative flex items-center flex-1 overflow-hidden">
-          {/* Expanded content - width animation collapses layout space */}
           <m.div
             animate={{
               width: showCollapsedContent ? 0 : 'auto',
@@ -225,7 +244,6 @@ function PositionCard({
               visibility: showCollapsedContent ? 'hidden' : 'visible',
             }}
           >
-            {/* Entry price */}
             <div className="flex flex-col min-w-0 justify-center">
               <span className="text-[9px] text-tron-white-dim uppercase tracking-wider truncate leading-none mb-0.5">
                 Entry
@@ -235,7 +253,6 @@ function PositionCard({
               </span>
             </div>
 
-            {/* Leverage badge */}
             {position.leverage > 1 && (
               <div
                 className={cn(
@@ -253,7 +270,6 @@ function PositionCard({
               </div>
             )}
 
-            {/* LONG/SHORT badge */}
             <div
               className={cn(
                 'px-1.5 py-1 rounded-lg text-[10px] font-bold font-mono shrink-0',
@@ -265,19 +281,17 @@ function PositionCard({
             </div>
           </m.div>
 
-          {/* Collapsed content - shows PnL or Closing state */}
           <m.div
             animate={{
               width: showCollapsedContent ? 'auto' : 0,
               opacity: showCollapsedContent ? 1 : 0,
             }}
             transition={SMOOTH_SPRING}
-            className="flex items-center overflow-hidden"
+            className="flex items-center overflow-hidden pointer-events-auto"
             style={{
               visibility: showCollapsedContent ? 'visible' : 'hidden',
             }}
           >
-            {/* Closing/Liquidation animated text */}
             <AnimatePresence mode="wait">
               {isClosing ? (
                 <m.div
@@ -320,7 +334,7 @@ function PositionCard({
                   onClick={handleClose}
                   className={cn(
                     'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5 tabular-nums cursor-pointer',
-                    'min-w-[48px]',
+                    'min-w-[48px] p-2 -m-2 touch-manipulation',
                     pnlTextColor
                   )}
                 >
@@ -335,15 +349,23 @@ function PositionCard({
   )
 }
 
-export function PositionIndicator() {
-  const openPositions = useTradingStore((s) => s.openPositions)
-  const localPlayerId = useTradingStore((s) => s.localPlayerId)
-  const priceData = useTradingStore((s) => s.priceData)
-  const closePosition = useTradingStore((s) => s.closePosition)
-  const closingPositions = useTradingStore((s) => s.closingPositions)
+export interface PositionIndicatorProps {
+  openPositions: Map<string, Position>
+  localPlayerId: string | null
+  priceData: PriceData | null
+  closePosition: (id: string) => void
+  closingPositions: Map<string, ClosingState>
+  isPlaying?: boolean
+}
 
-  // Get local player's open positions - positions in closing state are still in openPositions
-  // until the animation completes
+export function PositionIndicator({
+  openPositions,
+  localPlayerId,
+  priceData,
+  closePosition,
+  closingPositions,
+  isPlaying,
+}: PositionIndicatorProps) {
   const localPositions = useMemo(
     () =>
       Array.from(openPositions.values())
@@ -352,8 +374,12 @@ export function PositionIndicator() {
     [openPositions, localPlayerId]
   )
 
+  if (isPlaying === false) {
+    return null
+  }
+
   return (
-    <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-32 pointer-events-none">
+    <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-52 pointer-events-none">
       <div className="max-w-2xl mx-auto flex flex-col items-end">
         <div
           className="flex flex-col items-end overflow-y-auto pointer-events-auto overscroll-contain [&::-webkit-scrollbar]:hidden"
