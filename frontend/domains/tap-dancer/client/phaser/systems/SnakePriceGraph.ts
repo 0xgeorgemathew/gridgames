@@ -1,4 +1,4 @@
-import type { GameObjects } from 'phaser'
+import type { GameObjects, Scene } from 'phaser'
 
 // Elegant, physics-based smoothing configuration
 const CONFIG = {
@@ -29,6 +29,10 @@ const CONFIG = {
 
   // Ribbon Visuals
   ribbonHeight: 45, // How tall the solid light wall is (Tron Trail)
+
+  // Threshold for animation styling
+  LOSS_THRESHOLD: -10, // Price% - triggers loss-style animation
+  PROFIT_THRESHOLD: 10, // Price% - triggers profit-style animation
 } as const
 
 type PriceData = {
@@ -46,6 +50,33 @@ type SnakeGraphUpdateArgs = {
   hudHeight?: number
 }
 
+// Tron-style geometric shard particle for animations
+interface ShardParticle {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  life: number
+  maxLife: number
+  color: number
+  rotation: number
+  rotationSpeed: number
+  size: number
+  shardType: number // 0 = triangle, 1 = voxel, 2 = cube
+  phase: number // 0 = shatter, 1 = float, 2 = evaporate
+}
+
+// Flash ring that expands outward
+interface FlashRing {
+  x: number
+  y: number
+  radius: number
+  maxRadius: number
+  life: number
+  maxLife: number
+  color: number
+}
+
 export class SnakePriceGraph {
   private history: { time: number; price: number; pct: number }[] = []
   private currentDisplayedPrice: number | null = null
@@ -55,9 +86,47 @@ export class SnakePriceGraph {
   private currentCenterPct: number | null = null
 
   private graphics: GameObjects.Graphics
+  private scene: Scene | null = null
+
+  // Animation state
+  private isAnimating = false
+  private graphExploded = false
+
+  // Current head position (for animation emission)
+  private currentHeadX = 0
+  private currentHeadY = 0
+  private currentCoreColor = 0x00f3ff
+
+  // Current curve points for explosion emission
+  private currentCurvePoints: { x: number; y: number }[] = []
+
+  // Particle system
+  private shardParticles: ShardParticle[] = []
+  private flashRings: FlashRing[] = []
+  private particleGraphics: GameObjects.Graphics | null = null
+  private flashOverlay: GameObjects.Graphics | null = null
+
+  // Flash overlay state
+  private flashAlpha = 0
+  private flashColor = 0xff0000
+
+  private readonly MAX_SHARDS = 300
+  private readonly MAX_FLASH_RINGS = 8
 
   constructor(graphics: GameObjects.Graphics) {
     this.graphics = graphics
+  }
+
+  /**
+   * Set scene reference for camera shake and particle effects
+   */
+  setScene(scene: Scene): void {
+    this.scene = scene
+    this.particleGraphics = scene.add.graphics()
+    this.particleGraphics.setDepth(-0.3)
+    this.flashOverlay = scene.add.graphics()
+    this.flashOverlay.setDepth(-0.1)
+    this.flashOverlay.setBlendMode(Phaser.BlendModes.ADD)
   }
 
   reset(): void {
@@ -67,6 +136,75 @@ export class SnakePriceGraph {
     this.startPrice = null
     this.currentZoom = null
     this.currentCenterPct = null
+
+    // Reset animation state
+    this.isAnimating = false
+    this.graphExploded = false
+    this.currentCurvePoints = []
+
+    // Clear particles
+    this.shardParticles = []
+    this.flashRings = []
+    this.flashAlpha = 0
+
+    if (this.particleGraphics) this.particleGraphics.clear()
+    if (this.flashOverlay) this.flashOverlay.clear()
+  }
+
+  /**
+   * Trigger liquidation animation (red flash, particles, shake)
+   * Called externally when position_liquidated event is received
+   */
+  triggerLiquidationAnimation(): void {
+    if (this.isAnimating) return
+    this.isAnimating = true
+    this.graphExploded = true
+
+    // 1. Flash the graph red
+    this.flashColor = 0xff0000
+    this.flashAlpha = 0.6
+
+    // 2. Camera shake (strong)
+    if (this.scene) {
+      this.scene.cameras.main.shake(150, 0.008)
+    }
+
+    // 3. Explode the entire graph (de-rez effect)
+    this.explodeEntireGraph(0xff0000)
+  }
+
+  /**
+   * Trigger close animation based on final price change
+   * Called externally when position is closed
+   */
+  triggerCloseAnimation(finalPct: number): void {
+    if (this.isAnimating) return
+    this.isAnimating = true
+    this.graphExploded = true
+
+    // Determine animation style based on profit/loss
+    if (finalPct >= CONFIG.PROFIT_THRESHOLD) {
+      // Profit - green celebration
+      this.flashColor = 0x00ff88
+      this.flashAlpha = 0.5
+      if (this.scene) {
+        this.scene.cameras.main.shake(100, 0.004)
+      }
+      this.explodeEntireGraph(0x00ff88)
+    } else if (finalPct <= CONFIG.LOSS_THRESHOLD) {
+      // Loss - red animation
+      this.flashColor = 0xff0000
+      this.flashAlpha = 0.5
+      if (this.scene) {
+        this.scene.cameras.main.shake(100, 0.004)
+      }
+      this.explodeEntireGraph(0xff0000)
+    } else {
+      // Neutral - dimmer flash based on direction
+      this.flashColor = finalPct >= 0 ? 0x00ff88 : 0xff0000
+      this.flashAlpha = 0.25
+      this.explodeEntireGraph(this.flashColor)
+    }
   }
 
   update({
@@ -82,6 +220,12 @@ export class SnakePriceGraph {
     // Note: firstPrice can be 0 (valid), so check for null/undefined explicitly
     if (!priceData || !isPlaying || firstPrice === null || firstPrice === undefined) {
       this.reset()
+      return
+    }
+
+    // If graph has exploded, only update particles
+    if (this.graphExploded) {
+      this.updateAnimations(delta, width, height)
       return
     }
 
@@ -191,6 +335,11 @@ export class SnakePriceGraph {
     const currentY = clampY(centerY - (currentPct - this.currentCenterPct) * this.currentZoom)
     curvePoints.push({ x: headX, y: currentY })
 
+    // Store for explosion emission
+    this.currentCurvePoints = [...curvePoints]
+    this.currentHeadX = headX
+    this.currentHeadY = currentY
+
     // UX Visual Anchor: Zero Line (Start Price Baseline)
     const zeroY = centerY - (0 - this.currentCenterPct) * this.currentZoom
     if (zeroY > -100 && zeroY < graphHeight + 100) {
@@ -205,6 +354,7 @@ export class SnakePriceGraph {
     const isAboveStart = currentPct >= 0
     // Profit: Tron Cyan (0x00f3ff) | Loss: Tron Orange (0xff6600)
     const coreColor = isAboveStart ? 0x00f3ff : 0xff6600
+    this.currentCoreColor = coreColor
 
     // --- TRON LIGHT CYCLE RIBBON (WALL OF LIGHT) --- //
 
@@ -255,7 +405,6 @@ export class SnakePriceGraph {
     this.graphics.strokePath()
 
     // --- LEADING INDICATOR (The Tip) --- //
-    // Replaced the ugly vertical block with a high-tech glowing arrow at the exact price point
 
     // Static multi-layer optical bloom (neon glow core)
     this.graphics.fillStyle(coreColor, 0.6)
@@ -266,9 +415,7 @@ export class SnakePriceGraph {
 
     // Pulse Ring 1
     const phase1 = (now % duration) / duration
-    // Radius expands outward strictly from the innermost core (12px) to 60px
     const radius1 = 12 + phase1 * 50.55
-    // Opacity peaks at 25% and softly fades out as it expands
     const alpha1 = 0.25 * Math.max(0, 1 - phase1)
     this.graphics.lineStyle(2, coreColor, alpha1)
     this.graphics.strokeCircle(headX, currentY, radius1)
@@ -283,7 +430,6 @@ export class SnakePriceGraph {
     // Calculate smooth trajectory angle for the chevron tip
     let tipAngle = 0
     if (curvePoints.length > 3) {
-      // Look back a few points to get a stable, readable slope
       const prev = curvePoints[curvePoints.length - 4]
       tipAngle = Math.atan2(currentY - prev.y, headX - prev.x)
     }
@@ -295,7 +441,6 @@ export class SnakePriceGraph {
     const cosA = Math.cos(tipAngle)
     const sinA = Math.sin(tipAngle)
 
-    // Local rotation helper
     const rotate = (dx: number, dy: number) => ({
       rx: headX + dx * cosA - dy * sinA,
       ry: currentY + dx * sinA + dy * cosA,
@@ -312,5 +457,256 @@ export class SnakePriceGraph {
     this.graphics.lineTo(p4.rx, p4.ry)
     this.graphics.closePath()
     this.graphics.fillPath()
+
+    // Update animations
+    this.updateAnimations(delta, width, height)
+  }
+
+  // ==================== ANIMATION METHODS ====================
+
+  /**
+   * Explode the entire visible graph into particles (de-rez effect)
+   */
+  private explodeEntireGraph(color: number): void {
+    const pointsToExplode = this.currentCurvePoints
+    const step = Math.max(1, Math.floor(pointsToExplode.length / 50))
+
+    for (let i = 0; i < pointsToExplode.length; i += step) {
+      const pt = pointsToExplode[i]
+      this.emitGraphExplosion(pt.x, pt.y, color, 3)
+    }
+
+    // Extra burst at the head position
+    if (pointsToExplode.length > 0) {
+      const head = pointsToExplode[pointsToExplode.length - 1]
+      this.emitGraphExplosion(head.x, head.y, color, 15)
+
+      if (this.flashRings.length < this.MAX_FLASH_RINGS) {
+        this.flashRings.push({
+          x: head.x,
+          y: head.y,
+          radius: 12,
+          maxRadius: 200,
+          life: 500,
+          maxLife: 500,
+          color,
+        })
+      }
+    }
+  }
+
+  /**
+   * Emit particles for graph explosion
+   */
+  private emitGraphExplosion(x: number, y: number, color: number, count: number): void {
+    for (let i = 0; i < count; i++) {
+      if (this.shardParticles.length >= this.MAX_SHARDS) break
+
+      const angle = Math.random() * Math.PI * 2
+      const speed = 80 + Math.random() * 180
+      const shardType = Math.random() < 0.4 ? 0 : Math.random() < 0.5 ? 1 : 2
+      const baseSize = shardType === 0 ? 3 + Math.random() * 5 : 2 + Math.random() * 4
+
+      this.shardParticles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 30,
+        life: 600 + Math.random() * 400,
+        maxLife: 600 + Math.random() * 400,
+        color,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 10,
+        size: baseSize,
+        shardType,
+        phase: 0,
+      })
+    }
+  }
+
+  /**
+   * Update all animations
+   */
+  private updateAnimations(delta: number, width: number, height: number): void {
+    if (!this.particleGraphics || !this.flashOverlay) return
+
+    this.updateShardParticles(delta)
+    this.updateFlashOverlay(width, height)
+
+    // Reset animation state when all particles are gone - allows graph to resume
+    if (this.graphExploded && this.shardParticles.length === 0 && this.flashAlpha < 0.01) {
+      this.graphExploded = false
+      this.isAnimating = false
+      this.graphics.clear()
+      this.history = []
+      this.currentCurvePoints = []
+    }
+  }
+
+  /**
+   * Update shard particles
+   */
+  private updateShardParticles(delta: number): void {
+    if (!this.particleGraphics) return
+
+    const dt = delta / 1000
+
+    for (let i = this.shardParticles.length - 1; i >= 0; i--) {
+      const p = this.shardParticles[i]
+      const lifeRatio = p.life / p.maxLife
+
+      if (lifeRatio < 0.3) {
+        p.phase = 2
+      } else if (lifeRatio < 0.6) {
+        p.phase = 1
+      }
+
+      if (p.phase === 0) {
+        p.vy += 60 * dt
+        p.vx *= 0.98
+        p.vy *= 0.98
+      } else if (p.phase === 1) {
+        p.vx *= 0.92
+        p.vy *= 0.92
+        p.vy -= 30 * dt
+      } else {
+        p.vx *= 0.85
+        p.vy *= 0.85
+        p.vy -= 50 * dt
+        p.size *= 0.96
+      }
+
+      p.x += p.vx * dt
+      p.y += p.vy * dt
+      p.rotation += p.rotationSpeed * dt
+      p.life -= delta
+
+      if (p.life <= 0 || p.size < 0.5) {
+        this.shardParticles.splice(i, 1)
+      }
+    }
+
+    // Draw shards
+    this.particleGraphics.clear()
+    this.particleGraphics.setBlendMode(Phaser.BlendModes.ADD)
+
+    for (const p of this.shardParticles) {
+      const lifeRatio = p.life / p.maxLife
+      const alpha = Math.min(1, lifeRatio * 1.5) * 0.85
+
+      if (p.shardType === 0) {
+        this.drawShardTriangle(p.x, p.y, p.size, p.rotation, p.color, alpha)
+      } else if (p.shardType === 1) {
+        this.drawShardVoxel(p.x, p.y, p.size * 0.8, p.rotation, p.color, alpha)
+      } else {
+        this.drawShardCube(p.x, p.y, p.size * 0.5, p.color, alpha)
+      }
+    }
+  }
+
+  /**
+   * Update full-screen flash overlay
+   */
+  private updateFlashOverlay(width: number, height: number): void {
+    if (!this.flashOverlay) return
+
+    this.flashOverlay.clear()
+
+    if (this.flashAlpha > 0) {
+      this.flashOverlay.fillStyle(this.flashColor, this.flashAlpha)
+      this.flashOverlay.fillRect(0, 0, width, height)
+
+      this.flashAlpha *= 0.92
+      if (this.flashAlpha < 0.01) {
+        this.flashAlpha = 0
+      }
+    }
+  }
+
+  // Shard drawing helpers
+  private drawShardTriangle(
+    x: number,
+    y: number,
+    size: number,
+    rotation: number,
+    color: number,
+    alpha: number
+  ): void {
+    if (!this.particleGraphics) return
+
+    this.particleGraphics.fillStyle(color, alpha * 0.8)
+    this.particleGraphics.beginPath()
+    for (let i = 0; i < 3; i++) {
+      const angle = rotation + (i * Math.PI * 2) / 3
+      const px = x + Math.cos(angle) * size
+      const py = y + Math.sin(angle) * size
+      if (i === 0) this.particleGraphics.moveTo(px, py)
+      else this.particleGraphics.lineTo(px, py)
+    }
+    this.particleGraphics.closePath()
+    this.particleGraphics.fillPath()
+
+    this.particleGraphics.fillStyle(0xffffff, alpha * 0.9)
+    this.particleGraphics.beginPath()
+    for (let i = 0; i < 3; i++) {
+      const angle = rotation + (i * Math.PI * 2) / 3
+      const px = x + Math.cos(angle) * size * 0.4
+      const py = y + Math.sin(angle) * size * 0.4
+      if (i === 0) this.particleGraphics.moveTo(px, py)
+      else this.particleGraphics.lineTo(px, py)
+    }
+    this.particleGraphics.closePath()
+    this.particleGraphics.fillPath()
+  }
+
+  private drawShardVoxel(
+    x: number,
+    y: number,
+    size: number,
+    rotation: number,
+    color: number,
+    alpha: number
+  ): void {
+    if (!this.particleGraphics) return
+
+    const cos = Math.cos(rotation)
+    const sin = Math.sin(rotation)
+
+    this.particleGraphics.fillStyle(color, alpha * 0.7)
+    this.particleGraphics.beginPath()
+    this.particleGraphics.moveTo(x + cos * size, y + sin * size)
+    this.particleGraphics.lineTo(x - sin * size, y + cos * size)
+    this.particleGraphics.lineTo(x - cos * size, y - sin * size)
+    this.particleGraphics.lineTo(x + sin * size, y - cos * size)
+    this.particleGraphics.closePath()
+    this.particleGraphics.fillPath()
+
+    this.particleGraphics.fillStyle(0xffffff, alpha * 0.8)
+    const coreSize = size * 0.4
+    this.particleGraphics.beginPath()
+    this.particleGraphics.moveTo(x + cos * coreSize, y + sin * coreSize)
+    this.particleGraphics.lineTo(x - sin * coreSize, y + cos * coreSize)
+    this.particleGraphics.lineTo(x - cos * coreSize, y - sin * coreSize)
+    this.particleGraphics.lineTo(x + sin * coreSize, y - cos * coreSize)
+    this.particleGraphics.closePath()
+    this.particleGraphics.fillPath()
+  }
+
+  private drawShardCube(x: number, y: number, size: number, color: number, alpha: number): void {
+    if (!this.particleGraphics) return
+
+    this.particleGraphics.fillStyle(color, alpha * 0.8)
+    this.particleGraphics.fillRect(x - size, y - size, size * 2, size * 2)
+
+    this.particleGraphics.fillStyle(0xffffff, alpha)
+    this.particleGraphics.fillRect(x - size * 0.3, y - size * 0.3, size * 0.6, size * 0.6)
+  }
+
+  /**
+   * Clean up graphics resources
+   */
+  destroy(): void {
+    this.particleGraphics?.destroy()
+    this.flashOverlay?.destroy()
   }
 }

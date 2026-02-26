@@ -68,6 +68,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   // Audio state
   isSoundMuted:
     typeof window !== 'undefined' ? localStorage.getItem('tapDancer_soundMuted') === 'true' : false,
+  beatActive: false,
 
   // Price feed state
   priceSocket: null,
@@ -103,6 +104,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     const newCleanupFunctions: Array<() => void> = []
 
+    // Price throttling for smoother UI (prevents microstutter on position indicator)
+    let lastPriceUpdateTime = 0
+    let lastPrice = 0
+    const PRICE_THROTTLE_MS = 100 // ~10fps for normal updates
+    const MEANINGFUL_CHANGE_THRESHOLD = 0.005 // 0.5% = bypass throttle
+
     nextSocket.on('connect', () => {
       set({ isConnected: true, localPlayerId: nextSocket.id })
     })
@@ -110,6 +117,20 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on(
       'btc_price',
       (data: { price: number; change: number; changePercent: number; timestamp: number }) => {
+        // Always update timestamp for connection health monitoring
+        set({ lastPriceUpdate: data.timestamp, isPriceConnected: true, priceError: null })
+
+        // Smart throttling: throttle small changes, bypass for meaningful moves
+        const now = Date.now()
+        const priceChangePercent =
+          lastPrice > 0 ? Math.abs((data.price - lastPrice) / lastPrice) : 0
+        const isMeaningfulChange = priceChangePercent >= MEANINGFUL_CHANGE_THRESHOLD
+        const throttleExpired = now - lastPriceUpdateTime >= PRICE_THROTTLE_MS
+
+        if (!isMeaningfulChange && !throttleExpired) {
+          return // Skip this update - not meaningful and throttle not expired
+        }
+
         // Calculate firstPrice: current price minus change from baseline
         const expectedFirstPrice = data.price - data.change
 
@@ -118,6 +139,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           console.warn('[btc_price] Invalid firstPrice calculation, skipping update')
           return
         }
+
+        lastPriceUpdateTime = now
+        lastPrice = data.price
 
         set({
           firstPrice: expectedFirstPrice,
@@ -130,9 +154,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
             tradeSide: 'BUY',
             tradeTime: data.timestamp,
           },
-          lastPriceUpdate: data.timestamp,
-          isPriceConnected: true,
-          priceError: null,
         })
       }
     )
@@ -351,6 +372,13 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           reason: 'manual',
           realizedPnl: data.realizedPnl,
           timestamp: Date.now(),
+        })
+
+        // Emit event for graph animation
+        window.phaserEvents?.emit('position_closed', {
+          positionId: data.positionId,
+          realizedPnl: data.realizedPnl,
+          isLong: position.isLong,
         })
 
         const timeoutId = setTimeout(() => {
@@ -605,5 +633,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       localStorage.setItem('tapDancer_soundMuted', String(newMutedState))
     }
     window.phaserEvents?.emit('sound_muted', newMutedState)
+  },
+
+  triggerBeat: () => {
+    set({ beatActive: true })
+    // Reset beat state after a longer duration for smooth, atmospheric pulse
+    setTimeout(() => set({ beatActive: false }), 400)
   },
 }))
