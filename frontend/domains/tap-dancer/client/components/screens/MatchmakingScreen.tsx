@@ -11,6 +11,7 @@ import { PlayerName } from '@/platform/ui/PlayerName'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { cn } from '@/platform/utils/classNames.utils'
+import { OnboardingModal } from '@/domains/tap-dancer/client/components/modals/OnboardingModal'
 
 type AuthMatchState = 'login' | 'ready'
 type UserMatchState = 'lobby' | 'entering'
@@ -181,6 +182,11 @@ export function MatchmakingScreen() {
   } = useTradingStore()
 
   const [userState, setUserState] = useState<UserMatchState | null>(null)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    // Only check localStorage on client-side
+    if (typeof window === 'undefined') return false
+    return !localStorage.getItem('tap_dancer_onboarded')
+  })
 
   const walletAddress = isInMiniApp ? miniAppWallet : user?.wallet?.address
 
@@ -232,6 +238,11 @@ export function MatchmakingScreen() {
     router,
   ])
 
+  const handleCloseOnboarding = useCallback(() => {
+    localStorage.setItem('tap_dancer_onboarded', 'true')
+    setShowOnboarding(false)
+  }, [])
+
   useEffect(() => {
     if (matchState !== 'lobby') return
     if (displayName && walletAddress) {
@@ -281,6 +292,9 @@ export function MatchmakingScreen() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden bg-black">
+      {/* Onboarding Modal */}
+      <OnboardingModal isOpen={showOnboarding} onClose={handleCloseOnboarding} />
+
       <m.div
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}
@@ -295,15 +309,6 @@ export function MatchmakingScreen() {
         scanDuration={matchState === 'entering' ? 0.8 : 4.0}
         scanGlow={matchState === 'entering' ? 1.0 : 0.0}
       />
-
-      <div className="fixed inset-0 pointer-events-none z-10 opacity-20">
-        <div className="absolute inset-0 tron-grid opacity-30" />
-        <m.div
-          className="w-full h-[2px] bg-tron-cyan shadow-[0_0_15px_var(--color-tron-cyan)]"
-          animate={{ y: ['-10%', '110%'] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-        />
-      </div>
 
       <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
         <button
