@@ -30,8 +30,6 @@ export function useBeatAnimation() {
    */
   const initialize = useCallback(async () => {
     if (isInitialized.current) {
-      console.log('[useBeatAnimation] Already initialized, ensuring beat listener is connected')
-      // Even if initialized, ensure beat listener is connected
       if (!beatUnsubscribe.current) {
         beatUnsubscribe.current = beatSynchronizer.onBeat(() => {
           triggerBeat()
@@ -42,33 +40,15 @@ export function useBeatAnimation() {
     isInitialized.current = true
 
     try {
-      console.log('[useBeatAnimation] Initializing...')
-
-      // Initialize audio player
       await audioPlayer.initialize()
 
-      // Analyze beats (or load from cache)
       const beatData = await beatAnalyzer.initialize()
-      console.log(
-        '[useBeatAnimation] Beat data loaded:',
-        beatData.tempo.toFixed(1),
-        'BPM,',
-        'beat interval:',
-        (60 / beatData.tempo).toFixed(3) + 's,',
-        beatData.beats.length,
-        'beats over',
-        beatData.duration.toFixed(1) + 's'
-      )
 
-      // Set beat data for synchronizer
       beatSynchronizer.setBeatData(beatData)
 
-      // Connect beat events to store
       beatUnsubscribe.current = beatSynchronizer.onBeat(() => {
         triggerBeat()
       })
-
-      console.log('[useBeatAnimation] Ready!')
     } catch (error) {
       console.error('[useBeatAnimation] Failed to initialize:', error)
     }
@@ -79,16 +59,11 @@ export function useBeatAnimation() {
    */
   const startMusic = useCallback(async () => {
     if (!isSoundMuted) {
-      console.log('[useBeatAnimation] Starting music playback')
       await audioPlayer.play()
     }
   }, [isSoundMuted])
 
-  /**
-   * Stop music when game ends
-   */
   const stopMusic = useCallback(() => {
-    console.log('[useBeatAnimation] Stopping music')
     audioPlayer.stop()
   }, [])
 
