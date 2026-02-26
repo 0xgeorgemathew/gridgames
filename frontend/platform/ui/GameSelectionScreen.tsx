@@ -215,7 +215,11 @@ export function GameSelectionScreen() {
                 <div className="w-12 h-12 rounded-sm bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center">
                   <span className="text-2xl dropdown-shadow flex items-center justify-center">
                     {game.status === 'available' ? (
-                      <Zap className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                      game.lucideIcon ? (
+                        <game.lucideIcon className="w-6 h-6 text-tron-cyan" />
+                      ) : (
+                        <Zap className="w-6 h-6 text-yellow-400 fill-yellow-400" />
+                      )
                     ) : (
                       <Sparkles className="w-6 h-6 text-purple-400" />
                     )}

@@ -1,4 +1,5 @@
 import type { GameConfig } from '@/domains/types'
+import { Radio } from 'lucide-react'
 
 export const tapDancerConfig: GameConfig = {
   slug: 'tap-dancer',
@@ -12,4 +13,5 @@ export const tapDancerConfig: GameConfig = {
     max: 2,
   },
   duration: '2-3 min',
+  lucideIcon: Radio,
 }
