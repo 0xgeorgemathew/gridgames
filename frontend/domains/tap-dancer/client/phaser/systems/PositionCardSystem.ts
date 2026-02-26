@@ -5,6 +5,32 @@ import { useTradingStore } from '@/domains/tap-dancer/client/state/slices/index'
 import type { Position } from '@/domains/tap-dancer/shared/trading.types'
 import type { PositionClosingState } from '@/domains/tap-dancer/client/state/trading.types'
 
+interface CardLayoutSizes {
+  cardGap: number
+  maxHeight: number
+  bottomOffset: number
+}
+
+const CARD_LAYOUT_BY_HEIGHT: Record<number, CardLayoutSizes> = {
+  667: { cardGap: 4, maxHeight: 200, bottomOffset: 160 },
+  736: { cardGap: 5, maxHeight: 220, bottomOffset: 170 },
+  780: { cardGap: 5, maxHeight: 240, bottomOffset: 180 },
+  844: { cardGap: 6, maxHeight: 260, bottomOffset: 200 },
+  852: { cardGap: 6, maxHeight: 260, bottomOffset: 200 },
+  896: { cardGap: 6, maxHeight: 260, bottomOffset: 200 },
+  926: { cardGap: 7, maxHeight: 280, bottomOffset: 210 },
+  932: { cardGap: 7, maxHeight: 280, bottomOffset: 220 },
+}
+
+const BASE_LAYOUT: CardLayoutSizes = { cardGap: 6, maxHeight: 260, bottomOffset: 200 }
+
+function getCardLayoutSizes(): CardLayoutSizes {
+  if (typeof window === 'undefined') return BASE_LAYOUT
+  const height = window.screen.height
+  if (height < 667 || height > 932) return BASE_LAYOUT
+  return CARD_LAYOUT_BY_HEIGHT[height] ?? BASE_LAYOUT
+}
+
 /**
  * PositionCardSystem - Orchestration layer for position cards
  *
@@ -26,10 +52,6 @@ export class PositionCardSystem {
   // PnL update throttling
   private priceUpdateThrottle: number = 0
   private readonly PRICE_UPDATE_INTERVAL: number = 100 // ms
-
-  // Layout constants (matching React PositionIndicator)
-  private readonly CARD_GAP = 6
-  private readonly MAX_HEIGHT = 260
 
   // Safe default dimensions when camera not available
   private readonly SAFE_WIDTH = 390 // Default mobile width
@@ -162,8 +184,6 @@ export class PositionCardSystem {
     const y = this.calculateCardY(cardCount)
     const x = this.calculateCardX()
 
-    console.log('[PositionCard] Creating card at:', x, y, 'for position:', position.id)
-
     const card = new PositionCard(this.scene, {
       position,
       x,
@@ -201,14 +221,6 @@ export class PositionCardSystem {
     const camera = this.scene.cameras.main
     const width = camera?.width ?? this.SAFE_WIDTH
 
-    console.log(
-      '[PositionCardSystem] calculateCardX - camera width:',
-      camera?.width,
-      'result:',
-      width / 2
-    )
-
-    // Center horizontally on screen
     return width / 2
   }
 
@@ -218,15 +230,12 @@ export class PositionCardSystem {
   private calculateCardY(index: number): number {
     const camera = this.scene.cameras.main
     const height = camera?.height ?? this.SAFE_HEIGHT
+    const { cardGap, bottomOffset } = getCardLayoutSizes()
 
     const cardHeight = CARD_DIMENSIONS.height
-    const totalHeight = (index + 1) * cardHeight + index * this.CARD_GAP
+    const totalHeight = (index + 1) * cardHeight + index * cardGap
 
-    // Position above buttons (buttons are at bottom-24 = 96px from bottom)
-    // Buttons are 88px tall, so top of button is at 96 + 44 = 140px from bottom
-    // Add 48px gap for clear separation = cards spawn well above buttons
-    const BOTTOM_OFFSET = 200
-    const baseY = height - BOTTOM_OFFSET
+    const baseY = height - bottomOffset
     return baseY - totalHeight + cardHeight / 2
   }
 

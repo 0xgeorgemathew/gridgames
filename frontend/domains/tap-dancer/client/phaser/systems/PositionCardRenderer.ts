@@ -1,9 +1,197 @@
 import { Scene } from 'phaser'
 
-/**
- * Position card visual states
- */
 export type CardVisualState = 'near_zero' | 'profit' | 'loss' | 'closing' | 'liquidated'
+
+interface CardDimensionsConfig {
+  width: number
+  height: number
+  borderRadius: number
+  padding: number
+  glowPadding: number
+  iconSize: number
+  entryFontSize: number
+  leverageFontSize: number
+  badgeFontSize: number
+  pnlFontSize: number
+  closeFontSize: number
+  gap: number
+}
+
+const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
+  667: {
+    width: 320,
+    height: 40,
+    borderRadius: 10,
+    padding: 6,
+    glowPadding: 10,
+    iconSize: 22,
+    entryFontSize: 12,
+    leverageFontSize: 8,
+    badgeFontSize: 9,
+    pnlFontSize: 12,
+    closeFontSize: 16,
+    gap: 6,
+  },
+  736: {
+    width: 340,
+    height: 44,
+    borderRadius: 10,
+    padding: 7,
+    glowPadding: 10,
+    iconSize: 24,
+    entryFontSize: 13,
+    leverageFontSize: 8,
+    badgeFontSize: 9,
+    pnlFontSize: 13,
+    closeFontSize: 18,
+    gap: 7,
+  },
+  780: {
+    width: 360,
+    height: 46,
+    borderRadius: 11,
+    padding: 7,
+    glowPadding: 11,
+    iconSize: 26,
+    entryFontSize: 13,
+    leverageFontSize: 8,
+    badgeFontSize: 10,
+    pnlFontSize: 13,
+    closeFontSize: 18,
+    gap: 7,
+  },
+  844: {
+    width: 380,
+    height: 48,
+    borderRadius: 12,
+    padding: 8,
+    glowPadding: 12,
+    iconSize: 28,
+    entryFontSize: 14,
+    leverageFontSize: 9,
+    badgeFontSize: 10,
+    pnlFontSize: 14,
+    closeFontSize: 20,
+    gap: 8,
+  },
+  852: {
+    width: 380,
+    height: 48,
+    borderRadius: 12,
+    padding: 8,
+    glowPadding: 12,
+    iconSize: 28,
+    entryFontSize: 14,
+    leverageFontSize: 9,
+    badgeFontSize: 10,
+    pnlFontSize: 14,
+    closeFontSize: 20,
+    gap: 8,
+  },
+  896: {
+    width: 380,
+    height: 48,
+    borderRadius: 12,
+    padding: 8,
+    glowPadding: 12,
+    iconSize: 28,
+    entryFontSize: 14,
+    leverageFontSize: 9,
+    badgeFontSize: 10,
+    pnlFontSize: 14,
+    closeFontSize: 20,
+    gap: 8,
+  },
+  926: {
+    width: 400,
+    height: 52,
+    borderRadius: 13,
+    padding: 8,
+    glowPadding: 13,
+    iconSize: 30,
+    entryFontSize: 15,
+    leverageFontSize: 9,
+    badgeFontSize: 10,
+    pnlFontSize: 15,
+    closeFontSize: 22,
+    gap: 9,
+  },
+  932: {
+    width: 410,
+    height: 54,
+    borderRadius: 14,
+    padding: 9,
+    glowPadding: 14,
+    iconSize: 32,
+    entryFontSize: 16,
+    leverageFontSize: 10,
+    badgeFontSize: 11,
+    pnlFontSize: 16,
+    closeFontSize: 24,
+    gap: 10,
+  },
+}
+
+const BASE_DIMS: CardDimensionsConfig = {
+  width: 380,
+  height: 48,
+  borderRadius: 12,
+  padding: 8,
+  glowPadding: 12,
+  iconSize: 28,
+  entryFontSize: 14,
+  leverageFontSize: 9,
+  badgeFontSize: 10,
+  pnlFontSize: 14,
+  closeFontSize: 20,
+  gap: 8,
+}
+
+export function getCardDimensions(): CardDimensionsConfig {
+  if (typeof window === 'undefined') return BASE_DIMS
+  const height = window.screen.height
+  if (height < 667 || height > 932) return BASE_DIMS
+  return CARD_DIMS_BY_HEIGHT[height] ?? BASE_DIMS
+}
+
+export const CARD_DIMENSIONS = {
+  get width() {
+    return getCardDimensions().width
+  },
+  get height() {
+    return getCardDimensions().height
+  },
+  get borderRadius() {
+    return getCardDimensions().borderRadius
+  },
+  get padding() {
+    return getCardDimensions().padding
+  },
+  get glowPadding() {
+    return getCardDimensions().glowPadding
+  },
+  get iconSize() {
+    return getCardDimensions().iconSize
+  },
+  get entryFontSize() {
+    return getCardDimensions().entryFontSize
+  },
+  get leverageFontSize() {
+    return getCardDimensions().leverageFontSize
+  },
+  get badgeFontSize() {
+    return getCardDimensions().badgeFontSize
+  },
+  get pnlFontSize() {
+    return getCardDimensions().pnlFontSize
+  },
+  get closeFontSize() {
+    return getCardDimensions().closeFontSize
+  },
+  get gap() {
+    return getCardDimensions().gap
+  },
+}
 
 /**
  * Card color configuration for each visual state
@@ -49,22 +237,6 @@ export const CARD_COLORS = {
     background: 0x0a0a14,
     backgroundAlpha: 0.85,
   },
-} as const
-
-/**
- * Glow padding applied to each side of the card (in pixels)
- */
-export const GLOW_PADDING = 12
-
-/**
- * Card dimensions (single-row layout)
- */
-export const CARD_DIMENSIONS = {
-  width: 380, // Extra wide for comfortable single-row layout
-  height: 48, // Compact height for single row
-  borderRadius: 12,
-  padding: 8,
-  glowPadding: GLOW_PADDING,
 } as const
 
 export class PositionCardRenderer {
@@ -160,18 +332,18 @@ export class PositionCardRenderer {
    */
   private generateCardTexture(state: CardVisualState): void {
     const colors = CARD_COLORS[state]
-    const { width, height, borderRadius } = CARD_DIMENSIONS
+    const dims = getCardDimensions()
+    const { width, height, borderRadius, glowPadding } = dims
 
     // High resolution for crisp edges
     const scale = 2
     const scaledWidth = width * scale
     const scaledHeight = height * scale
     const scaledRadius = borderRadius * scale
+    const scaledGlowPadding = glowPadding * scale
 
-    // Extra padding for glow
-    const glowPadding = 12 * scale
-    const textureWidth = scaledWidth + glowPadding * 2
-    const textureHeight = scaledHeight + glowPadding * 2
+    const textureWidth = scaledWidth + scaledGlowPadding * 2
+    const textureHeight = scaledHeight + scaledGlowPadding * 2
 
     const container = this.scene.add.container(0, 0)
     const graphics = this.scene.add.graphics()
@@ -188,8 +360,8 @@ export class PositionCardRenderer {
         graphics.fillStyle(colors.glowColor, opacity)
         this.drawRoundedRect(
           graphics,
-          glowPadding - expand,
-          glowPadding - expand,
+          scaledGlowPadding - expand,
+          scaledGlowPadding - expand,
           scaledWidth + expand * 2,
           scaledHeight + expand * 2,
           scaledRadius + expand,
@@ -204,8 +376,8 @@ export class PositionCardRenderer {
     graphics.fillStyle(colors.background, colors.backgroundAlpha)
     this.drawRoundedRect(
       graphics,
-      glowPadding,
-      glowPadding,
+      scaledGlowPadding,
+      scaledGlowPadding,
       scaledWidth,
       scaledHeight,
       scaledRadius,
@@ -221,8 +393,8 @@ export class PositionCardRenderer {
     border.lineStyle(2 * scale, colors.borderColor, colors.borderAlpha)
     this.drawRoundedRect(
       border,
-      glowPadding,
-      glowPadding,
+      scaledGlowPadding,
+      scaledGlowPadding,
       scaledWidth,
       scaledHeight,
       scaledRadius,
@@ -252,7 +424,8 @@ export class PositionCardRenderer {
    * Generate direction indicator textures (up/down triangles)
    */
   private generateDirectionIndicators(): void {
-    const size = 24
+    const dims = getCardDimensions()
+    const size = dims.iconSize
     const scale = 2
     const scaledSize = size * scale
 

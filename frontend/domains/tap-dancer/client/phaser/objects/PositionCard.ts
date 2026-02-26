@@ -1,8 +1,7 @@
 import { Scene, GameObjects, Tweens } from 'phaser'
 import {
   CARD_COLORS,
-  CARD_DIMENSIONS,
-  GLOW_PADDING,
+  getCardDimensions,
   type CardVisualState,
 } from '../systems/PositionCardRenderer'
 import type { Position } from '@/domains/tap-dancer/shared/trading.types'
@@ -87,7 +86,8 @@ export class PositionCard extends GameObjects.Container {
    * Draw fallback background using Graphics when texture doesn't exist
    */
   private drawFallbackBackground(): void {
-    const { width, height, borderRadius } = CARD_DIMENSIONS
+    const dims = getCardDimensions()
+    const { width, height, borderRadius } = dims
     const colors = CARD_COLORS[this.currentVisualState]
 
     const bg = this.cardScene.add.graphics()
@@ -111,7 +111,9 @@ export class PositionCard extends GameObjects.Container {
     this.positionData = config.position
     this.onClose = config.onClose
 
-    const { width, height, borderRadius } = CARD_DIMENSIONS
+    const dims = getCardDimensions()
+    const { width, height, borderRadius, padding, glowPadding, iconSize, gap } = dims
+    const { entryFontSize, leverageFontSize, badgeFontSize, pnlFontSize, closeFontSize } = dims
 
     // =========================================================================
     // LAYER 1: BACKGROUND
@@ -123,29 +125,23 @@ export class PositionCard extends GameObjects.Container {
       this.background = scene.add.image(0, 0, textureKey)
       this.background.setOrigin(0.5, 0.5)
 
-      // Fix: Set display size to account for 2x render scale
-      // Texture is rendered at 2x (for crisp edges), but we display at intended size
-      // Content (220x44) + glow padding (12px each side)
-      const displayedWidth = CARD_DIMENSIONS.width + GLOW_PADDING * 2 // 244
-      const displayedHeight = CARD_DIMENSIONS.height + GLOW_PADDING * 2 // 68
+      const displayedWidth = width + glowPadding * 2
+      const displayedHeight = height + glowPadding * 2
       this.background.setDisplaySize(displayedWidth, displayedHeight)
 
       this.add(this.background)
     } else {
-      // Fallback: Draw background with Graphics if texture doesn't exist
       this.drawFallbackBackground()
     }
 
     // =========================================================================
-    // LAYER 2: DIRECTION ICON (left side, 28x28 box)
+    // LAYER 2: DIRECTION ICON (left side)
     // =========================================================================
-    // Account for glow padding when positioning icon - glow adds 12px padding around the card
-    const contentLeft = -width / 2 + GLOW_PADDING
-    const iconX = contentLeft + 8 + 14 // padding 8 + half of 28px icon
-    const iconSize = 28
+    const contentLeft = -width / 2 + glowPadding
+    const iconX = contentLeft + padding + iconSize / 2
     this.directionIcon = scene.add.image(
       iconX,
-      0, // y=0 for single-row layout
+      0,
       this.positionData.isLong ? 'indicator_long' : 'indicator_short'
     )
     this.directionIcon.setDisplaySize(iconSize, iconSize)
@@ -154,16 +150,15 @@ export class PositionCard extends GameObjects.Container {
     // =========================================================================
     // LAYER 3: ENTRY PRICE (center-left, single row)
     // =========================================================================
-    const entrySectionX = iconX + 14 + 8 // after icon + gap
+    const entrySectionX = iconX + iconSize / 2 + gap
 
-    // Entry price (cyan with glow) - no separate label for cleaner single-row layout
     this.entryPriceText = scene.add.text(
       entrySectionX,
-      0, // y=0 for single-row layout
+      0,
       `$${formatPrice(this.positionData.openPrice)}`,
       {
         fontFamily: 'monospace',
-        fontSize: '14px',
+        fontSize: `${entryFontSize}px`,
         fontStyle: 'bold',
         color: '#00f3ff',
       }
@@ -175,12 +170,12 @@ export class PositionCard extends GameObjects.Container {
     // =========================================================================
     // LAYER 4: LEVERAGE BADGE (after entry price, single row)
     // =========================================================================
-    const leverageX = entrySectionX + this.entryPriceText.width + 8
+    const leverageX = entrySectionX + this.entryPriceText.width + gap
     if (this.positionData.leverage > 1) {
       const colors = this.getLeverageColors(this.positionData.leverage)
       this.leverageBadge = scene.add.text(leverageX, 0, `${this.positionData.leverage}X`, {
         fontFamily: 'monospace',
-        fontSize: '9px',
+        fontSize: `${leverageFontSize}px`,
         fontStyle: 'bold',
         color: colors.text,
         backgroundColor: colors.bg,
@@ -193,21 +188,21 @@ export class PositionCard extends GameObjects.Container {
     // =========================================================================
     // LAYER 5: LONG/SHORT BADGE (after leverage, single row)
     // =========================================================================
-    let directionX = entrySectionX + this.entryPriceText.width + 8
+    let directionX = entrySectionX + this.entryPriceText.width + gap
     if (this.positionData.leverage > 1 && this.leverageBadge) {
-      directionX = leverageX + this.leverageBadge.width + 6
+      directionX = leverageX + this.leverageBadge.width + gap
     }
     const badgeColor = this.positionData.isLong
-      ? { bg: '#14532d', text: '#4ade80', border: '#22c55e' } // Green
-      : { bg: '#450a0a', text: '#f87171', border: '#ef4444' } // Red
+      ? { bg: '#14532d', text: '#4ade80', border: '#22c55e' }
+      : { bg: '#450a0a', text: '#f87171', border: '#ef4444' }
 
     this.directionBadge = scene.add.text(
       directionX,
-      0, // y=0 for single-row layout
+      0,
       this.positionData.isLong ? 'LONG' : 'SHORT',
       {
         fontFamily: 'monospace',
-        fontSize: '10px',
+        fontSize: `${badgeFontSize}px`,
         fontStyle: 'bold',
         color: badgeColor.text,
         backgroundColor: badgeColor.bg,
@@ -220,9 +215,10 @@ export class PositionCard extends GameObjects.Container {
     // =========================================================================
     // LAYER 6: PNL TEXT (right side, single row)
     // =========================================================================
-    this.pnlText = scene.add.text(width / 2 - 56, 0, '+0.00%', {
+    const pnlOffset = Math.round(width * 0.147)
+    this.pnlText = scene.add.text(width / 2 - pnlOffset, 0, '+0.00%', {
       fontFamily: 'monospace',
-      fontSize: '14px',
+      fontSize: `${pnlFontSize}px`,
       fontStyle: 'bold',
       color: '#00f3ff',
     })
@@ -232,9 +228,10 @@ export class PositionCard extends GameObjects.Container {
     // =========================================================================
     // LAYER 7: CLOSE BUTTON (X icon, right side, single row)
     // =========================================================================
-    this.closeButton = scene.add.text(width / 2 - 16, 0, '×', {
+    const closeOffset = Math.round(width * 0.042)
+    this.closeButton = scene.add.text(width / 2 - closeOffset, 0, '×', {
       fontFamily: 'monospace',
-      fontSize: '20px',
+      fontSize: `${closeFontSize}px`,
       fontStyle: 'bold',
       color: '#64748b',
       backgroundColor: '#1e293b',
@@ -246,15 +243,16 @@ export class PositionCard extends GameObjects.Container {
     // =========================================================================
     // LAYER 8: CLOSE ZONE (invisible hit area for close button)
     // =========================================================================
-    this.closeZone = scene.add.zone(width / 2 - 16, 0, 36, 36)
+    const closeZoneSize = Math.round(iconSize * 1.3)
+    this.closeZone = scene.add.zone(width / 2 - closeOffset, 0, closeZoneSize, closeZoneSize)
     this.closeZone.setInteractive({ useHandCursor: true })
     this.closeZone.on('pointerdown', this.handleCloseTap, this)
     this.closeZone.on('pointerover', () => {
-      this.closeButton.setColor('#f87171') // Red on hover
+      this.closeButton.setColor('#f87171')
       this.closeButton.setBackgroundColor('#374151')
     })
     this.closeZone.on('pointerout', () => {
-      this.closeButton.setColor('#64748b') // Back to dim
+      this.closeButton.setColor('#64748b')
       this.closeButton.setBackgroundColor('#1e293b')
     })
     this.add(this.closeZone)
@@ -263,11 +261,7 @@ export class PositionCard extends GameObjects.Container {
     this.setDepth(20)
 
     // Ensure container size matches displayed size for proper hit testing
-    // Include glow padding in container size
-    this.setSize(
-      CARD_DIMENSIONS.width + GLOW_PADDING * 2,
-      CARD_DIMENSIONS.height + GLOW_PADDING * 2
-    )
+    this.setSize(width + glowPadding * 2, height + glowPadding * 2)
 
     // Play enter animation
     this.playEnterAnimation()
