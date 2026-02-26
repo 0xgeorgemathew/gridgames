@@ -5,6 +5,123 @@ import { m, AnimatePresence } from 'framer-motion'
 import { cn } from '@/platform/utils/classNames.utils'
 import { formatPrice } from '@/platform/utils/price.utils'
 
+interface PositionSizes {
+  bottomOffset: string
+  maxHeight: string
+  iconSize: string
+  entryFontSize: string
+  leverageFontSize: string
+  labelFontSize: string
+  pnlFontSize: string
+  closedFontSize: string
+}
+
+const POSITION_SIZES_BY_HEIGHT: Record<number, PositionSizes> = {
+  667: {
+    bottomOffset: 'bottom-40',
+    maxHeight: '200px',
+    iconSize: 'w-5 h-5',
+    entryFontSize: 'text-[11px]',
+    leverageFontSize: 'text-[7px]',
+    labelFontSize: 'text-[7px]',
+    pnlFontSize: 'text-[9px]',
+    closedFontSize: 'text-[9px]',
+  },
+  736: {
+    bottomOffset: 'bottom-44',
+    maxHeight: '220px',
+    iconSize: 'w-6 h-6',
+    entryFontSize: 'text-[12px]',
+    leverageFontSize: 'text-[8px]',
+    labelFontSize: 'text-[8px]',
+    pnlFontSize: 'text-[10px]',
+    closedFontSize: 'text-[10px]',
+  },
+  780: {
+    bottomOffset: 'bottom-48',
+    maxHeight: '240px',
+    iconSize: 'w-6 h-6',
+    entryFontSize: 'text-[13px]',
+    leverageFontSize: 'text-[8px]',
+    labelFontSize: 'text-[8px]',
+    pnlFontSize: 'text-[10px]',
+    closedFontSize: 'text-[10px]',
+  },
+  844: {
+    bottomOffset: 'bottom-52',
+    maxHeight: '260px',
+    iconSize: 'w-7 h-7',
+    entryFontSize: 'text-[14px]',
+    leverageFontSize: 'text-[9px]',
+    labelFontSize: 'text-[9px]',
+    pnlFontSize: 'text-[11px]',
+    closedFontSize: 'text-[11px]',
+  },
+  852: {
+    bottomOffset: 'bottom-52',
+    maxHeight: '260px',
+    iconSize: 'w-7 h-7',
+    entryFontSize: 'text-[14px]',
+    leverageFontSize: 'text-[9px]',
+    labelFontSize: 'text-[9px]',
+    pnlFontSize: 'text-[11px]',
+    closedFontSize: 'text-[11px]',
+  },
+  896: {
+    bottomOffset: 'bottom-48',
+    maxHeight: '250px',
+    iconSize: 'w-6 h-6',
+    entryFontSize: 'text-[13px]',
+    leverageFontSize: 'text-[8px]',
+    labelFontSize: 'text-[8px]',
+    pnlFontSize: 'text-[10px]',
+    closedFontSize: 'text-[10px]',
+  },
+  926: {
+    bottomOffset: 'bottom-56',
+    maxHeight: '280px',
+    iconSize: 'w-7 h-7',
+    entryFontSize: 'text-[14px]',
+    leverageFontSize: 'text-[9px]',
+    labelFontSize: 'text-[10px]',
+    pnlFontSize: 'text-[11px]',
+    closedFontSize: 'text-[11px]',
+  },
+  932: {
+    bottomOffset: 'bottom-60',
+    maxHeight: '300px',
+    iconSize: 'w-8 h-8',
+    entryFontSize: 'text-[15px]',
+    leverageFontSize: 'text-[10px]',
+    labelFontSize: 'text-[10px]',
+    pnlFontSize: 'text-[12px]',
+    closedFontSize: 'text-[12px]',
+  },
+}
+
+const BASE_SIZES: PositionSizes = {
+  bottomOffset: 'bottom-52',
+  maxHeight: '260px',
+  iconSize: 'w-7 h-7',
+  entryFontSize: 'text-[14px]',
+  leverageFontSize: 'text-[9px]',
+  labelFontSize: 'text-[9px]',
+  pnlFontSize: 'text-[11px]',
+  closedFontSize: 'text-[11px]',
+}
+
+function getPositionSizes(): PositionSizes {
+  if (typeof window === 'undefined') return BASE_SIZES
+  const height = window.screen.height
+  if (height < 667 || height > 932) return BASE_SIZES
+  return POSITION_SIZES_BY_HEIGHT[height] ?? BASE_SIZES
+}
+
+function usePositionSizes(): PositionSizes {
+  const [sizes] = useState<PositionSizes>(() => getPositionSizes())
+  return sizes
+}
+
 export interface Position {
   id: string
   playerId: string
@@ -67,6 +184,7 @@ export function PositionCard({
   isClosing,
   closingReason,
   realizedPnl,
+  sizes,
 }: {
   position: Position
   index: number
@@ -75,6 +193,7 @@ export function PositionCard({
   isClosing: boolean
   closingReason?: 'manual' | 'liquidated'
   realizedPnl?: number
+  sizes: PositionSizes
 }) {
   const [isMinimized, setIsMinimized] = useState(false)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
@@ -223,7 +342,7 @@ export function PositionCard({
           transition={SMOOTH_SPRING}
           onClick={handleExpand}
           className={cn(
-            'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 cursor-pointer',
+            `${sizes.iconSize} rounded-lg flex items-center justify-center shrink-0 cursor-pointer`,
             position.isLong ? 'bg-green-500/20' : 'bg-red-500/20'
           )}
         >
@@ -245,10 +364,14 @@ export function PositionCard({
             }}
           >
             <div className="flex flex-col min-w-0 justify-center">
-              <span className="text-[9px] text-tron-white-dim uppercase tracking-wider truncate leading-none mb-0.5">
+              <span
+                className={`${sizes.labelFontSize} text-tron-white-dim uppercase tracking-wider truncate leading-none mb-0.5`}
+              >
                 Entry
               </span>
-              <span className="text-[14px] font-mono font-bold text-tron-cyan drop-shadow-[0_0_6px_rgba(0,243,255,0.5)] leading-none">
+              <span
+                className={`${sizes.entryFontSize} font-mono font-bold text-tron-cyan drop-shadow-[0_0_6px_rgba(0,243,255,0.5)] leading-none`}
+              >
                 ${formatPrice(position.openPrice)}
               </span>
             </div>
@@ -256,7 +379,7 @@ export function PositionCard({
             {position.leverage > 1 && (
               <div
                 className={cn(
-                  'px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0',
+                  `${sizes.leverageFontSize} px-1.5 py-0.5 rounded font-bold shrink-0`,
                   position.leverage === 2 &&
                     'bg-green-500/30 border border-green-500/50 text-green-300',
                   position.leverage === 5 &&
@@ -272,7 +395,7 @@ export function PositionCard({
 
             <div
               className={cn(
-                'px-1.5 py-1 rounded-lg text-[10px] font-bold font-mono shrink-0',
+                `${sizes.labelFontSize} px-1.5 py-1 rounded-lg font-bold font-mono shrink-0`,
                 position.isLong && 'bg-green-500/20 text-green-400 border border-green-500/30',
                 !position.isLong && 'bg-red-500/20 text-red-400 border border-red-500/30'
               )}
@@ -308,7 +431,7 @@ export function PositionCard({
                 >
                   <span
                     className={cn(
-                      'text-[11px] font-black font-mono leading-none tracking-wider',
+                      `${sizes.closedFontSize} font-black font-mono leading-none tracking-wider`,
                       isLiquidated ? 'text-red-400' : 'text-tron-cyan'
                     )}
                   >
@@ -316,7 +439,7 @@ export function PositionCard({
                   </span>
                   <span
                     className={cn(
-                      'text-[10px] font-bold font-mono leading-none tabular-nums',
+                      `${sizes.labelFontSize} font-bold font-mono leading-none tabular-nums`,
                       realizedPnl !== undefined && realizedPnl >= 0
                         ? 'text-green-400'
                         : 'text-red-400'
@@ -333,7 +456,7 @@ export function PositionCard({
                   exit={{ opacity: 0 }}
                   onClick={handleClose}
                   className={cn(
-                    'text-[11px] font-black font-mono leading-none inline-block text-right ml-0.5 tabular-nums cursor-pointer',
+                    `${sizes.pnlFontSize} font-black font-mono leading-none inline-block text-right ml-0.5 tabular-nums cursor-pointer`,
                     'min-w-[48px] p-2 -m-2 touch-manipulation',
                     pnlTextColor
                   )}
@@ -366,6 +489,7 @@ export function PositionIndicator({
   closingPositions,
   isPlaying,
 }: PositionIndicatorProps) {
+  const sizes = usePositionSizes()
   const localPositions = useMemo(
     () =>
       Array.from(openPositions.values())
@@ -379,12 +503,14 @@ export function PositionIndicator({
   }
 
   return (
-    <div className="fixed left-0 right-0 z-20 px-3 pb-2 bottom-52 pointer-events-none">
+    <div
+      className={`fixed left-0 right-0 z-20 px-3 pb-2 ${sizes.bottomOffset} pointer-events-none`}
+    >
       <div className="max-w-2xl mx-auto flex flex-col items-end">
         <div
           className="flex flex-col items-end overflow-y-auto pointer-events-auto overscroll-contain [&::-webkit-scrollbar]:hidden"
           style={{
-            maxHeight: '260px',
+            maxHeight: sizes.maxHeight,
             scrollbarWidth: 'none',
           }}
         >
@@ -401,6 +527,7 @@ export function PositionIndicator({
                   isClosing={!!closingState}
                   closingReason={closingState?.reason}
                   realizedPnl={closingState?.realizedPnl}
+                  sizes={sizes}
                 />
               )
             })}

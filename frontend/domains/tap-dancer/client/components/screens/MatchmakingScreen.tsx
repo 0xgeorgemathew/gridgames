@@ -12,6 +12,7 @@ import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { cn } from '@/platform/utils/classNames.utils'
 import { OnboardingModal } from '@/domains/tap-dancer/client/components/modals/OnboardingModal'
+import { GameSettingsSelector } from '@/domains/tap-dancer/client/components/settings/GameSettingsSelector'
 
 type AuthMatchState = 'login' | 'ready'
 type UserMatchState = 'lobby' | 'entering'
@@ -24,6 +25,7 @@ interface MatchmakingAuthPanelProps {
   isMatching: boolean
   isRefreshingLobby: boolean
   selectedGameDuration: number
+  onDurationChange: (duration: number) => void
   lobbyPlayers: Array<{ socketId: string; name: string; gameDuration: number }>
   onEnter: () => void
   onOpenLobby: () => void
@@ -39,6 +41,7 @@ function MatchmakingAuthPanel({
   isMatching,
   isRefreshingLobby,
   selectedGameDuration,
+  onDurationChange,
   lobbyPlayers,
   onEnter,
   onOpenLobby,
@@ -73,6 +76,11 @@ function MatchmakingAuthPanel({
                 SELECT OPPONENT
               </ActionButton>
             </div>
+            <GameSettingsSelector
+              selectedDuration={selectedGameDuration}
+              onDurationChange={onDurationChange}
+              disabled={isMatching}
+            />
           </div>
         )}
 
@@ -179,6 +187,7 @@ export function MatchmakingScreen() {
     leaveWaitingPool,
     selectOpponent,
     selectedGameDuration,
+    setSelectedGameDuration,
   } = useTradingStore()
 
   const [userState, setUserState] = useState<UserMatchState | null>(null)
@@ -350,6 +359,7 @@ export function MatchmakingScreen() {
           isMatching={isMatching}
           isRefreshingLobby={isRefreshingLobby}
           selectedGameDuration={selectedGameDuration}
+          onDurationChange={setSelectedGameDuration}
           lobbyPlayers={lobbyPlayers}
           onEnter={handleEnter}
           onOpenLobby={() => {

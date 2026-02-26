@@ -25,6 +25,7 @@ interface MatchmakingAuthPanelProps {
   isMatching: boolean
   isRefreshingLobby: boolean
   selectedGameDuration: number
+  onDurationChange: (duration: number) => void
   lobbyPlayers: Array<{ socketId: string; name: string; gameDuration: number }>
   onEnter: () => void
   onOpenLobby: () => void
@@ -40,6 +41,7 @@ function MatchmakingAuthPanel({
   isMatching,
   isRefreshingLobby,
   selectedGameDuration,
+  onDurationChange,
   lobbyPlayers,
   onEnter,
   onOpenLobby,
@@ -93,6 +95,11 @@ function MatchmakingAuthPanel({
                 SELECT OPPONENT
               </ActionButton>
             </div>
+            <GameSettingsSelector
+              selectedDuration={selectedGameDuration}
+              onDurationChange={onDurationChange}
+              disabled={isMatching}
+            />
           </m.div>
         )}
 
@@ -524,6 +531,7 @@ export function MatchmakingScreen() {
           isMatching={isMatching}
           isRefreshingLobby={isRefreshingLobby}
           selectedGameDuration={selectedGameDuration}
+          onDurationChange={setSelectedGameDuration}
           lobbyPlayers={lobbyPlayers}
           onEnter={handleEnter}
           onOpenLobby={() => {
@@ -537,14 +545,6 @@ export function MatchmakingScreen() {
           onRefreshLobby={getLobbyPlayers}
           onSelectOpponent={handleSelectOpponent}
         />
-
-        {matchState !== 'login' && matchState !== 'entering' && (
-          <GameSettingsSelector
-            selectedDuration={selectedGameDuration}
-            onDurationChange={setSelectedGameDuration}
-            disabled={isMatching}
-          />
-        )}
       </div>
     </div>
   )
