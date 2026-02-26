@@ -25,6 +25,7 @@ interface MatchmakingAuthPanelProps {
   isMatching: boolean
   isRefreshingLobby: boolean
   selectedGameDuration: number
+  onDurationChange: (duration: number) => void
   lobbyPlayers: Array<{ socketId: string; name: string; gameDuration: number }>
   onEnter: () => void
   onOpenLobby: () => void
@@ -40,6 +41,7 @@ function MatchmakingAuthPanel({
   isMatching,
   isRefreshingLobby,
   selectedGameDuration,
+  onDurationChange,
   lobbyPlayers,
   onEnter,
   onOpenLobby,
@@ -93,6 +95,11 @@ function MatchmakingAuthPanel({
                 SELECT OPPONENT
               </ActionButton>
             </div>
+            <GameSettingsSelector
+              selectedDuration={selectedGameDuration}
+              onDurationChange={onDurationChange}
+              disabled={isMatching}
+            />
           </m.div>
         )}
 
@@ -424,31 +431,6 @@ export function MatchmakingScreen() {
         scanGlow={matchState === 'entering' ? 1.0 : 0.0}
       />
 
-      {/* Animated grid background with scanline effect */}
-      <div className="fixed inset-0 pointer-events-none z-10 opacity-20">
-        <div className="absolute inset-0 tron-grid opacity-30" />
-        <m.div
-          className="w-full h-[2px] bg-tron-cyan"
-          animate={{ y: ['-10%', '110%'] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-          style={{ boxShadow: '0 0 15px rgba(0, 243, 255, 0.5), 0 0 30px rgba(0, 243, 255, 0.2)' }}
-        />
-      </div>
-
-      {/* Top glow line */}
-      <m.div
-        className="absolute top-0 left-0 right-0 h-[1px] bg-tron-cyan/50 z-40"
-        animate={{
-          opacity: [0.3, 0.7, 0.3],
-          boxShadow: [
-            '0 0 10px rgba(0, 243, 255, 0.2)',
-            '0 0 20px rgba(0, 243, 255, 0.4)',
-            '0 0 10px rgba(0, 243, 255, 0.2)',
-          ],
-        }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
       {/* Top Bar: Back button (left) + Profile badge (right) */}
       <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
         <button
@@ -549,6 +531,7 @@ export function MatchmakingScreen() {
           isMatching={isMatching}
           isRefreshingLobby={isRefreshingLobby}
           selectedGameDuration={selectedGameDuration}
+          onDurationChange={setSelectedGameDuration}
           lobbyPlayers={lobbyPlayers}
           onEnter={handleEnter}
           onOpenLobby={() => {
@@ -562,14 +545,6 @@ export function MatchmakingScreen() {
           onRefreshLobby={getLobbyPlayers}
           onSelectOpponent={handleSelectOpponent}
         />
-
-        {matchState !== 'login' && matchState !== 'entering' && (
-          <GameSettingsSelector
-            selectedDuration={selectedGameDuration}
-            onDurationChange={setSelectedGameDuration}
-            disabled={isMatching}
-          />
-        )}
       </div>
     </div>
   )

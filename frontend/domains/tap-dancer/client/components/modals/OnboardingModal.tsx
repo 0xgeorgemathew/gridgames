@@ -56,6 +56,12 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
             <div className="absolute inset-0 tron-grid opacity-10 pointer-events-none" />
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-tron-cyan to-transparent opacity-80" />
 
+            {/* Corner accents */}
+            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-tron-cyan/60" />
+            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-tron-cyan/60" />
+            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-tron-cyan/60" />
+            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-tron-cyan/60" />
+
             {/* Header */}
             <div className="relative z-10 flex justify-between items-center mb-6">
               <h2 className="font-[family-name:var(--font-orbitron)] text-xl text-tron-cyan tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
@@ -74,13 +80,13 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     exit={{ opacity: 0, x: -20 }}
                     className="flex flex-col items-center text-center gap-4"
                   >
-                    <div className="text-4xl mb-2">⚡️</div>
+                    <div className="text-4xl mb-2">🎵</div>
                     <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
-                      THE ULTIMATE PVP PERP GAME
+                      THE RHYTHM OF THE GRID
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Welcome to Hyper Swiper. Test your trading intuition against opponents in
-                      real-time, high-stakes matches.
+                      Welcome to TapDancer. Test your trading instincts in real-time PvP battles.
+                      Feel the beat, make your move.
                     </p>
                   </m.div>
                 )}
@@ -93,16 +99,18 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     exit={{ opacity: 0, x: -20 }}
                     className="flex flex-col items-center text-center gap-4"
                   >
-                    <div className="text-4xl mb-2">↕️</div>
+                    <div className="flex gap-4 text-4xl mb-2">
+                      <span className="text-green-400">▲</span>
+                      <span className="text-red-400">▼</span>
+                    </div>
                     <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
-                      SLICE COINS TO TRADE
+                      TAP TO TRADE
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      SWIPE{' '}
-                      <strong className="text-green-400 font-bold">GREEN COINS TO LONG</strong> or{' '}
-                      <strong className="text-red-400 font-bold">RED COINS TO SHORT</strong>. The
-                      graph displays the <strong className="text-tron-cyan">price</strong>{' '}
-                      movement—time your trades based on price action.
+                      Tap <strong className="text-green-400 font-bold">UP to LONG</strong> (profit
+                      when price rises) or{' '}
+                      <strong className="text-red-400 font-bold">DOWN to SHORT</strong> (profit when
+                      price falls). Close positions before they liquidate!
                     </p>
                   </m.div>
                 )}
@@ -115,13 +123,14 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     exit={{ opacity: 0, x: -20 }}
                     className="flex flex-col items-center text-center gap-4"
                   >
-                    <div className="text-4xl mb-2">🎮</div>
+                    <div className="text-4xl mb-2">🏆</div>
                     <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
-                      SWIPE & GO HYPER
+                      OUTPERFORM YOUR OPPONENT
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Connect your wallet, find a match in the lobby, and prepare for combat on the
-                      Grid.
+                      Your goal: accumulate more profit than your rival. The graph displays your{' '}
+                      <strong className="text-tron-cyan">position</strong> PnL—time your entries and
+                      close at the right moment. The Grid favors the swift.
                     </p>
                   </m.div>
                 )}

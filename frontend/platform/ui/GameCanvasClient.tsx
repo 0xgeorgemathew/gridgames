@@ -3,14 +3,16 @@
 import { useEffect, useRef } from 'react'
 import { Game } from 'phaser'
 import { GridScene } from '@/domains/hyper-swiper/client/phaser/scenes/GridScene'
-import { TradingScene } from '@/domains/hyper-swiper/client/phaser/scenes/TradingScene'
+import { TradingScene as HyperSwiperTradingScene } from '@/domains/hyper-swiper/client/phaser/scenes/TradingScene'
+import { TradingScene as TapDancerTradingScene } from '@/domains/tap-dancer/client/phaser/scenes/TradingScene'
 import {
   createGridPhaserConfig,
   createTradingPhaserConfig,
   DEFAULT_GRID,
 } from '@/domains/hyper-swiper/client/phaser/config'
+import { createTradingPhaserConfig as createTapDancerPhaserConfig } from '@/domains/tap-dancer/client/phaser/config'
 
-export type SceneType = 'GridScene' | 'TradingScene'
+export type SceneType = 'GridScene' | 'TradingScene' | 'TapDancerScene'
 
 interface GameCanvasClientProps {
   scene?: SceneType
@@ -19,7 +21,11 @@ interface GameCanvasClientProps {
 // Scene type → config factory mapping (pass scene classes, not instances)
 function createConfigForScene(type: SceneType) {
   if (type === 'TradingScene') {
-    return createTradingPhaserConfig(TradingScene)
+    return createTradingPhaserConfig(HyperSwiperTradingScene)
+  }
+
+  if (type === 'TapDancerScene') {
+    return createTapDancerPhaserConfig(TapDancerTradingScene)
   }
 
   return createGridPhaserConfig(GridScene, DEFAULT_GRID)

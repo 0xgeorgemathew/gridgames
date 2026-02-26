@@ -1,10 +1,8 @@
 /**
- * Trading Store - Main Zustand store for HFT Battle game state.
+ * TapDancer Trading Store - Simplified Zustand store for tap-to-trade game.
  *
- * Uses the Slices Pattern for modularity while maintaining
- * inter-slice communication via the get() function.
- *
- * Perp-Style Positions: Positions stay open until game end with real-time PnL
+ * No coins, no swiping - just tap LONG/SHORT buttons to open positions.
+ * Uses the Slices Pattern for modularity.
  *
  * @see https://github.com/pmndrs/zustand/blob/main/docs/guides/slices-pattern.md
  */
@@ -15,21 +13,18 @@ import { CLIENT_GAME_CONFIG as CFG } from '../../game.config'
 import type { TradingState, CryptoSymbol } from '../trading.types'
 import type {
   Player,
-  CoinSpawnEvent,
-  SliceEvent,
   PositionOpenedEvent,
   MatchFoundEvent,
   GameOverEvent,
   GameStartEvent,
-  CoinType,
   LobbyPlayersEvent,
   LobbyUpdatedEvent,
   BalanceUpdatedEvent,
   Position,
   GameSettlementEvent,
   LiquidationEvent,
-  SocketErrorEvent,
-} from '@/domains/hyper-swiper/shared/trading.types'
+  Direction,
+} from '@/domains/tap-dancer/shared/trading.types'
 
 export * from '../trading.types'
 
@@ -58,23 +53,22 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   gameTimeRemaining: 0,
   gameTimerInterval: null,
 
-  // Game state - Perp-style positions
-  openPositions: new Map<string, Position>(), // Open positions (no settlement timer)
-  gameSettlement: null, // Settlement data at game end
+  // Game state
+  openPositions: new Map<string, Position>(),
+  gameSettlement: null,
   toasts: [],
   leverage: CFG.FIXED_LEVERAGE,
-  closingPositions: new Map(), // Positions being animated for close/liquidation
-  positionCloseTimeouts: new Map(), // Tracked timeouts for cleanup on resetGame
+  closingPositions: new Map(),
+  positionCloseTimeouts: new Map(),
 
-  // Matchmaking settings (pre-game)
-  selectedGameDuration: CFG.DURATION_OPTIONS_MS[0], // Default 1 minute
+  // Matchmaking settings
+  selectedGameDuration: CFG.DURATION_OPTIONS_MS[0],
   selectedLeverage: CFG.FIXED_LEVERAGE,
 
   // Audio state
   isSoundMuted:
-    typeof window !== 'undefined'
-      ? localStorage.getItem('hyperSwiper_soundMuted') === 'true'
-      : false,
+    typeof window !== 'undefined' ? localStorage.getItem('tapDancer_soundMuted') === 'true' : false,
+  beatActive: false,
 
   // Price feed state
   priceSocket: null,
@@ -98,7 +92,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     socketCleanupFunctions.forEach((fn) => fn())
     set({ socketCleanupFunctions: [] })
 
-    // Defensive teardown: avoids duplicate live sockets if connect() is called twice
     if (socket) {
       socket.removeAllListeners()
       socket.disconnect()
@@ -119,7 +112,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     nextSocket.on('connect', () => {
       set({ isConnected: true, localPlayerId: nextSocket.id })
-      // No cleanup interval needed for perp-style positions
     })
 
     nextSocket.on(
@@ -139,8 +131,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           return // Skip this update - not meaningful and throttle not expired
         }
 
-        // Server recalculates its baseline frequently; keep the client in sync
+        // Calculate firstPrice: current price minus change from baseline
         const expectedFirstPrice = data.price - data.change
+
+        // Validate the calculation to avoid NaN
+        if (!Number.isFinite(expectedFirstPrice)) {
+          console.warn('[btc_price] Invalid firstPrice calculation, skipping update')
+          return
+        }
 
         lastPriceUpdateTime = now
         lastPrice = data.price
@@ -180,9 +178,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       })
     })
 
-    nextSocket.on('coin_spawn', (coin: CoinSpawnEvent) => get().spawnCoin(coin))
-    nextSocket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
-    // Perp-style position events
+    // Position events (no coin events in TapDancer)
     nextSocket.on('position_opened', (position: PositionOpenedEvent) => {
       get().handlePositionOpened(position)
     })
@@ -195,14 +191,13 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('game_settlement', (settlement: GameSettlementEvent) =>
       get().handleGameSettlement(settlement)
     )
-    // Liquidation events - position force-closed due to low collateral health
     nextSocket.on('position_liquidated', (data: LiquidationEvent) => {
       get().handlePositionLiquidated(data)
     })
     nextSocket.on('game_start', (data: GameStartEvent) => get().handleGameStart(data))
     nextSocket.on('game_over', (data: GameOverEvent) => get().handleGameOver(data))
 
-    // Balance updates during gameplay (collateral deduction)
+    // Balance updates
     nextSocket.on('balance_updated', (data: BalanceUpdatedEvent) => {
       const { players } = get()
       const newPlayers = players.map((p) =>
@@ -237,34 +232,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('joined_waiting_pool', () => {})
     nextSocket.on('already_in_pool', () => {})
 
-    nextSocket.on('error', (error: SocketErrorEvent) => {
-      console.error('[Socket] Server error:', error.code, error.message)
-
-      const isGameplayError = error.code === 'INSUFFICIENT_BALANCE'
-      const isMatchingError = [
-        'FIND_MATCH_FAILED',
-        'JOIN_POOL_FAILED',
-        'OPPONENT_UNAVAILABLE',
-        'NOT_IN_WAITING_POOL',
-        'DURATION_MISMATCH',
-        'OPPONENT_DISCONNECTED',
-        'MATCH_START_FAILED',
-      ].includes(error.code)
-
-      if (error.code === 'INSUFFICIENT_BALANCE' && error.details) {
-        const { required, current } = error.details as { required: number; current: number }
-        get().addToast({
-          message: `Need $${required} to open position (you have $${Math.floor(current)})`,
-          type: 'warning',
-          duration: 7000,
-        })
-      } else {
-        get().addToast({ message: error.message, type: 'error', duration: 5000 })
-      }
-
-      if (isMatchingError) {
-        set({ isMatching: false })
-      }
+    nextSocket.on('error', (error: { message: string }) => {
+      console.error('[Socket] Server error:', error.message)
+      get().addToast({ message: error.message, type: 'error', duration: 5000 })
+      set({ isMatching: false })
     })
 
     set({ socket: nextSocket, socketCleanupFunctions: newCleanupFunctions })
@@ -293,7 +264,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const sceneWidth = window.sceneDimensions?.width || window.innerWidth
     const sceneHeight = window.sceneDimensions?.height || window.innerHeight
 
-    // Leverage is fixed at 500X
     set({ leverage: CFG.FIXED_LEVERAGE })
 
     socket?.emit('find_match', {
@@ -307,22 +277,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ isMatching: true })
   },
 
-  spawnCoin: (coin) => {
-    if (get().isSceneReady && window.phaserEvents) {
-      window.phaserEvents.emit('coin_spawn', coin)
-    }
-  },
-
-  sliceCoin: (coinId, coinType) => {
+  // NEW: Direct position opening via LONG/SHORT buttons
+  openPosition: (direction: Direction) => {
     const { socket, localPlayerId } = get()
     if (!socket || !localPlayerId) return
-    socket.emit('slice_coin', { coinId, coinType })
-  },
-
-  expireCoin: (coinId: string) => {
-    const { socket, localPlayerId } = get()
-    if (!socket || !localPlayerId) return
-    socket.emit('coin_expired', { coinId })
+    socket.emit('open_position', { direction })
   },
 
   closePosition: (positionId: string) => {
@@ -342,23 +301,19 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       )
     }
 
-    // Update local state immediately
     set({ leverage: nextLeverage })
     const newPlayers = players.map((p) =>
       p.id === localPlayerId ? { ...p, leverage: nextLeverage } : p
     )
     set({ players: newPlayers })
 
-    // Emit to server for opponent sync
     socket.emit('set_leverage', { leverage: nextLeverage })
   },
 
-  // Matchmaking settings actions
   setSelectedGameDuration: (duration: number) => {
     set({ selectedGameDuration: duration })
-    // Persist to localStorage
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hyperSwiper_gameDuration', String(duration))
+      localStorage.setItem('tapDancer_gameDuration', String(duration))
     }
   },
 
@@ -370,19 +325,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       )
     }
     set({ selectedLeverage: nextLeverage })
-    // Persist to localStorage
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hyperSwiper_leverage', String(nextLeverage))
+      localStorage.setItem('tapDancer_leverage', String(nextLeverage))
     }
   },
 
-  handleSlice: (slice) => {
-    const { localPlayerId } = get()
-    if (slice.playerId === localPlayerId) return
-    window.phaserEvents?.emit('opponent_slice', slice)
-  },
-
-  // Perp-style position opened - no settlement timer
   handlePositionOpened: (positionEvent) => {
     const { openPositions } = get()
     const newPosition: Position = {
@@ -420,8 +367,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       const newClosingPositions = new Map(closingPositions)
 
       if (isOwnPosition) {
-        // Add to closing positions for animation - position stays in openPositions
-        // so the same card can animate the close transition
         newClosingPositions.set(data.positionId, {
           positionId: data.positionId,
           reason: 'manual',
@@ -429,7 +374,13 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           timestamp: Date.now(),
         })
 
-        // Remove both from closing and open positions after animation completes
+        // Emit event for graph animation
+        window.phaserEvents?.emit('position_closed', {
+          positionId: data.positionId,
+          realizedPnl: data.realizedPnl,
+          isLong: position.isLong,
+        })
+
         const timeoutId = setTimeout(() => {
           const currentClosing = get().closingPositions
           const currentOpen = get().openPositions
@@ -447,13 +398,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           })
         }, 1200)
 
-        // Track the timeout for cleanup on resetGame
         const newTimeouts = new Map(positionCloseTimeouts)
         newTimeouts.set(data.positionId, timeoutId)
 
         set({ closingPositions: newClosingPositions, positionCloseTimeouts: newTimeouts })
       } else {
-        // For other players' positions, remove immediately (no animation needed)
         const newPositions = new Map(openPositions)
         newPositions.delete(data.positionId)
         set({ openPositions: newPositions })
@@ -461,11 +410,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     }
   },
 
-  // Game settlement - all positions settled at game end
   handleGameSettlement: (settlement) => {
     const { openPositions } = get()
 
-    // Update all positions with settlement data
     const newPositions = new Map(openPositions)
     for (const settledPos of settlement.positions) {
       const position = newPositions.get(settledPos.positionId)
@@ -483,7 +430,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     })
   },
 
-  // Position liquidated - force-closed due to low collateral health (<= 80%)
   handlePositionLiquidated: (liquidationEvent) => {
     const { openPositions, localPlayerId, closingPositions, positionCloseTimeouts } = get()
 
@@ -494,8 +440,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       const newClosingPositions = new Map(closingPositions)
 
       if (isOwnPosition) {
-        // Add to closing positions for animation - position stays in openPositions
-        // so the same card can animate the liquidation transition
         newClosingPositions.set(liquidationEvent.positionId, {
           positionId: liquidationEvent.positionId,
           reason: 'liquidated',
@@ -503,7 +447,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           timestamp: Date.now(),
         })
 
-        // Remove both from closing and open positions after animation completes
         const timeoutId = setTimeout(() => {
           const currentClosing = get().closingPositions
           const currentOpen = get().openPositions
@@ -521,20 +464,17 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           })
         }, 1200)
 
-        // Track the timeout for cleanup on resetGame
         const newTimeouts = new Map(positionCloseTimeouts)
         newTimeouts.set(liquidationEvent.positionId, timeoutId)
 
         set({ closingPositions: newClosingPositions, positionCloseTimeouts: newTimeouts })
       } else {
-        // For other players' positions, remove immediately (no animation needed)
         const newPositions = new Map(openPositions)
         newPositions.delete(liquidationEvent.positionId)
         set({ openPositions: newPositions })
       }
     }
 
-    // Emit event for Phaser scene to handle visual effects
     window.phaserEvents?.emit('position_liquidated', liquidationEvent)
   },
 
@@ -561,8 +501,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   handleGameOver: (data) => {
-    window.phaserEvents?.emit('clear_coins')
-
     const { localPlayerId } = get()
     const isWinner = data.winnerId === localPlayerId
     get().addToast({
@@ -586,7 +524,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const { gameTimerInterval, positionCloseTimeouts } = get()
     if (gameTimerInterval) clearInterval(gameTimerInterval)
 
-    // Clear all tracked position close timeouts to prevent stale state updates
     positionCloseTimeouts.forEach((timeoutId) => clearTimeout(timeoutId))
 
     set({
@@ -596,17 +533,15 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       gameSettlement: null,
       isPlaying: false,
       isMatching: false,
-      leverage: CFG.FIXED_LEVERAGE, // Reset to fixed leverage
+      leverage: CFG.FIXED_LEVERAGE,
       selectedLeverage: CFG.FIXED_LEVERAGE,
       gameTimeRemaining: 0,
       gameTimerInterval: null,
-      // Reset price state for clean reconnection in next game
       priceData: null,
       isPriceConnected: false,
       firstPrice: null,
       priceError: null,
       lastPriceUpdate: 0,
-      // Clear tracked timeouts and closing positions
       positionCloseTimeouts: new Map(),
       closingPositions: new Map(),
     })
@@ -665,7 +600,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const sceneWidth = window.sceneDimensions?.width || window.innerWidth
     const sceneHeight = window.sceneDimensions?.height || window.innerHeight
 
-    // Leverage is fixed at 500X
     set({ leverage: CFG.FIXED_LEVERAGE })
 
     socket.emit('join_waiting_pool', {
@@ -696,8 +630,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const newMutedState = !isSoundMuted
     set({ isSoundMuted: newMutedState })
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hyperSwiper_soundMuted', String(newMutedState))
+      localStorage.setItem('tapDancer_soundMuted', String(newMutedState))
     }
     window.phaserEvents?.emit('sound_muted', newMutedState)
+  },
+
+  triggerBeat: () => {
+    set({ beatActive: true })
+    // Reset beat state after a longer duration for smooth, atmospheric pulse
+    setTimeout(() => set({ beatActive: false }), 400)
   },
 }))

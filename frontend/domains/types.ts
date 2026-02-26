@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react'
+
 export type GameStatus = 'available' | 'coming-soon' | 'maintenance'
 
 export interface GameConfig {
@@ -12,4 +14,5 @@ export interface GameConfig {
     max: number
   }
   duration?: string
+  lucideIcon?: LucideIcon
 }

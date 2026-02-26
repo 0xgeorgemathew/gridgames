@@ -615,6 +615,93 @@ export function setupGameEvents(io: SocketIOServer): {
       })
     })
 
+    /**
+     * Open Position Handler - TapDancer
+     * Direct position opening via LONG/SHORT buttons (no coin slicing required)
+     */
+    socket.on('open_position', async (data: { direction: 'long' | 'short' }) => {
+      try {
+        const roomId = manager.getPlayerRoomId(socket.id)
+        if (!roomId) {
+          socket.emit('error', { message: 'Not in a game' })
+          return
+        }
+
+        const room = manager.getRoom(roomId)
+        if (!room) {
+          socket.emit('error', { message: 'Room not found' })
+          return
+        }
+
+        const player = room.players.get(socket.id)
+        if (!player) {
+          socket.emit('error', { message: 'Player not found' })
+          return
+        }
+
+        // Check balance
+        if (player.dollars < CFG.POSITION_COLLATERAL) {
+          socket.emit('error', { message: 'Insufficient balance to open position' })
+          return
+        }
+
+        // Check max positions
+        const playerPositions = Array.from(room.openPositions.values()).filter(
+          (p) => p.playerId === socket.id
+        )
+        if (playerPositions.length >= CFG.MAX_POSITIONS) {
+          socket.emit('error', { message: 'Maximum positions reached' })
+          return
+        }
+
+        // Deduct collateral
+        player.dollars -= CFG.POSITION_COLLATERAL
+
+        const currentPrice = priceFeed.getLatestPrice()
+        const isLong = data.direction === 'long'
+        const playerIds = room.getPlayerIds()
+        const isPlayer1 = socket.id === playerIds[0]
+
+        // Create position
+        const position: OpenPosition = {
+          id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          playerId: socket.id,
+          playerName: player.name,
+          coinType: data.direction,
+          priceAtOrder: currentPrice,
+          leverage: CFG.FIXED_LEVERAGE,
+          collateral: CFG.POSITION_COLLATERAL,
+          openedAt: Date.now(),
+          isPlayer1,
+        }
+
+        room.addOpenPosition(position)
+
+        // Broadcast position opened
+        io.to(room.id).emit('position_opened', {
+          positionId: position.id,
+          playerId: position.playerId,
+          playerName: position.playerName,
+          isLong,
+          leverage: position.leverage,
+          collateral: position.collateral,
+          openPrice: position.priceAtOrder,
+        })
+
+        // Broadcast balance update
+        io.to(room.id).emit('balance_updated', {
+          playerId: socket.id,
+          newBalance: player.dollars,
+          reason: 'position_opened',
+          positionId: position.id,
+          collateral: CFG.POSITION_COLLATERAL,
+        })
+      } catch (error) {
+        console.error('[Server] open_position error:', error)
+        socket.emit('error', { message: 'Failed to open position' })
+      }
+    })
+
     socket.on('disconnect', () => {
       manager.removeWaitingPlayer(socket.id)
 

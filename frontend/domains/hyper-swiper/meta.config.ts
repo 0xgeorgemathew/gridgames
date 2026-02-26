@@ -1,4 +1,5 @@
 import type { GameConfig } from '@/domains/types'
+import { Zap } from 'lucide-react'
 
 export const hyperSwiperConfig: GameConfig = {
   slug: 'hyper-swiper',
@@ -12,4 +13,5 @@ export const hyperSwiperConfig: GameConfig = {
     max: 2,
   },
   duration: '2-3 min',
+  lucideIcon: Zap,
 }
