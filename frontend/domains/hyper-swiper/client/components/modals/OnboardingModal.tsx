@@ -95,12 +95,14 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                   >
                     <div className="text-4xl mb-2">↕️</div>
                     <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
-                      SWIPE TO TRADE
+                      SLICE COINS TO TRADE
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Swipe <strong className="text-green-400 font-bold">UP to LONG</strong> or{' '}
-                      <strong className="text-red-400 font-bold">DOWN to SHORT</strong>. Defend your
-                      margin and drain your opponent&apos;s health before time runs out.
+                      SWIPE{' '}
+                      <strong className="text-green-400 font-bold">GREEN COINS TO LONG</strong> or{' '}
+                      <strong className="text-red-400 font-bold">RED COINS TO SHORT</strong>. The
+                      graph displays the <strong className="text-tron-cyan">price</strong>{' '}
+                      movement—time your trades based on price action.
                     </p>
                   </m.div>
                 )}
@@ -115,7 +117,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                   >
                     <div className="text-4xl mb-2">🎮</div>
                     <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
-                      CONNECT & CONQUER
+                      SWIPE & GO HYPER
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
                       Connect your wallet, find a match in the lobby, and prepare for combat on the

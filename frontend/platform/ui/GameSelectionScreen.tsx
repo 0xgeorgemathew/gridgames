@@ -88,9 +88,10 @@ export function GameSelectionScreen() {
 
       <div className="fixed inset-0 pointer-events-none z-10 opacity-15">
         <m.div
-          className="w-full h-px bg-cyan-400"
+          className="w-full h-[2px] bg-tron-cyan"
           animate={{ y: ['-10%', '110%'] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+          style={{ boxShadow: '0 0 20px rgba(0, 243, 255, 0.6), 0 0 40px rgba(0, 243, 255, 0.3)' }}
         />
         <div className="absolute inset-0 tron-grid opacity-30" />
       </div>
@@ -117,8 +118,20 @@ export function GameSelectionScreen() {
         <div className="text-center">
           <m.h1
             initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              textShadow: [
+                '0 0 10px rgba(255,255,255,0.1)',
+                '0 0 25px rgba(0,243,255,0.4)',
+                '0 0 10px rgba(255,255,255,0.1)',
+              ],
+            }}
+            transition={{
+              opacity: { duration: 0.6 },
+              y: { duration: 0.6 },
+              textShadow: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
+            }}
             className="font-[family-name:var(--font-orbitron)] text-3xl sm:text-4xl md:text-5xl font-bold tracking-[0.25em] text-white"
           >
             GRID GAMES
@@ -176,6 +189,28 @@ export function GameSelectionScreen() {
                 }
               `}
             >
+              {/* Grid background pattern */}
+              <div className="absolute inset-0 tron-grid opacity-[0.03] pointer-events-none" />
+
+              {/* Top glow line */}
+              <m.div
+                className="absolute top-0 left-0 right-0 h-[1px] bg-tron-cyan/50 z-40"
+                animate={{
+                  opacity: [0.3, 0.7, 0.3],
+                  boxShadow: [
+                    '0 0 10px rgba(0, 243, 255, 0.2)',
+                    '0 0 20px rgba(0, 243, 255, 0.4)',
+                    '0 0 10px rgba(0, 243, 255, 0.2)',
+                  ],
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              />
+
+              {/* Corner accents */}
+              <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-tron-cyan/50 group-hover:border-tron-cyan transition-colors duration-300" />
+              <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-tron-cyan/50 group-hover:border-tron-cyan transition-colors duration-300" />
+              <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-tron-cyan/50 group-hover:border-tron-cyan transition-colors duration-300" />
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-tron-cyan/50 group-hover:border-tron-cyan transition-colors duration-300" />
               <div className="relative z-10 flex items-center gap-4">
                 <div className="w-12 h-12 rounded-sm bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center">
                   <span className="text-2xl dropdown-shadow flex items-center justify-center">
