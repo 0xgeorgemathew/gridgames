@@ -111,6 +111,12 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     const newCleanupFunctions: Array<() => void> = []
 
+    // Price throttling for smoother UI (prevents microstutter on position indicator)
+    let lastPriceUpdateTime = 0
+    let lastPrice = 0
+    const PRICE_THROTTLE_MS = 100 // ~10fps for normal updates
+    const MEANINGFUL_CHANGE_THRESHOLD = 0.005 // 0.5% = bypass throttle
+
     nextSocket.on('connect', () => {
       set({ isConnected: true, localPlayerId: nextSocket.id })
       // No cleanup interval needed for perp-style positions
@@ -119,8 +125,25 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on(
       'btc_price',
       (data: { price: number; change: number; changePercent: number; timestamp: number }) => {
+        // Always update timestamp for connection health monitoring
+        set({ lastPriceUpdate: data.timestamp, isPriceConnected: true, priceError: null })
+
+        // Smart throttling: throttle small changes, bypass for meaningful moves
+        const now = Date.now()
+        const priceChangePercent =
+          lastPrice > 0 ? Math.abs((data.price - lastPrice) / lastPrice) : 0
+        const isMeaningfulChange = priceChangePercent >= MEANINGFUL_CHANGE_THRESHOLD
+        const throttleExpired = now - lastPriceUpdateTime >= PRICE_THROTTLE_MS
+
+        if (!isMeaningfulChange && !throttleExpired) {
+          return // Skip this update - not meaningful and throttle not expired
+        }
+
         // Server recalculates its baseline frequently; keep the client in sync
         const expectedFirstPrice = data.price - data.change
+
+        lastPriceUpdateTime = now
+        lastPrice = data.price
 
         set({
           firstPrice: expectedFirstPrice,
@@ -133,9 +156,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
             tradeSide: 'BUY',
             tradeTime: data.timestamp,
           },
-          lastPriceUpdate: data.timestamp,
-          isPriceConnected: true,
-          priceError: null,
         })
       }
     )
