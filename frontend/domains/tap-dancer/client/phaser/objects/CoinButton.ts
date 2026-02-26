@@ -14,9 +14,8 @@ interface CoinButtonConfig {
   size?: number // Visual size of the button core (excludes glow) - defaults to 88
 }
 
-// Display size matches texture dimensions (BUTTON_RADIUS * 2 + GLOW_PADDING * 2)
-// = 44 * 2 + 20 * 2 = 128px
-const TEXTURE_DISPLAY_SIZE = getButtonDisplaySize()
+const BASE_BUTTON_SIZE = 88
+const BASE_TEXTURE_DISPLAY_SIZE = getButtonDisplaySize()
 
 export class CoinButton extends GameObjects.Container {
   private buttonScene: Scene
@@ -42,10 +41,12 @@ export class CoinButton extends GameObjects.Container {
     this.onToggle = config.onToggle
     this.size = config.size ?? 88
 
-    // Create button image with display size matching texture dimensions
-    // This ensures crisp rendering without scaling artifacts
+    // Scale display size based on actual button size vs base size
+    const scale = this.size / BASE_BUTTON_SIZE
+    const displaySize = BASE_TEXTURE_DISPLAY_SIZE * scale
+
     this.buttonImage = scene.add.image(0, 0, `button_${this.direction}_light`)
-    this.buttonImage.setDisplaySize(TEXTURE_DISPLAY_SIZE, TEXTURE_DISPLAY_SIZE)
+    this.buttonImage.setDisplaySize(displaySize, displaySize)
     this.buttonImage.setInteractive({ useHandCursor: true })
     this.add(this.buttonImage)
 
