@@ -308,15 +308,11 @@ export class PositionCardSystem {
 
     // On first resize, sync cards from store (camera dimensions now ready)
     if (!this.hasInitialResize) {
-      console.log('[PositionCardSystem] handleResize - initial resize, syncing cards')
       this.hasInitialResize = true
       this.syncCards()
       return
     }
 
-    console.log('[PositionCardSystem] handleResize - repositioning cards to x:', x)
-
-    // Subsequent resizes just reposition existing cards
     this.cards.forEach((card) => {
       card.x = x
     })
