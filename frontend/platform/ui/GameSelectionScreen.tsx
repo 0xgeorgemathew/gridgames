@@ -1,8 +1,14 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { m, AnimatePresence } from 'framer-motion'
-import { GridScanBackground } from '@/platform/ui/GridScanBackground'
+
+const GridScanBackground = dynamic(
+  () => import('@/platform/ui/GridScanBackground').then((mod) => mod.GridScanBackground),
+  { ssr: false }
+)
+
 import { games } from '@/domains'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { PlayerName } from '@/platform/ui/PlayerName'

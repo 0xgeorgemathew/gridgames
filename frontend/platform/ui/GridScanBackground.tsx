@@ -293,25 +293,100 @@ interface GridScanProps {
   maxFps?: number
 }
 
-export function GridScanBackground({
-  linesColor = '#00d9ff', // Tron cyan
-  scanColor = '#00ffff', // Electric cyan
-  lineThickness = 1,
-  gridScale = 0.08, // Tighter grid for mobile
-  scanOpacity = 0.5, // Stronger scan effect
-  scanGlow = 0.7,
-  scanSoftness = 2,
-  scanDuration = 2.0,
-  scanDelay = 2.0,
-  scanDirection = 2, // 0 = away, 1 = towards, 2 = pingpong
-  scanRange = [0.0, 2.0], // [minZ, maxZ] default
-  chromaticAberration = 0.003, // Slightly more for neon glow
-  noiseIntensity = 0.008,
-  bloomIntensity = 0.5, // Stronger bloom for Tron effect
-  sensitivity = 0.55,
-  maxFps = 30, // Default to 30fps to save battery/CPU
-}: GridScanProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
+function smoothDampVec2(
+  current: THREE.Vector2,
+  target: THREE.Vector2,
+  currentVelocity: THREE.Vector2,
+  smoothTime: number,
+  maxSpeed: number,
+  deltaTime: number
+): THREE.Vector2 {
+  smoothTime = Math.max(0.0001, smoothTime)
+  const omega = 2 / smoothTime
+  const x = omega * deltaTime
+  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
+
+  let change = current.clone().sub(target)
+  const originalTo = target.clone()
+
+  const maxChange = maxSpeed * smoothTime
+  if (change.length() > maxChange) change.setLength(maxChange)
+
+  target = current.clone().sub(change)
+  const temp = currentVelocity.clone().addScaledVector(change, omega).multiplyScalar(deltaTime)
+  currentVelocity.sub(temp.clone().multiplyScalar(omega))
+  currentVelocity.multiplyScalar(exp)
+
+  const out = target.clone().add(change.add(temp).multiplyScalar(exp))
+
+  const origMinusCurrent = originalTo.clone().sub(current)
+  const outMinusOrig = out.clone().sub(originalTo)
+  if (origMinusCurrent.dot(outMinusOrig) > 0) {
+    out.copy(originalTo)
+    currentVelocity.set(0, 0)
+  }
+  return out
+}
+
+function smoothDampFloat(
+  current: number,
+  target: number,
+  velRef: { v: number },
+  smoothTime: number,
+  maxSpeed: number,
+  deltaTime: number
+): { value: number; v: number } {
+  smoothTime = Math.max(0.0001, smoothTime)
+  const omega = 2 / smoothTime
+  const x = omega * deltaTime
+  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
+
+  let change = current - target
+  const originalTo = target
+
+  const maxChange = maxSpeed * smoothTime
+  change = Math.sign(change) * Math.min(Math.abs(change), maxChange)
+
+  target = current - change
+  const temp = (velRef.v + omega * change) * deltaTime
+  velRef.v = (velRef.v - omega * temp) * exp
+
+  let out = target + (change + temp) * exp
+
+  const origMinusCurrent = originalTo - current
+  const outMinusOrig = out - originalTo
+  if (origMinusCurrent * outMinusOrig > 0) {
+    out = originalTo
+    velRef.v = 0
+  }
+  return { value: out, v: velRef.v }
+}
+
+function srgbColor(hex: string): THREE.Color {
+  const c = new THREE.Color(hex)
+  return c.convertSRGBToLinear()
+}
+
+function useGridScanEffect(containerRef: React.RefObject<HTMLDivElement>, props: GridScanProps) {
+  const params = {
+    linesColor: '#00d9ff',
+    scanColor: '#00ffff',
+    lineThickness: 1,
+    gridScale: 0.08,
+    scanOpacity: 0.5,
+    scanGlow: 0.7,
+    scanSoftness: 2,
+    scanDuration: 2.0,
+    scanDelay: 2.0,
+    scanDirection: 2,
+    scanRange: [0.0, 2.0] as [number, number],
+    chromaticAberration: 0.003,
+    noiseIntensity: 0.008,
+    bloomIntensity: 0.5,
+    sensitivity: 0.55,
+    maxFps: 30,
+    ...props,
+  }
 
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const materialRef = useRef<THREE.ShaderMaterial | null>(null)
@@ -320,7 +395,6 @@ export function GridScanBackground({
   const chromaRef = useRef<ChromaticAberrationEffect | null>(null)
   const rafRef = useRef<number | undefined>(undefined)
 
-  // Centered focus - no mouse interaction
   const lookCurrent = useRef(new THREE.Vector2(0, 0))
   const lookVel = useRef(new THREE.Vector2(0, 0))
   const tiltCurrent = useRef(0)
@@ -328,87 +402,13 @@ export function GridScanBackground({
   const yawCurrent = useRef(0)
   const yawVel = useRef({ v: 0 })
 
-  const s = THREE.MathUtils.clamp(sensitivity, 0, 1)
+  const s = THREE.MathUtils.clamp(params.sensitivity, 0, 1)
   const skewScale = THREE.MathUtils.lerp(0.06, 0.2, s)
   const tiltScale = THREE.MathUtils.lerp(0.12, 0.3, s)
   const yawScale = THREE.MathUtils.lerp(0.1, 0.28, s)
   const smoothTime = THREE.MathUtils.lerp(0.45, 0.12, s)
   const maxSpeed = Infinity
   const yBoost = THREE.MathUtils.lerp(1.2, 1.6, s)
-
-  function smoothDampVec2(
-    current: THREE.Vector2,
-    target: THREE.Vector2,
-    currentVelocity: THREE.Vector2,
-    smoothTime: number,
-    maxSpeed: number,
-    deltaTime: number
-  ): THREE.Vector2 {
-    smoothTime = Math.max(0.0001, smoothTime)
-    const omega = 2 / smoothTime
-    const x = omega * deltaTime
-    const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
-
-    let change = current.clone().sub(target)
-    const originalTo = target.clone()
-
-    const maxChange = maxSpeed * smoothTime
-    if (change.length() > maxChange) change.setLength(maxChange)
-
-    target = current.clone().sub(change)
-    const temp = currentVelocity.clone().addScaledVector(change, omega).multiplyScalar(deltaTime)
-    currentVelocity.sub(temp.clone().multiplyScalar(omega))
-    currentVelocity.multiplyScalar(exp)
-
-    const out = target.clone().add(change.add(temp).multiplyScalar(exp))
-
-    const origMinusCurrent = originalTo.clone().sub(current)
-    const outMinusOrig = out.clone().sub(originalTo)
-    if (origMinusCurrent.dot(outMinusOrig) > 0) {
-      out.copy(originalTo)
-      currentVelocity.set(0, 0)
-    }
-    return out
-  }
-
-  function smoothDampFloat(
-    current: number,
-    target: number,
-    velRef: { v: number },
-    smoothTime: number,
-    maxSpeed: number,
-    deltaTime: number
-  ): { value: number; v: number } {
-    smoothTime = Math.max(0.0001, smoothTime)
-    const omega = 2 / smoothTime
-    const x = omega * deltaTime
-    const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
-
-    let change = current - target
-    const originalTo = target
-
-    const maxChange = maxSpeed * smoothTime
-    change = Math.sign(change) * Math.min(Math.abs(change), maxChange)
-
-    target = current - change
-    const temp = (velRef.v + omega * change) * deltaTime
-    velRef.v = (velRef.v - omega * temp) * exp
-
-    let out = target + (change + temp) * exp
-
-    const origMinusCurrent = originalTo - current
-    const outMinusOrig = out - originalTo
-    if (origMinusCurrent * outMinusOrig > 0) {
-      out = originalTo
-      velRef.v = 0
-    }
-    return { value: out, v: velRef.v }
-  }
-
-  function srgbColor(hex: string): THREE.Color {
-    const c = new THREE.Color(hex)
-    return c.convertSRGBToLinear()
-  }
 
   useEffect(() => {
     const container = containerRef.current
@@ -440,22 +440,22 @@ export function GridScanBackground({
       uSkew: { value: new THREE.Vector2(0, 0) },
       uTilt: { value: 0 },
       uYaw: { value: 0 },
-      uLineThickness: { value: lineThickness },
-      uLinesColor: { value: srgbColor(linesColor) },
-      uScanColor: { value: srgbColor(scanColor) },
-      uGridScale: { value: gridScale },
-      uLineStyle: { value: 0 }, // solid
+      uLineThickness: { value: params.lineThickness },
+      uLinesColor: { value: srgbColor(params.linesColor) },
+      uScanColor: { value: srgbColor(params.scanColor) },
+      uGridScale: { value: params.gridScale },
+      uLineStyle: { value: 0 },
       uLineJitter: { value: Math.max(0, Math.min(1, 0.1)) },
-      uScanOpacity: { value: scanOpacity },
-      uNoise: { value: noiseIntensity },
-      uBloomOpacity: { value: bloomIntensity },
-      uScanGlow: { value: scanGlow },
-      uScanSoftness: { value: scanSoftness },
+      uScanOpacity: { value: params.scanOpacity },
+      uNoise: { value: params.noiseIntensity },
+      uBloomOpacity: { value: params.bloomIntensity },
+      uScanGlow: { value: params.scanGlow },
+      uScanSoftness: { value: params.scanSoftness },
       uPhaseTaper: { value: 0.9 },
-      uScanDuration: { value: scanDuration },
-      uScanDelay: { value: scanDelay },
-      uScanDirection: { value: scanDirection },
-      uScanRange: { value: new THREE.Vector2(scanRange[0], scanRange[1]) },
+      uScanDuration: { value: params.scanDuration },
+      uScanDelay: { value: params.scanDelay },
+      uScanDirection: { value: params.scanDirection },
+      uScanRange: { value: new THREE.Vector2(params.scanRange[0], params.scanRange[1]) },
     }
 
     const material = new THREE.ShaderMaterial({
@@ -485,11 +485,11 @@ export function GridScanBackground({
       luminanceThreshold: 0,
       luminanceSmoothing: 0,
     })
-    bloom.blendMode.opacity.value = Math.max(0, bloomIntensity)
+    bloom.blendMode.opacity.value = Math.max(0, params.bloomIntensity)
     bloomRef.current = bloom
 
     const chroma = new ChromaticAberrationEffect({
-      offset: new THREE.Vector2(chromaticAberration, chromaticAberration),
+      offset: new THREE.Vector2(params.chromaticAberration, params.chromaticAberration),
       radialModulation: true,
       modulationOffset: 0.0,
     })
@@ -513,7 +513,7 @@ export function GridScanBackground({
     let isVisible = true
     let last = performance.now()
     let lastRenderTime = 0
-    const frameInterval = 1000 / maxFps
+    const frameInterval = 1000 / params.maxFps
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -577,6 +577,26 @@ export function GridScanBackground({
       material.uniforms.iTime.value = now / 1000
       renderer.clear(true, true, true)
       composer.render(dt)
+      material.uniforms.uLineThickness.value = params.lineThickness
+      material.uniforms.uLinesColor.value = srgbColor(params.linesColor)
+      material.uniforms.uScanColor.value = srgbColor(params.scanColor)
+      material.uniforms.uGridScale.value = params.gridScale
+      material.uniforms.uScanOpacity.value = params.scanOpacity
+      material.uniforms.uNoise.value = params.noiseIntensity
+      material.uniforms.uBloomOpacity.value = params.bloomIntensity
+      material.uniforms.uScanGlow.value = params.scanGlow
+      material.uniforms.uScanSoftness.value = params.scanSoftness
+      material.uniforms.uScanDuration.value = params.scanDuration
+      material.uniforms.uScanDelay.value = params.scanDelay
+      material.uniforms.uScanDirection.value = params.scanDirection
+      material.uniforms.uScanRange.value.set(params.scanRange[0], params.scanRange[1])
+
+      if (bloomRef.current) {
+        bloomRef.current.blendMode.opacity.value = Math.max(0, params.bloomIntensity)
+      }
+      if (chromaRef.current) {
+        chromaRef.current.offset.set(params.chromaticAberration, params.chromaticAberration)
+      }
     }
 
     // Initial start; observer will handle pausing/resuming
@@ -593,32 +613,33 @@ export function GridScanBackground({
       container.removeChild(renderer.domElement)
     }
   }, [
-    sensitivity,
-    lineThickness,
-    linesColor,
-    scanColor,
-    gridScale,
-    scanOpacity,
-    scanGlow,
-    scanSoftness,
-    scanDuration,
-    scanDelay,
-    scanDirection,
-    scanRange,
-    chromaticAberration,
-    noiseIntensity,
-    bloomIntensity,
+    params.sensitivity,
+    params.lineThickness,
+    params.linesColor,
+    params.scanColor,
+    params.gridScale,
+    params.scanOpacity,
+    params.scanGlow,
+    params.scanSoftness,
+    params.scanDuration,
+    params.scanDelay,
+    params.scanDirection,
+    params.scanRange,
+    params.chromaticAberration,
+    params.noiseIntensity,
+    params.bloomIntensity,
     skewScale,
     tiltScale,
     yawScale,
     smoothTime,
     maxSpeed,
     yBoost,
-    maxFps,
+    params.maxFps,
   ])
+}
 
-  // Mobile portrait: no mouse interaction, centered focus
-  // Camera is rotated via shader for optimal portrait grid view
-
+export function GridScanBackground(props: GridScanProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  useGridScanEffect(containerRef, props)
   return <div ref={containerRef} className="absolute inset-0 z-0" />
 }
