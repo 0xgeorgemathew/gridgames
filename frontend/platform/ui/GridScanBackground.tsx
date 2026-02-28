@@ -258,11 +258,13 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
   float halo = max(gx, gy) * fade;
   alpha = max(alpha, halo * clamp(uBloomOpacity, 0.0, 1.0));
   
-  // Premultiply color by alpha to fix iOS WebKit compositing bug
-  // where vec4(rgb, 0.0) with rgb > 0 causes visual artifacts.
+  // Premultiply color by alpha to solve issues where noise applies to transparent regions
   color *= alpha;
   
-  fragColor = vec4(color, alpha);
+  // Force 1.0 alpha. The background should be purely opaque black.
+  // iOS Safari ignores alpha:false on webview contexts sometimes,
+  // causing milky blending against the webview container.
+  fragColor = vec4(color, 1.0);
 }
 
 void main(){
