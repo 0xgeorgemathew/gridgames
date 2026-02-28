@@ -257,6 +257,11 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
   float gy = 1.0 - smoothstep(ty * 2.0, ty * 2.0 + aay * 2.0, ay);
   float halo = max(gx, gy) * fade;
   alpha = max(alpha, halo * clamp(uBloomOpacity, 0.0, 1.0));
+  
+  // Premultiply color by alpha to fix iOS WebKit compositing bug
+  // where vec4(rgb, 0.0) with rgb > 0 causes visual artifacts.
+  color *= alpha;
+  
   fragColor = vec4(color, alpha);
 }
 
