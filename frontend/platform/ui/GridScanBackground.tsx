@@ -414,7 +414,7 @@ export function GridScanBackground({
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true,
+      alpha: false,
       powerPreference: 'high-performance',
     })
     rendererRef.current = renderer
@@ -423,7 +423,7 @@ export function GridScanBackground({
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = false
-    renderer.setClearColor(0x000000, 0)
+    renderer.setClearColor(0x000000, 1)
     container.appendChild(renderer.domElement)
 
     const uniforms = {
