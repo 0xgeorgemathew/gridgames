@@ -67,9 +67,9 @@ interface TimerState {
 }
 
 // Position closing state for animated notifications
-export type PositionCloseReason = 'manual' | 'liquidated'
+type PositionCloseReason = 'manual' | 'liquidated'
 
-export interface PositionClosingState {
+interface PositionClosingState {
   positionId: string
   reason: PositionCloseReason
   realizedPnl: number

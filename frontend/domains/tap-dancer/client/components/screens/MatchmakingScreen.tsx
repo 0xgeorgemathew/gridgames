@@ -235,7 +235,7 @@ export function MatchmakingScreen() {
     const shouldRedirectWeb = !isInMiniApp && ready && !authenticated
 
     if (shouldRedirectMiniApp || shouldRedirectWeb) {
-      router.push('/')
+      window.location.href = '/'
     }
   }, [
     isInMiniApp,

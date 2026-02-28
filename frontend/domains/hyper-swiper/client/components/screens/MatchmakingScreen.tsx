@@ -121,9 +121,9 @@ function MatchmakingAuthPanel({
             </m.p>
             {/* Loading dots animation */}
             <div className="flex gap-2">
-              {[0, 1, 2].map((i) => (
+              {[1, 2, 3].map((dotId) => (
                 <m.div
-                  key={i}
+                  key={dotId}
                   className="w-2 h-2 bg-tron-cyan rounded-full"
                   animate={{
                     opacity: [0.3, 1, 0.3],
@@ -132,7 +132,7 @@ function MatchmakingAuthPanel({
                   transition={{
                     duration: 1,
                     repeat: Infinity,
-                    delay: i * 0.2,
+                    delay: (dotId - 1) * 0.2,
                   }}
                   style={{ boxShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}
                 />
@@ -321,7 +321,7 @@ export function MatchmakingScreen() {
     const shouldRedirectWeb = !isInMiniApp && ready && !authenticated
 
     if (shouldRedirectMiniApp || shouldRedirectWeb) {
-      router.push('/')
+      window.location.href = '/'
     }
   }, [
     isInMiniApp,
