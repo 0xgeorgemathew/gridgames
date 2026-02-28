@@ -3,7 +3,7 @@ import { GameRoom } from './room.manager'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import type { WaitingPlayer } from './events.types'
 
-export interface LastGameMeta {
+interface LastGameMeta {
   name: string
   walletAddress?: string
   sceneWidth: number

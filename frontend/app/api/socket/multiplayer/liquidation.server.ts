@@ -19,7 +19,7 @@ export function checkLiquidations(
   }
 }
 
-export function liquidatePosition(
+function liquidatePosition(
   io: SocketIOServer,
   room: GameRoom,
   position: OpenPosition,
@@ -80,17 +80,14 @@ export function calculatePositionPnl(
   return { pnl, isProfitable }
 }
 
-export function calculateCollateralHealthRatio(
-  position: OpenPosition,
-  currentPrice: number
-): number {
+function calculateCollateralHealthRatio(position: OpenPosition, currentPrice: number): number {
   const { pnl } = calculatePositionPnl(position, currentPrice)
   const netCollateral = position.collateral
 
   return (netCollateral + pnl) / netCollateral
 }
 
-export function shouldLiquidate(position: OpenPosition, currentPrice: number): boolean {
+function shouldLiquidate(position: OpenPosition, currentPrice: number): boolean {
   const healthRatio = calculateCollateralHealthRatio(position, currentPrice)
   return healthRatio <= CFG.LIQUIDATION_THRESHOLD
 }

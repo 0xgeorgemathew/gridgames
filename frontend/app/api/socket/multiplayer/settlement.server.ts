@@ -52,7 +52,7 @@ export function settleAllPositions(
   return settlementData
 }
 
-export function calculatePlayerResults(
+function calculatePlayerResults(
   room: GameRoom,
   settlements: PositionSettlementResult[]
 ): PlayerSettlementResult[] {
@@ -87,7 +87,7 @@ export function calculatePlayerResults(
   return Array.from(playerMap.values())
 }
 
-export function determineWinner(
+function determineWinner(
   playerResults: PlayerSettlementResult[]
 ): { playerId: string; playerName: string; winningBalance: number } | null {
   if (playerResults.length === 0) return null
