@@ -10,6 +10,8 @@ Quick reference for important files in the codebase.
 | `HomeClient.tsx`                     | Client wrapper for home page with Farcaster SDK    |
 | `hyper-swiper/page.tsx`              | Hyper Swiper game route                            |
 | `hyper-swiper/HyperSwiperClient.tsx` | Game client - connects socket, renders HUD/canvas  |
+| `tap-dancer/page.tsx`                | Tap Dancer game route                              |
+| `tap-dancer/TapDancerClient.tsx`     | Game client wrapper for Tap Dancer                 |
 | `providers.tsx`                      | Root providers (Privy, Wagmi, QueryClient, Motion) |
 | `layout.tsx`                         | Root layout with fonts and metadata                |
 | `grid/page.tsx`                      | Grid scene test page                               |
@@ -30,16 +32,17 @@ Quick reference for important files in the codebase.
 | File                      | Purpose                                                    |
 | ------------------------- | ---------------------------------------------------------- |
 | `index.ts`                | Main Socket.IO event handler - wires all multiplayer logic |
-| `room.manager.ts`         | GameRoom class - manages players, coins, positions, timers |
+| `room.manager.ts`         | GameRoom class - manages players, mechanics, logic         |
 | `room-registry.server.ts` | RoomManager - tracks rooms, waiting players, matchmaking   |
-| `game-loop.server.ts`     | Coin spawning, game loop, match creation                   |
-| `liquidation.server.ts`   | Position liquidation when collateral health <= 80%         |
+| `game-loop.server.ts`     | Game loop orchestration, sequences, match creation         |
+| `liquidation.server.ts`   | Position liquidation logic                                 |
 | `settlement.server.ts`    | Game-end settlement, PnL calculation, winner determination |
 | `price-feed.server.ts`    | Binance WebSocket for real-time BTC prices                 |
-| `coin-sequence.server.ts` | Deterministic coin spawn sequence for fair play            |
-| `events.types.ts`         | Server-side types (positions, settlements, events)         |
-| `validation.utils.ts`     | Input validation (player names, coin types)                |
-| `seeded-random.utils.ts`  | Deterministic RNG for reproducible coin sequences          |
+| `coin-sequence.server.ts` | Deterministic sequences for fair play                      |
+| `events.types.ts`         | Server-side types                                          |
+| `validation.utils.ts`     | Input validation (player names, etc.)                      |
+| `seeded-random.utils.ts`  | Deterministic RNG                                          |
+| `game.config.ts`          | Server-side game configurations                            |
 
 ## Domain: Hyper Swiper (`domains/hyper-swiper/`)
 
@@ -71,7 +74,7 @@ Quick reference for important files in the codebase.
 | File                              | Purpose                                                          |
 | --------------------------------- | ---------------------------------------------------------------- |
 | `config.ts`                       | Phaser game config factories                                     |
-| `constants.ts`                    | Game economy constants (STARTING_CASH, LIQUIDATION_HEALTH_RATIO) |
+| `constants.ts`                    | Game economy constants                                           |
 | `scenes/TradingScene.ts`          | Main game scene - coordinates all systems                        |
 | `scenes/GridScene.ts`             | Grid test scene                                                  |
 | `objects/Token.ts`                | Coin game object with physics and rendering                      |
@@ -95,6 +98,40 @@ Quick reference for important files in the codebase.
 | `slices/index.ts`  | Main store implementation - socket, game state, actions |
 | `trading.types.ts` | Store types (TradingState, PhaserEventBridge)           |
 
+## Domain: Tap Dancer (`domains/tap-dancer/`)
+
+### Config & Types
+
+| File                      | Purpose                                               |
+| ------------------------- | ----------------------------------------------------- |
+| `meta.config.ts`          | Game metadata (name, description, icon, status)       |
+| `types.ts`                | Domain specific types                                 |
+| `index.ts`                | Public exports                                        |
+
+### Client Components (`client/components/`)
+
+| File                                | Purpose                                        |
+| ----------------------------------- | ---------------------------------------------- |
+| `screens/MatchmakingScreen.tsx`     | Lobby UI for Tap Dancer                        |
+| `screens/GameOverModal.tsx`         | Victory/defeat screen                          |
+| `hud/GameHUD.tsx`                   | Main HUD component for tracking game state     |
+| `hud/CompactPriceRow.tsx`           | Price row and timer display                    |
+| `hud/PriceLoadingState.tsx`         | Loading state for price                        |
+
+### Phaser Engine (`client/phaser/`)
+
+| File                                | Purpose                                             |
+| ----------------------------------- | --------------------------------------------------- |
+| `scenes/TradingScene.ts`            | Main Tap Dancer game scene                          |
+| `systems/ButtonRenderer.ts`         | Renderer for in-game interactive buttons            |
+| `systems/ButtonSystem.ts`           | Logic and input handling for buttons                |
+| `systems/GridBackgroundSystem.ts`   | Scrolling grid background component                 |
+| `systems/PositionCardRenderer.ts`   | Renders active position cards                       |
+| `systems/PositionCardSystem.ts`     | Logic handling for position cards                   |
+| `systems/PriceGraphSystem.ts`       | Renders dynamic price graphs                        |
+| `systems/SnakePriceGraph.ts`        | Advanced snake effect price graph visualization     |
+| `systems/TradingSceneServices.ts`   | Service locator                                     |
+
 ## Platform (`platform/`)
 
 ### UI Components (`ui/`)
@@ -106,10 +143,12 @@ Quick reference for important files in the codebase.
 | `GameCanvasClient.tsx`     | Phaser game initialization             |
 | `GameCanvasBackground.tsx` | Gradient background component          |
 | `GridScanBackground.tsx`   | Three.js animated grid background      |
+| `TestGridBackground.tsx`   | Testing grid background visualization  |
 | `ToastNotifications.tsx`   | Toast message display                  |
 | `CountUp.tsx`              | Animated price counter                 |
 | `ActionButton.tsx`         | Styled button component                |
 | `PlayerName.tsx`           | Player name display with truncation    |
+| `UserProfileBadge.tsx`     | User profile display element           |
 | `MotionProvider.tsx`       | Framer Motion provider                 |
 
 ### Auth (`auth/`)
