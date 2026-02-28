@@ -1,18 +1,5 @@
 import { AUTO } from 'phaser'
 
-// Grid dimensions
-export interface GridConfig {
-  cols: number
-  rows: number
-  tileSize: number
-}
-
-export const DEFAULT_GRID: GridConfig = {
-  cols: 9,
-  rows: 20,
-  tileSize: 44,
-}
-
 // Trading scene dimensions (fixed for consistent gameplay)
 const TRADING_DIMENSIONS = {
   width: 600,
@@ -35,28 +22,6 @@ function getTargetFrameRate(): number {
   if (isMobile && cores >= 6 && memory >= 4) return 90
   return 60
 }
-
-// Visual theme colors (consolidated magic numbers)
-export const COLORS = {
-  background: 0x0a0a0f, // Match MatchmakingScreen dark theme
-  gridLine: 0x4a4a6a,
-  hoverFill: 0x4a4a6a,
-  selectedFill: 0xff00ff,
-  playerFill: 0x00ff00,
-} as const
-
-// Rendering constants
-export const RENDER = {
-  gridLineWidth: 2,
-  hoverAlpha: 0.2,
-  selectedAlpha: 0.3,
-  playerScale: 0.6,
-  playerPulseScale: 1.2,
-  playerPulseDuration: 100,
-  moveDuration: 500,
-  bounceScale: 0.7,
-  bounceDuration: 80,
-} as const
 
 // Common physics config (zero gravity for top-down games)
 const PHYSICS_CONFIG_BASE = {
@@ -129,18 +94,6 @@ function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.Gam
   }
 
   return config
-}
-
-// Convenience factory for GridScene
-export function createGridPhaserConfig(
-  scene: Phaser.Types.Scenes.SceneType,
-  grid: GridConfig = DEFAULT_GRID
-): Phaser.Types.Core.GameConfig {
-  return createPhaserConfig({
-    scene,
-    width: grid.cols * grid.tileSize,
-    height: grid.rows * grid.tileSize,
-  })
 }
 
 // Convenience factory for TradingScene

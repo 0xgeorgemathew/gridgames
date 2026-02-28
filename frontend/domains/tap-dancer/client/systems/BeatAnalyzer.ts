@@ -44,7 +44,7 @@ function extractMonoAudioData(audioBuffer: AudioBuffer): Float32Array {
 /**
  * Load cached beat data from localStorage
  */
-export function loadCachedBeatData(): BeatData | null {
+function loadCachedBeatData(): BeatData | null {
   if (typeof window === 'undefined') return null
 
   try {
@@ -88,7 +88,7 @@ function saveBeatData(data: BeatData): void {
 /**
  * Clear cached beat data
  */
-export function clearCachedBeatData(): void {
+function clearCachedBeatData(): void {
   if (typeof window === 'undefined') return
   localStorage.removeItem(BEAT_CACHE_KEY)
 }
@@ -98,9 +98,7 @@ export function clearCachedBeatData(): void {
  *
  * @param onProgress - Optional callback for progress updates (0-100)
  */
-export async function analyzeAudioBeats(
-  onProgress?: (progress: number) => void
-): Promise<BeatData> {
+async function analyzeAudioBeats(onProgress?: (progress: number) => void): Promise<BeatData> {
   onProgress?.(5)
 
   // Fetch audio file
@@ -203,7 +201,7 @@ export async function analyzeAudioBeats(
 /**
  * Hook-friendly analyzer that tracks state
  */
-export class BeatAnalyzer {
+class BeatAnalyzer {
   private state: BeatAnalyzerState = {
     isAnalyzing: false,
     beatData: null,

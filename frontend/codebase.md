@@ -71,24 +71,24 @@ Quick reference for important files in the codebase.
 
 ### Phaser Engine (`client/phaser/`)
 
-| File                              | Purpose                                                          |
-| --------------------------------- | ---------------------------------------------------------------- |
-| `config.ts`                       | Phaser game config factories                                     |
-| `constants.ts`                    | Game economy constants                                           |
-| `scenes/TradingScene.ts`          | Main game scene - coordinates all systems                        |
-| `scenes/GridScene.ts`             | Grid test scene                                                  |
-| `objects/Token.ts`                | Coin game object with physics and rendering                      |
-| `systems/TradingSceneServices.ts` | Service locator - initializes all game systems                   |
-| `systems/CoinLifecycleSystem.ts`  | Coin pooling, spawning, lifecycle management                     |
-| `systems/CollisionSystem.ts`      | Blade-coin collision detection and handling                      |
-| `systems/BladeRenderer.ts`        | Swipe trail rendering with glow effects                          |
-| `systems/CoinRenderer.ts`         | Coin visual rendering with cached textures                       |
-| `systems/AudioManager.ts`         | Sound effects and mobile audio unlock                            |
-| `systems/ParticleSystem.ts`       | Slice particle effects                                           |
-| `systems/VisualEffects.ts`        | Explosion effects, screen shake                                  |
-| `systems/GridBackgroundSystem.ts` | Scrolling grid background                                        |
-| `systems/PriceGraphSystem.ts`     | Price graph overlay                                              |
-| `systems/InputAudioSystem.ts`     | Input handling with audio feedback                               |
+| File                              | Purpose                                        |
+| --------------------------------- | ---------------------------------------------- |
+| `config.ts`                       | Phaser game config factories                   |
+| `constants.ts`                    | Game economy constants                         |
+| `scenes/TradingScene.ts`          | Main game scene - coordinates all systems      |
+| `scenes/GridScene.ts`             | Grid test scene                                |
+| `objects/Token.ts`                | Coin game object with physics and rendering    |
+| `systems/TradingSceneServices.ts` | Service locator - initializes all game systems |
+| `systems/CoinLifecycleSystem.ts`  | Coin pooling, spawning, lifecycle management   |
+| `systems/CollisionSystem.ts`      | Blade-coin collision detection and handling    |
+| `systems/BladeRenderer.ts`        | Swipe trail rendering with glow effects        |
+| `systems/CoinRenderer.ts`         | Coin visual rendering with cached textures     |
+| `systems/AudioManager.ts`         | Sound effects and mobile audio unlock          |
+| `systems/ParticleSystem.ts`       | Slice particle effects                         |
+| `systems/VisualEffects.ts`        | Explosion effects, screen shake                |
+| `systems/GridBackgroundSystem.ts` | Scrolling grid background                      |
+| `systems/PriceGraphSystem.ts`     | Price graph overlay                            |
+| `systems/InputAudioSystem.ts`     | Input handling with audio feedback             |
 
 ### State (`client/state/`)
 
@@ -102,35 +102,35 @@ Quick reference for important files in the codebase.
 
 ### Config & Types
 
-| File                      | Purpose                                               |
-| ------------------------- | ----------------------------------------------------- |
-| `meta.config.ts`          | Game metadata (name, description, icon, status)       |
-| `types.ts`                | Domain specific types                                 |
-| `index.ts`                | Public exports                                        |
+| File             | Purpose                                         |
+| ---------------- | ----------------------------------------------- |
+| `meta.config.ts` | Game metadata (name, description, icon, status) |
+| `types.ts`       | Domain specific types                           |
+| `index.ts`       | Public exports                                  |
 
 ### Client Components (`client/components/`)
 
-| File                                | Purpose                                        |
-| ----------------------------------- | ---------------------------------------------- |
-| `screens/MatchmakingScreen.tsx`     | Lobby UI for Tap Dancer                        |
-| `screens/GameOverModal.tsx`         | Victory/defeat screen                          |
-| `hud/GameHUD.tsx`                   | Main HUD component for tracking game state     |
-| `hud/CompactPriceRow.tsx`           | Price row and timer display                    |
-| `hud/PriceLoadingState.tsx`         | Loading state for price                        |
+| File                            | Purpose                                    |
+| ------------------------------- | ------------------------------------------ |
+| `screens/MatchmakingScreen.tsx` | Lobby UI for Tap Dancer                    |
+| `screens/GameOverModal.tsx`     | Victory/defeat screen                      |
+| `hud/GameHUD.tsx`               | Main HUD component for tracking game state |
+| `hud/CompactPriceRow.tsx`       | Price row and timer display                |
+| `hud/PriceLoadingState.tsx`     | Loading state for price                    |
 
 ### Phaser Engine (`client/phaser/`)
 
-| File                                | Purpose                                             |
-| ----------------------------------- | --------------------------------------------------- |
-| `scenes/TradingScene.ts`            | Main Tap Dancer game scene                          |
-| `systems/ButtonRenderer.ts`         | Renderer for in-game interactive buttons            |
-| `systems/ButtonSystem.ts`           | Logic and input handling for buttons                |
-| `systems/GridBackgroundSystem.ts`   | Scrolling grid background component                 |
-| `systems/PositionCardRenderer.ts`   | Renders active position cards                       |
-| `systems/PositionCardSystem.ts`     | Logic handling for position cards                   |
-| `systems/PriceGraphSystem.ts`       | Renders dynamic price graphs                        |
-| `systems/SnakePriceGraph.ts`        | Advanced snake effect price graph visualization     |
-| `systems/TradingSceneServices.ts`   | Service locator                                     |
+| File                              | Purpose                                         |
+| --------------------------------- | ----------------------------------------------- |
+| `scenes/TradingScene.ts`          | Main Tap Dancer game scene                      |
+| `systems/ButtonRenderer.ts`       | Renderer for in-game interactive buttons        |
+| `systems/ButtonSystem.ts`         | Logic and input handling for buttons            |
+| `systems/GridBackgroundSystem.ts` | Scrolling grid background component             |
+| `systems/PositionCardRenderer.ts` | Renders active position cards                   |
+| `systems/PositionCardSystem.ts`   | Logic handling for position cards               |
+| `systems/PriceGraphSystem.ts`     | Renders dynamic price graphs                    |
+| `systems/SnakePriceGraph.ts`      | Advanced snake effect price graph visualization |
+| `systems/TradingSceneServices.ts` | Service locator                                 |
 
 ## Platform (`platform/`)
 

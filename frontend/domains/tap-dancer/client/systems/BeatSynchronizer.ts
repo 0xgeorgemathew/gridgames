@@ -15,7 +15,7 @@ type BeatListener = (event: BeatEvent) => void
 /**
  * BeatSynchronizer - Emits beat events synced to audio playback
  */
-export class BeatSynchronizer {
+class BeatSynchronizer {
   private beatData: BeatData | null = null
   private nextBeatIndex = 0
   private isRunning = false

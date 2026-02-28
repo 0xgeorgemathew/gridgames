@@ -21,7 +21,7 @@ type AudioPlayerListener = (state: {
 /**
  * AudioPlayer - Singleton class for managing game audio
  */
-export class AudioPlayer {
+class AudioPlayer {
   private audioContext: AudioContext | null = null
   private audioElement: HTMLAudioElement | null = null
   private sourceNode: MediaElementAudioSourceNode | null = null
