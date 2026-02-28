@@ -249,13 +249,8 @@ export class PositionCardSystem {
 
     cards.forEach((card, index) => {
       const targetY = this.calculateCardY(index)
-      // Smooth transition to new position
-      this.scene.tweens.add({
-        targets: card,
-        y: targetY,
-        duration: 200,
-        ease: 'Power2',
-      })
+      // Card handles its own smooth transition to avoid competing with its enter animation
+      card.setTargetY(targetY)
     })
   }
 

@@ -180,7 +180,7 @@ export class SnakePriceGraph {
   triggerCloseAnimation(finalPct: number): void {
     if (this.isAnimating) return
     this.isAnimating = true
-    this.graphExploded = true
+    // Do not set graphExploded = true, allowing the graph to seamlessly continue underneath
 
     // Determine animation style based on profit/loss
     if (finalPct >= CONFIG.PROFIT_THRESHOLD) {
@@ -533,13 +533,20 @@ export class SnakePriceGraph {
     this.updateShardParticles(delta)
     this.updateFlashOverlay(width, height)
 
-    // Reset animation state when all particles are gone - allows graph to resume
-    if (this.graphExploded && this.shardParticles.length === 0 && this.flashAlpha < 0.01) {
-      this.graphExploded = false
+    // Reset animation state when all particles and flashes are gone
+    if (this.isAnimating && this.shardParticles.length === 0 && this.flashAlpha < 0.01) {
       this.isAnimating = false
-      this.graphics.clear()
-      this.history = []
-      this.currentCurvePoints = []
+      if (this.graphExploded) {
+        // Only wipe the graph if it was a true explosion (liquidation)
+        this.graphExploded = false
+        this.graphics.clear()
+        this.history = []
+        this.currentDisplayedPrice = null
+        this.startPrice = null
+        this.currentZoom = null
+        this.currentCenterPct = null
+        this.currentCurvePoints = []
+      }
     }
   }
 

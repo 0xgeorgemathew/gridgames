@@ -21,7 +21,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   667: {
     width: 320,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 0,
     padding: 6,
     glowPadding: 10,
     iconSize: 22,
@@ -35,7 +35,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   736: {
     width: 340,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 0,
     padding: 7,
     glowPadding: 10,
     iconSize: 24,
@@ -49,7 +49,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   780: {
     width: 360,
     height: 46,
-    borderRadius: 11,
+    borderRadius: 0,
     padding: 7,
     glowPadding: 11,
     iconSize: 26,
@@ -63,7 +63,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   844: {
     width: 380,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 8,
     glowPadding: 12,
     iconSize: 28,
@@ -77,7 +77,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   852: {
     width: 380,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 8,
     glowPadding: 12,
     iconSize: 28,
@@ -91,7 +91,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   896: {
     width: 380,
     height: 48,
-    borderRadius: 12,
+    borderRadius: 0,
     padding: 8,
     glowPadding: 12,
     iconSize: 28,
@@ -105,7 +105,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   926: {
     width: 400,
     height: 52,
-    borderRadius: 13,
+    borderRadius: 0,
     padding: 8,
     glowPadding: 13,
     iconSize: 30,
@@ -119,7 +119,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
   932: {
     width: 410,
     height: 54,
-    borderRadius: 14,
+    borderRadius: 0,
     padding: 9,
     glowPadding: 14,
     iconSize: 32,
@@ -135,7 +135,7 @@ const CARD_DIMS_BY_HEIGHT: Record<number, CardDimensionsConfig> = {
 const BASE_DIMS: CardDimensionsConfig = {
   width: 380,
   height: 48,
-  borderRadius: 12,
+  borderRadius: 0,
   padding: 8,
   glowPadding: 12,
   iconSize: 28,
@@ -199,41 +199,41 @@ export const CARD_DIMENSIONS = {
 export const CARD_COLORS = {
   near_zero: {
     borderColor: 0x00f3ff, // Tron cyan
-    borderAlpha: 0.3,
+    borderAlpha: 0.5,
     glowColor: 0x00f3ff,
-    glowAlpha: 0,
+    glowAlpha: 0.2,
     background: 0x0a0a14,
     backgroundAlpha: 0.85,
   },
   profit: {
     borderColor: 0x4ade80, // Green-400
-    borderAlpha: 0.6,
+    borderAlpha: 0.8,
     glowColor: 0x4ade80,
-    glowAlpha: 0.35,
+    glowAlpha: 0.5,
     background: 0x0a0a14,
     backgroundAlpha: 0.85,
   },
   loss: {
     borderColor: 0xf87171, // Red-400
-    borderAlpha: 0.6,
+    borderAlpha: 0.8,
     glowColor: 0xf87171,
-    glowAlpha: 0.35,
+    glowAlpha: 0.5,
     background: 0x0a0a14,
     backgroundAlpha: 0.85,
   },
   closing: {
     borderColor: 0x00f3ff, // Tron cyan
-    borderAlpha: 0.6,
+    borderAlpha: 0.8,
     glowColor: 0x00f3ff,
-    glowAlpha: 0.4,
+    glowAlpha: 0.6,
     background: 0x0a0a14,
     backgroundAlpha: 0.85,
   },
   liquidated: {
     borderColor: 0xf87171, // Red-400
-    borderAlpha: 0.8,
+    borderAlpha: 1.0,
     glowColor: 0xf87171,
-    glowAlpha: 0.5,
+    glowAlpha: 0.7,
     background: 0x0a0a14,
     backgroundAlpha: 0.85,
   },
@@ -258,6 +258,15 @@ export class PositionCardRenderer {
     radius: number,
     fill: boolean = true
   ): void {
+    if (radius <= 0) {
+      if (fill) {
+        graphics.fillRect(x, y, width, height)
+      } else {
+        graphics.strokeRect(x, y, width, height)
+      }
+      return
+    }
+
     graphics.beginPath()
     graphics.moveTo(x + radius, y)
     graphics.lineTo(x + width - radius, y)
@@ -384,6 +393,25 @@ export class PositionCardRenderer {
       true
     )
 
+    // =========================================================================
+    // LAYER 2.5: INNER COLOR OVERLAY
+    // =========================================================================
+    // Subtle inner tint of the profit/loss color (e.g. 15% opacity)
+    /*
+    if (state === 'profit' || state === 'loss' || state === 'closing' || state === 'liquidated') {
+      graphics.fillStyle(colors.glowColor, 0.15)
+      this.drawRoundedRect(
+        graphics,
+        scaledGlowPadding,
+        scaledGlowPadding,
+        scaledWidth,
+        scaledHeight,
+        scaledRadius,
+        true
+      )
+    }
+    */
+
     container.add(graphics)
 
     // =========================================================================
@@ -440,13 +468,14 @@ export class PositionCardRenderer {
     // LONG indicator (green, up triangle)
     const longContainer = this.scene.add.container(0, 0)
     const longBg = this.scene.add.graphics()
-    longBg.fillStyle(0x4ade80, 0.2) // Green with low opacity
-    longBg.fillRoundedRect(0, 0, scaledSize, scaledSize, 4 * scale)
+    longBg.fillStyle(0x4ade80, 0.25) // Green with low opacity
+    longBg.fillRoundedRect(0, 0, scaledSize, scaledSize, 6 * scale)
     longContainer.add(longBg)
 
     const longTriangle = this.scene.add.graphics()
     longTriangle.fillStyle(0x4ade80, 1) // Green
-    this.drawTriangleUp(longTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.5)
+    longTriangle.lineStyle(2 * scale, 0x4ade80, 1)
+    this.drawTriangleUp(longTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
     longContainer.add(longTriangle)
 
     let renderTexture = this.scene.make.renderTexture(
@@ -463,13 +492,14 @@ export class PositionCardRenderer {
     // SHORT indicator (red, down triangle)
     const shortContainer = this.scene.add.container(0, 0)
     const shortBg = this.scene.add.graphics()
-    shortBg.fillStyle(0xf87171, 0.2) // Red with low opacity
-    shortBg.fillRoundedRect(0, 0, scaledSize, scaledSize, 4 * scale)
+    shortBg.fillStyle(0xf87171, 0.25) // Red with low opacity
+    shortBg.fillRoundedRect(0, 0, scaledSize, scaledSize, 6 * scale)
     shortContainer.add(shortBg)
 
     const shortTriangle = this.scene.add.graphics()
     shortTriangle.fillStyle(0xf87171, 1) // Red
-    this.drawTriangleDown(shortTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.5)
+    shortTriangle.lineStyle(2 * scale, 0xf87171, 1)
+    this.drawTriangleDown(shortTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
     shortContainer.add(shortTriangle)
 
     renderTexture = this.scene.make.renderTexture({ width: scaledSize, height: scaledSize }, false)

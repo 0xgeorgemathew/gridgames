@@ -67,6 +67,7 @@ export class PositionCard extends GameObjects.Container {
 
   private enterTween?: Tweens.Tween
   private pulseTween?: Tweens.Tween
+  private targetY: number
 
   /**
    * Get leverage badge colors based on leverage level
@@ -107,6 +108,7 @@ export class PositionCard extends GameObjects.Container {
   constructor(scene: Scene, config: PositionCardConfig) {
     super(scene, config.x, config.y)
 
+    this.targetY = config.y
     this.cardScene = scene
     this.positionData = config.position
     this.onClose = config.onClose
@@ -164,7 +166,7 @@ export class PositionCard extends GameObjects.Container {
       }
     )
     this.entryPriceText.setOrigin(0, 0.5)
-    this.entryPriceText.setShadow(0, 0, '#00f3ff', 6, true, true)
+    this.entryPriceText.setShadow(0, 0, '#00f3ff', 8, true, true)
     this.add(this.entryPriceText)
 
     // =========================================================================
@@ -276,18 +278,35 @@ export class PositionCard extends GameObjects.Container {
   }
 
   /**
+   * Set target Y position to prevent competing tweens
+   */
+  setTargetY(y: number): void {
+    if (this.targetY === y) return
+    this.targetY = y
+
+    this.cardScene.tweens.add({
+      targets: this,
+      y: y,
+      duration: 300,
+      ease: 'Back.out(1.2)',
+    })
+  }
+
+  /**
    * Play enter animation
    */
   private playEnterAnimation(): void {
     this.setAlpha(0)
     this.y += 40
+    this.scale = 0.8
 
     this.enterTween = this.cardScene.tweens.add({
       targets: this,
       alpha: 1,
       y: this.y - 40,
-      duration: 300,
-      ease: 'Power2',
+      scale: 1,
+      duration: 400,
+      ease: 'Back.out(1.0)', // Reduced overshoot for smoother entry
     })
   }
 
@@ -303,8 +322,8 @@ export class PositionCard extends GameObjects.Container {
       targets: this,
       alpha: 0,
       y: this.y - 20,
-      scale: 0.95,
-      duration: 300,
+      scale: 0.8,
+      duration: 250,
       ease: 'Power2',
       onComplete,
     })
@@ -359,23 +378,23 @@ export class PositionCard extends GameObjects.Container {
     switch (this.currentVisualState) {
       case 'near_zero':
         color = '#00f3ff'
-        this.pnlText.setShadow(0, 0, '#00f3ff', 6, true, true)
+        this.pnlText.setShadow(0, 0, '#00f3ff', 8, true, true)
         break
       case 'profit':
         color = '#4ade80'
-        this.pnlText.setShadow(0, 0, '#4ade80', 6, true, true)
+        this.pnlText.setShadow(0, 0, '#4ade80', 8, true, true)
         break
       case 'loss':
         color = '#f87171'
-        this.pnlText.setShadow(0, 0, '#f87171', 6, true, true)
+        this.pnlText.setShadow(0, 0, '#f87171', 8, true, true)
         break
       case 'closing':
         color = '#00f3ff'
-        this.pnlText.setShadow(0, 0, '#00f3ff', 6, true, true)
+        this.pnlText.setShadow(0, 0, '#00f3ff', 8, true, true)
         break
       case 'liquidated':
         color = '#f87171'
-        this.pnlText.setShadow(0, 0, '#f87171', 6, true, true)
+        this.pnlText.setShadow(0, 0, '#f87171', 8, true, true)
         break
     }
     this.pnlText.setColor(color)
