@@ -4,7 +4,9 @@ import React, { useEffect, useRef } from 'react'
 import { useTradingStore } from '@/domains/tap-dancer/client/state/trading.store'
 import { AnimatePresence, m } from 'framer-motion'
 
-import { CompactPriceRow, PriceLoadingState, containerVariants } from './index'
+import { CompactPriceRow } from './CompactPriceRow'
+import { PriceLoadingState } from './PriceLoadingState'
+import { containerVariants } from './types'
 
 export const GameHUD = React.memo(function GameHUD() {
   const {
