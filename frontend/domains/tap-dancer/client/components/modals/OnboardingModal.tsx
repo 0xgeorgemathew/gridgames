@@ -12,14 +12,6 @@ interface OnboardingModalProps {
 export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   const [step, setStep] = useState(1)
 
-  // Reset step when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setStep(1)
-    }
-  }, [isOpen])
-
   const nextStep = () => {
     if (step < 3) {
       setStep((prev) => prev + 1)
@@ -35,7 +27,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={() => setStep(1)}>
       {isOpen && (
         <m.div
           initial={{ opacity: 0 }}
