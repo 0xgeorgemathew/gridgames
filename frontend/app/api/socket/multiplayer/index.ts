@@ -16,6 +16,10 @@ import {
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import type { OpenPosition } from './events.types'
 import type { SocketErrorCode } from '@/domains/hyper-swiper/shared/trading.types'
+import { MATCH_EVENTS } from '@/domains/match/events'
+import { buildResultArtifact, resolveMatchOutcome } from './result-artifact.server'
+import { initiateSettlementHandoff, storeResultArtifact } from './settlement-handoff.server'
+import { STAKE_AMOUNT } from '@/domains/match/config'
 
 let priceFeedConnected = false
 
@@ -157,6 +161,9 @@ export function setupGameEvents(io: SocketIOServer): {
   cleanup: () => void
   emergencyShutdown: () => void
 } {
+  // Log shared socket event names at startup (Phase 1 feedback loop)
+  console.log('[SocketEvents] Shared match events:', Object.values(MATCH_EVENTS).join(', '))
+
   const manager = new RoomManager()
 
   const cleanupInterval = setInterval(() => {
@@ -387,7 +394,18 @@ export function setupGameEvents(io: SocketIOServer): {
       const room = manager.getRoom(roomId)
       if (!room) return
 
+      // Update match player ready state
+      room.setPlayerReadyState(socket.id, 'ready')
+
       const bothReady = room.markClientReady(socket.id)
+
+      // Emit match_updated event with new ready state
+      io.to(roomId).emit(MATCH_EVENTS.MATCH_UPDATED, {
+        matchId: roomId,
+        status: room.getMatchStatus(),
+        stateVersion: room.getMatchStateVersion(),
+        players: Array.from(room.matchStateMachine.getState().players.values()),
+      })
 
       if (bothReady) {
         startGameLoop(io, manager, room, endGame)
@@ -702,6 +720,62 @@ export function setupGameEvents(io: SocketIOServer): {
       }
     })
 
+    // =============================================================================
+    // NEW MATCH ACTION HANDLER (Phase 3)
+    // Handles game actions through the deterministic zero-sum reducer
+    // =============================================================================
+
+    socket.on(MATCH_EVENTS.MATCH_ACTION, (data: { matchId: string; action: unknown }) => {
+      try {
+        const roomId = manager.getPlayerRoomId(socket.id)
+        if (!roomId || roomId !== data.matchId) {
+          socket.emit('error', {
+            code: 'ACTION_REJECTED' as SocketErrorCode,
+            message: 'Invalid match',
+          })
+          return
+        }
+
+        const room = manager.getRoom(roomId)
+        if (!room || !room.canAcceptMatchActions()) {
+          socket.emit('error', {
+            code: 'ACTION_REJECTED' as SocketErrorCode,
+            message: 'Match not accepting actions',
+          })
+          return
+        }
+
+        // Append action to authoritative log
+        const sequence = room.appendMatchAction(socket.id, data.action)
+
+        // Log action sequence (for debugging)
+        console.log(
+          `[Match] ${roomId} action seq=${sequence} from ${socket.id}`
+        )
+
+        // Assert sequence is contiguous
+        console.assert(
+          sequence === room.matchActionLog.getLength() - 1,
+          `[Match] Non-contiguous sequence in ${roomId}`
+        )
+
+        // Emit action applied event
+        io.to(roomId).emit(MATCH_EVENTS.MATCH_ACTION_APPLIED, {
+          matchId: roomId,
+          playerId: socket.id,
+          sequence,
+          stateVersion: room.getMatchStateVersion(),
+          action: data.action,
+        })
+      } catch (error) {
+        console.error('[Server] match_action error:', error)
+        socket.emit('error', {
+          code: 'ACTION_REJECTED' as SocketErrorCode,
+          message: 'Failed to apply action',
+        })
+      }
+    })
+
     socket.on('disconnect', () => {
       manager.removeWaitingPlayer(socket.id)
 
@@ -720,7 +794,23 @@ export function setupGameEvents(io: SocketIOServer): {
       if (roomId) {
         const room = manager.getRoom(roomId)
         if (room?.hasPlayer(socket.id)) {
+          // Emit legacy event (backward compatibility)
           io.to(roomId).emit('opponent_disconnected')
+
+          // Transition match state to aborted
+          room.transitionMatchStatus('aborted', {
+            abortReason: 'player_disconnect',
+            affectedPlayerId: socket.id,
+          })
+
+          // Emit new match_aborted event
+          io.to(roomId).emit(MATCH_EVENTS.MATCH_ABORTED, {
+            matchId: roomId,
+            reason: 'player_disconnect',
+            affectedPlayerId: socket.id,
+          })
+
+          console.log(`[Match] ${roomId} aborted due to player disconnect: ${socket.id}`)
 
           if (room.openPositions.size === 0) {
             setTimeout(() => manager.deleteRoom(roomId), 5000)

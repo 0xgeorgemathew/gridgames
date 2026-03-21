@@ -1,3 +1,14 @@
+/**
+ * @deprecated
+ * This file is part of the legacy trading/perp settlement system.
+ * It will be removed in Phase 6 after the new match lifecycle is fully integrated.
+ *
+ * New code should use:
+ * - result-artifact.server.ts for building result artifacts
+ * - result-store.server.ts for persisting results
+ * - settlement-handoff.server.ts for settlement handoff
+ */
+
 import { Server as SocketIOServer } from 'socket.io'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import { GameRoom } from './room.manager'
