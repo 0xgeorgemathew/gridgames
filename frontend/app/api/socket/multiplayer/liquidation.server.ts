@@ -1,3 +1,14 @@
+/**
+ * @deprecated
+ * This file is part of the legacy trading/perp system.
+ * It will be removed in Phase 6 after the new match lifecycle is fully integrated.
+ *
+ * New code should use:
+ * - match-state.server.ts for state machine
+ * - game-rules.server.ts for outcome resolution
+ * - result-artifact.server.ts for result artifacts
+ */
+
 import { Server as SocketIOServer } from 'socket.io'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import { GameRoom } from './room.manager'

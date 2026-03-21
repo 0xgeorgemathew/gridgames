@@ -2,6 +2,9 @@ import type { Player } from './events.types'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import { CoinSequence } from './coin-sequence.server'
 import type { Coin, OpenPosition, PositionSettlementResult } from './events.types'
+import type { MatchStatus, MatchPlayer, ReadyState, FundingState } from '@/domains/match/types'
+import { MatchStateMachine, createMatchState } from './match-state.server'
+import { MatchActionLog, createMatchLog } from './match-log.server'
 
 interface ActiveCoinEntry {
   id: string
@@ -13,8 +16,17 @@ export class GameRoom {
   readonly id: string
   readonly players: Map<string, Player>
   readonly coins: Map<string, Coin>
+
+  // =============================================================================
+  // LEGACY TRADING STATE (deprecated - will be removed in Phase 6)
+  // =============================================================================
+  /** @deprecated Use matchStateMachine instead */
   readonly openPositions: Map<string, OpenPosition>
+  /** @deprecated Use matchStateMachine instead */
   readonly closedPositions: PositionSettlementResult[]
+  /** @deprecated Not used in zero-sum matches */
+  private playerLeverage = new Map<string, number>()
+
   private isClosing = false
   isShutdown = false
 
@@ -25,8 +37,6 @@ export class GameRoom {
   readonly GAME_DURATION: number
 
   private coinSequence: CoinSequence | null = null
-
-  private playerLeverage = new Map<string, number>()
 
   player1Address: `0x${string}` | null = null
   player2Address: `0x${string}` | null = null
@@ -40,6 +50,21 @@ export class GameRoom {
 
   private activeCoins: Map<string, ActiveCoinEntry> = new Map()
 
+  // =============================================================================
+  // NEW MATCH STATE (Phase 2)
+  // =============================================================================
+  /** Match state machine for lifecycle management */
+  readonly matchStateMachine: MatchStateMachine
+
+  /** Action log for authoritative game actions */
+  readonly matchActionLog: MatchActionLog
+
+  /** Resolved match outcome (set when match ends) */
+  resolvedOutcome: import('@/domains/match/types').ResolvedMatchOutcome | null = null
+
+  /** Result artifact (set when match ends) */
+  resultArtifact: import('@/domains/match/types').ResultArtifact | null = null
+
   constructor(roomId: string, gameDuration: number = 60000) {
     this.id = roomId
     this.players = new Map()
@@ -48,6 +73,10 @@ export class GameRoom {
     this.closedPositions = []
     this.gameStartTime = Date.now()
     this.GAME_DURATION = gameDuration
+
+    // Initialize match state machine and action log
+    this.matchStateMachine = createMatchState(roomId, gameDuration)
+    this.matchActionLog = createMatchLog(roomId)
   }
 
   setPlayerLeverage(playerId: string, leverage: number): void {
@@ -305,5 +334,89 @@ export class GameRoom {
     if (elapsedMs < 90000) return intervals[2]
     if (elapsedMs < 120000) return intervals[3]
     return intervals[4]
+  }
+
+  // =============================================================================
+  // MATCH LIFECYCLE METHODS (Phase 2)
+  // =============================================================================
+
+  /**
+   * Get current match status
+   */
+  getMatchStatus(): MatchStatus {
+    return this.matchStateMachine.getStatus()
+  }
+
+  /**
+   * Transition match to a new status
+   */
+  transitionMatchStatus(
+    to: MatchStatus,
+    reason?: { abortReason?: 'player_disconnect' | 'timeout' | 'error'; affectedPlayerId?: string }
+  ): boolean {
+    return this.matchStateMachine.transition(to, reason)
+  }
+
+  /**
+   * Add a match player (uses new match types)
+   */
+  addMatchPlayer(player: MatchPlayer): void {
+    this.matchStateMachine.addPlayer(player)
+  }
+
+  /**
+   * Set player ready state
+   */
+  setPlayerReadyState(playerId: string, readyState: ReadyState): boolean {
+    return this.matchStateMachine.setPlayerReadyState(playerId, readyState)
+  }
+
+  /**
+   * Set player funding state
+   */
+  setPlayerFundingState(playerId: string, fundingState: FundingState): boolean {
+    return this.matchStateMachine.setPlayerFundingState(playerId, fundingState)
+  }
+
+  /**
+   * Check if all players are ready
+   */
+  areAllPlayersReady(): boolean {
+    return this.matchStateMachine.areAllPlayersReady()
+  }
+
+  /**
+   * Check if all players have funding confirmed
+   */
+  areAllPlayersFunded(): boolean {
+    return this.matchStateMachine.areAllPlayersFunded()
+  }
+
+  /**
+   * Append a gameplay action to the action log
+   */
+  appendMatchAction<GameAction>(playerId: string, action: GameAction): number {
+    return this.matchActionLog.append(playerId, action)
+  }
+
+  /**
+   * Get match state version
+   */
+  getMatchStateVersion(): number {
+    return this.matchStateMachine.getStateVersion()
+  }
+
+  /**
+   * Check if match is in a terminal state
+   */
+  isMatchTerminal(): boolean {
+    return this.matchStateMachine.isTerminal()
+  }
+
+  /**
+   * Check if match can accept gameplay actions
+   */
+  canAcceptMatchActions(): boolean {
+    return this.matchStateMachine.canAcceptActions()
   }
 }

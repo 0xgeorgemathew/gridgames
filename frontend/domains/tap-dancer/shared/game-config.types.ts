@@ -1,12 +1,15 @@
+// =============================================================================
+// TAP DANCER SHARED GAME CONFIG TYPES
+// Gameplay configuration shared between client and server
+// =============================================================================
+
+import { STAKE_AMOUNT } from '@/domains/match/config'
+
 /**
- * Shared game configuration constants
- * Used by both client and server
+ * Shared game configuration for Tap Dancer
+ * Uses match domain constants for stake amount
  */
 export interface SharedGameConfig {
-  STARTING_BALANCE: number
-  POSITION_COLLATERAL: number
-  FIXED_LEVERAGE: number
-  MAX_POSITIONS: number
-  LIQUIDATION_THRESHOLD: number
-  // Note: No MAX_ACTIVE_COINS - TapDancer has no coins
+  STAKE_AMOUNT: typeof STAKE_AMOUNT // $10 from match domain
+  // Note: No MAX_ACTIVE_COINS - Tap Dancer has no coins
 }
