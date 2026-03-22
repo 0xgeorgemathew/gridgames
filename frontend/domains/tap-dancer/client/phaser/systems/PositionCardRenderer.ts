@@ -148,10 +148,139 @@ const BASE_DIMS: CardDimensionsConfig = {
 }
 
 export function getCardDimensions(): CardDimensionsConfig {
-  if (typeof window === 'undefined') return BASE_DIMS
+  if (typeof window === 'undefined') {
+    return { ...BASE_DIMS, borderRadius: BASE_DIMS.height / 2 }
+  }
   const height = window.screen.height
-  if (height < 667 || height > 932) return BASE_DIMS
-  return CARD_DIMS_BY_HEIGHT[height] ?? BASE_DIMS
+  const dims = height < 667 || height > 932 ? BASE_DIMS : (CARD_DIMS_BY_HEIGHT[height] ?? BASE_DIMS)
+  return { ...dims, borderRadius: dims.height / 2 }
+}
+
+interface CompactCardDimensionsConfig {
+  width: number
+  height: number
+  borderRadius: number
+  padding: number
+  glowPadding: number
+  iconSize: number
+  fontSize: number
+  buttonFontSize: number
+  gap: number
+}
+
+const COMPACT_DIMS_BY_HEIGHT: Record<number, CompactCardDimensionsConfig> = {
+  667: {
+    width: 70,
+    height: 36,
+    borderRadius: 0,
+    padding: 6,
+    glowPadding: 8,
+    iconSize: 20,
+    fontSize: 11,
+    buttonFontSize: 12,
+    gap: 4,
+  },
+  736: {
+    width: 76,
+    height: 38,
+    borderRadius: 0,
+    padding: 6,
+    glowPadding: 8,
+    iconSize: 22,
+    fontSize: 12,
+    buttonFontSize: 14,
+    gap: 5,
+  },
+  780: {
+    width: 82,
+    height: 40,
+    borderRadius: 0,
+    padding: 7,
+    glowPadding: 9,
+    iconSize: 24,
+    fontSize: 12,
+    buttonFontSize: 14,
+    gap: 5,
+  },
+  844: {
+    width: 88,
+    height: 42,
+    borderRadius: 0,
+    padding: 7,
+    glowPadding: 10,
+    iconSize: 26,
+    fontSize: 13,
+    buttonFontSize: 15,
+    gap: 6,
+  },
+  852: {
+    width: 88,
+    height: 42,
+    borderRadius: 0,
+    padding: 7,
+    glowPadding: 10,
+    iconSize: 26,
+    fontSize: 13,
+    buttonFontSize: 15,
+    gap: 6,
+  },
+  896: {
+    width: 88,
+    height: 42,
+    borderRadius: 0,
+    padding: 7,
+    glowPadding: 10,
+    iconSize: 26,
+    fontSize: 13,
+    buttonFontSize: 15,
+    gap: 6,
+  },
+  926: {
+    width: 94,
+    height: 44,
+    borderRadius: 0,
+    padding: 8,
+    glowPadding: 10,
+    iconSize: 28,
+    fontSize: 14,
+    buttonFontSize: 16,
+    gap: 6,
+  },
+  932: {
+    width: 100,
+    height: 46,
+    borderRadius: 0,
+    padding: 8,
+    glowPadding: 11,
+    iconSize: 30,
+    fontSize: 14,
+    buttonFontSize: 16,
+    gap: 7,
+  },
+}
+
+const BASE_COMPACT_DIMS: CompactCardDimensionsConfig = {
+  width: 88,
+  height: 42,
+  borderRadius: 0,
+  padding: 7,
+  glowPadding: 10,
+  iconSize: 26,
+  fontSize: 13,
+  buttonFontSize: 15,
+  gap: 6,
+}
+
+export function getCompactCardDimensions(): CompactCardDimensionsConfig {
+  if (typeof window === 'undefined') {
+    return { ...BASE_COMPACT_DIMS, borderRadius: BASE_COMPACT_DIMS.height / 2 }
+  }
+  const height = window.screen.height
+  const dims =
+    height < 667 || height > 932
+      ? BASE_COMPACT_DIMS
+      : (COMPACT_DIMS_BY_HEIGHT[height] ?? BASE_COMPACT_DIMS)
+  return { ...dims, borderRadius: dims.height / 2 }
 }
 
 export const CARD_DIMENSIONS = {
@@ -190,6 +319,36 @@ export const CARD_DIMENSIONS = {
   },
   get gap() {
     return getCardDimensions().gap
+  },
+}
+
+export const COMPACT_CARD_DIMENSIONS = {
+  get width() {
+    return getCompactCardDimensions().width
+  },
+  get height() {
+    return getCompactCardDimensions().height
+  },
+  get borderRadius() {
+    return getCompactCardDimensions().borderRadius
+  },
+  get padding() {
+    return getCompactCardDimensions().padding
+  },
+  get glowPadding() {
+    return getCompactCardDimensions().glowPadding
+  },
+  get iconSize() {
+    return getCompactCardDimensions().iconSize
+  },
+  get fontSize() {
+    return getCompactCardDimensions().fontSize
+  },
+  get buttonFontSize() {
+    return getCompactCardDimensions().buttonFontSize
+  },
+  get gap() {
+    return getCompactCardDimensions().gap
   },
 }
 
@@ -332,8 +491,214 @@ export class PositionCardRenderer {
       this.generateCardTexture(state)
     })
 
-    // Also generate direction indicator textures
+    this.generateCompactCardTextures()
+
     this.generateDirectionIndicators()
+    this.generateCloseButtonIcons()
+  }
+
+  private saveCanvasTexture(textureKey: string, canvas: HTMLCanvasElement): void {
+    if (this.scene.textures.exists(textureKey)) {
+      this.scene.textures.remove(textureKey)
+    }
+
+    const renderTexture = this.scene.make.renderTexture(
+      { width: canvas.width, height: canvas.height },
+      false
+    )
+    const tempTextureKey = `__temp_${textureKey}__`
+
+    this.scene.textures.addCanvas(tempTextureKey, canvas)
+    const tempSprite = this.scene.add.image(0, 0, tempTextureKey)
+    renderTexture.draw(tempSprite, canvas.width / 2, canvas.height / 2)
+    renderTexture.saveTexture(textureKey)
+    this.scene.textures.get(textureKey).setFilter(Phaser.Textures.FilterMode.LINEAR)
+
+    renderTexture.destroy()
+    tempSprite.destroy()
+    this.scene.textures.remove(tempTextureKey)
+  }
+
+  private generateCloseButtonIcons(): void {
+    const size = 36
+    const scale = 4
+    const scaledSize = size * scale
+    const center = scaledSize / 2
+    const radius = scaledSize / 2
+
+    if (this.scene.textures.exists('close_icon')) {
+      this.scene.textures.remove('close_icon')
+    }
+    if (this.scene.textures.exists('locked_icon')) {
+      this.scene.textures.remove('locked_icon')
+    }
+
+    const closeCanvas = document.createElement('canvas')
+    closeCanvas.width = scaledSize
+    closeCanvas.height = scaledSize
+    const closeCtx = closeCanvas.getContext('2d')
+
+    if (!closeCtx) return
+
+    closeCtx.fillStyle = '#166534'
+    closeCtx.beginPath()
+    closeCtx.arc(center, center, radius, 0, Math.PI * 2)
+    closeCtx.fill()
+
+    closeCtx.strokeStyle = '#dcfce7'
+    closeCtx.lineWidth = 2.5 * scale
+    closeCtx.lineCap = 'round'
+    const crossInset = scaledSize * 0.31
+    closeCtx.beginPath()
+    closeCtx.moveTo(crossInset, crossInset)
+    closeCtx.lineTo(scaledSize - crossInset, scaledSize - crossInset)
+    closeCtx.moveTo(scaledSize - crossInset, crossInset)
+    closeCtx.lineTo(crossInset, scaledSize - crossInset)
+    closeCtx.stroke()
+
+    this.saveCanvasTexture('close_icon', closeCanvas)
+
+    const lockCanvas = document.createElement('canvas')
+    lockCanvas.width = scaledSize
+    lockCanvas.height = scaledSize
+    const lockCtx = lockCanvas.getContext('2d')
+
+    if (!lockCtx) return
+
+    lockCtx.fillStyle = '#1e293b'
+    lockCtx.beginPath()
+    lockCtx.arc(center, center, radius, 0, Math.PI * 2)
+    lockCtx.fill()
+
+    const accentColor = '#f8fafc'
+    const shackleStrokeWidth = 3 * scale
+    const bodyWidth = scaledSize * 0.34
+    const bodyHeight = scaledSize * 0.26
+    const bodyX = (scaledSize - bodyWidth) / 2
+    const bodyY = scaledSize * 0.54
+    const shackleOuterRadius = bodyWidth * 0.42
+    const shackleCenterX = scaledSize / 2
+    const shackleCenterY = bodyY - shackleOuterRadius * 1.08
+
+    lockCtx.strokeStyle = accentColor
+    lockCtx.lineWidth = shackleStrokeWidth
+    lockCtx.lineCap = 'round'
+    lockCtx.lineJoin = 'round'
+    lockCtx.beginPath()
+    lockCtx.moveTo(bodyX + shackleStrokeWidth / 2, bodyY)
+    lockCtx.lineTo(bodyX + shackleStrokeWidth / 2, shackleCenterY)
+    lockCtx.arc(shackleCenterX, shackleCenterY, shackleOuterRadius, Math.PI, 0, false)
+    lockCtx.lineTo(bodyX + bodyWidth - shackleStrokeWidth / 2, bodyY)
+    lockCtx.stroke()
+
+    lockCtx.fillStyle = accentColor
+    lockCtx.beginPath()
+    lockCtx.roundRect(bodyX, bodyY - scale, bodyWidth, bodyHeight, 5 * scale)
+    lockCtx.fill()
+
+    const keyholeRadius = bodyWidth * 0.05
+    const keyholeX = scaledSize / 2
+    const keyholeY = bodyY + bodyHeight * 0.32
+    lockCtx.fillStyle = '#334155'
+    lockCtx.beginPath()
+    lockCtx.arc(keyholeX, keyholeY, keyholeRadius, 0, Math.PI * 2)
+    lockCtx.fill()
+    lockCtx.beginPath()
+    lockCtx.roundRect(
+      keyholeX - keyholeRadius * 0.42,
+      keyholeY,
+      keyholeRadius * 0.84,
+      bodyHeight * 0.16,
+      keyholeRadius * 0.42
+    )
+    lockCtx.fill()
+
+    this.saveCanvasTexture('locked_icon', lockCanvas)
+  }
+
+  private generateCompactCardTextures(): void {
+    const states: Array<CardVisualState> = ['near_zero', 'profit', 'loss', 'closing', 'liquidated']
+
+    states.forEach((state) => {
+      this.generateCompactCardTexture(state)
+    })
+  }
+
+  private generateCompactCardTexture(state: CardVisualState): void {
+    const colors = CARD_COLORS[state]
+    const dims = getCompactCardDimensions()
+    const { width, height, borderRadius, glowPadding } = dims
+
+    const scale = 2
+    const scaledWidth = width * scale
+    const scaledHeight = height * scale
+    const scaledRadius = borderRadius * scale
+    const scaledGlowPadding = glowPadding * scale
+
+    const textureWidth = scaledWidth + scaledGlowPadding * 2
+    const textureHeight = scaledHeight + scaledGlowPadding * 2
+
+    const container = this.scene.add.container(0, 0)
+    const graphics = this.scene.add.graphics()
+
+    if (colors.glowAlpha > 0) {
+      const glowSteps = 8
+      for (let i = glowSteps; i > 0; i--) {
+        const t = i / glowSteps
+        const expand = t * 8 * scale
+        const opacity = colors.glowAlpha * Math.pow(1 - t, 2)
+        graphics.fillStyle(colors.glowColor, opacity)
+        this.drawRoundedRect(
+          graphics,
+          scaledGlowPadding - expand,
+          scaledGlowPadding - expand,
+          scaledWidth + expand * 2,
+          scaledHeight + expand * 2,
+          scaledRadius + expand,
+          true
+        )
+      }
+    }
+
+    graphics.fillStyle(colors.background, colors.backgroundAlpha)
+    this.drawRoundedRect(
+      graphics,
+      scaledGlowPadding,
+      scaledGlowPadding,
+      scaledWidth,
+      scaledHeight,
+      scaledRadius,
+      true
+    )
+
+    container.add(graphics)
+
+    const border = this.scene.add.graphics()
+    border.lineStyle(2 * scale, colors.borderColor, colors.borderAlpha)
+    this.drawRoundedRect(
+      border,
+      scaledGlowPadding,
+      scaledGlowPadding,
+      scaledWidth,
+      scaledHeight,
+      scaledRadius,
+      false
+    )
+
+    container.add(border)
+
+    const textureKey = `card_compact_${state}`
+    const renderTexture = this.scene.make.renderTexture(
+      { width: textureWidth, height: textureHeight },
+      false
+    )
+    renderTexture.draw(container, 0, 0)
+    renderTexture.saveTexture(textureKey)
+
+    this.scene.textures.get(textureKey).setFilter(Phaser.Textures.FilterMode.LINEAR)
+
+    renderTexture.destroy()
+    container.destroy()
   }
 
   /**
@@ -458,56 +823,56 @@ export class PositionCardRenderer {
     const scaledSize = size * scale
 
     // Remove existing textures if they exist (to regenerate after code changes)
-    if (this.scene.textures.exists('indicator_long')) {
-      this.scene.textures.remove('indicator_long')
+    if (this.scene.textures.exists('indicator_up')) {
+      this.scene.textures.remove('indicator_up')
     }
-    if (this.scene.textures.exists('indicator_short')) {
-      this.scene.textures.remove('indicator_short')
+    if (this.scene.textures.exists('indicator_down')) {
+      this.scene.textures.remove('indicator_down')
     }
 
-    // LONG indicator (green, up triangle)
-    const longContainer = this.scene.add.container(0, 0)
-    const longBg = this.scene.add.graphics()
-    longBg.fillStyle(0x4ade80, 0.25) // Green with low opacity
-    longBg.fillRoundedRect(0, 0, scaledSize, scaledSize, 6 * scale)
-    longContainer.add(longBg)
+    // UP indicator (green, up triangle)
+    const upContainer = this.scene.add.container(0, 0)
+    const upBg = this.scene.add.graphics()
+    upBg.fillStyle(0x4ade80, 0.25) // Green with low opacity
+    upBg.fillCircle(scaledSize / 2, scaledSize / 2, scaledSize / 2)
+    upContainer.add(upBg)
 
-    const longTriangle = this.scene.add.graphics()
-    longTriangle.fillStyle(0x4ade80, 1) // Green
-    longTriangle.lineStyle(2 * scale, 0x4ade80, 1)
-    this.drawTriangleUp(longTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
-    longContainer.add(longTriangle)
+    const upTriangle = this.scene.add.graphics()
+    upTriangle.fillStyle(0x4ade80, 1) // Green
+    upTriangle.lineStyle(2 * scale, 0x4ade80, 1)
+    this.drawTriangleUp(upTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
+    upContainer.add(upTriangle)
 
     let renderTexture = this.scene.make.renderTexture(
       { width: scaledSize, height: scaledSize },
       false
     )
     // Draw container at (0, 0) - the graphics are already positioned correctly within the container
-    renderTexture.draw(longContainer, 0, 0)
-    renderTexture.saveTexture('indicator_long')
-    this.scene.textures.get('indicator_long').setFilter(Phaser.Textures.FilterMode.LINEAR)
+    renderTexture.draw(upContainer, 0, 0)
+    renderTexture.saveTexture('indicator_up')
+    this.scene.textures.get('indicator_up').setFilter(Phaser.Textures.FilterMode.LINEAR)
     renderTexture.destroy()
-    longContainer.destroy()
+    upContainer.destroy()
 
-    // SHORT indicator (red, down triangle)
-    const shortContainer = this.scene.add.container(0, 0)
-    const shortBg = this.scene.add.graphics()
-    shortBg.fillStyle(0xf87171, 0.25) // Red with low opacity
-    shortBg.fillRoundedRect(0, 0, scaledSize, scaledSize, 6 * scale)
-    shortContainer.add(shortBg)
+    // DOWN indicator (red, down triangle)
+    const downContainer = this.scene.add.container(0, 0)
+    const downBg = this.scene.add.graphics()
+    downBg.fillStyle(0xf87171, 0.25) // Red with low opacity
+    downBg.fillCircle(scaledSize / 2, scaledSize / 2, scaledSize / 2)
+    downContainer.add(downBg)
 
-    const shortTriangle = this.scene.add.graphics()
-    shortTriangle.fillStyle(0xf87171, 1) // Red
-    shortTriangle.lineStyle(2 * scale, 0xf87171, 1)
-    this.drawTriangleDown(shortTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
-    shortContainer.add(shortTriangle)
+    const downTriangle = this.scene.add.graphics()
+    downTriangle.fillStyle(0xf87171, 1) // Red
+    downTriangle.lineStyle(2 * scale, 0xf87171, 1)
+    this.drawTriangleDown(downTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
+    downContainer.add(downTriangle)
 
     renderTexture = this.scene.make.renderTexture({ width: scaledSize, height: scaledSize }, false)
     // Draw container at (0, 0) - the graphics are already positioned correctly within the container
-    renderTexture.draw(shortContainer, 0, 0)
-    renderTexture.saveTexture('indicator_short')
-    this.scene.textures.get('indicator_short').setFilter(Phaser.Textures.FilterMode.LINEAR)
+    renderTexture.draw(downContainer, 0, 0)
+    renderTexture.saveTexture('indicator_down')
+    this.scene.textures.get('indicator_down').setFilter(Phaser.Textures.FilterMode.LINEAR)
     renderTexture.destroy()
-    shortContainer.destroy()
+    downContainer.destroy()
   }
 }

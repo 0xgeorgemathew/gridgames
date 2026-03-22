@@ -51,7 +51,9 @@ export class MatchActionLog<GameAction = unknown> {
 
     this.entries.push(entry)
 
-    console.log(`[MatchActionLog] ${this.matchId}: Appended action seq=${sequence} from player=${playerId}`)
+    console.log(
+      `[MatchActionLog] ${this.matchId}: Appended action seq=${sequence} from player=${playerId}`
+    )
 
     return sequence
   }
@@ -90,9 +92,17 @@ export class MatchActionLog<GameAction = unknown> {
   verifyIntegrity(): boolean {
     let previousHash = '0'
     for (const entry of this.entries) {
-      const expectedHash = this.hashEntry(entry.sequence, entry.playerId, entry.timestamp, entry.action, previousHash)
+      const expectedHash = this.hashEntry(
+        entry.sequence,
+        entry.playerId,
+        entry.timestamp,
+        entry.action,
+        previousHash
+      )
       if (entry.hash !== expectedHash) {
-        console.error(`[MatchActionLog] ${this.matchId}: Hash mismatch at sequence ${entry.sequence}`)
+        console.error(
+          `[MatchActionLog] ${this.matchId}: Hash mismatch at sequence ${entry.sequence}`
+        )
         return false
       }
       previousHash = entry.hash
@@ -136,7 +146,13 @@ export class MatchActionLog<GameAction = unknown> {
   /**
    * Hash an entry
    */
-  private hashEntry(sequence: number, playerId: string, timestamp: number, action: unknown, previousHash: string): string {
+  private hashEntry(
+    sequence: number,
+    playerId: string,
+    timestamp: number,
+    action: unknown,
+    previousHash: string
+  ): string {
     const data = `${sequence}:${playerId}:${timestamp}:${JSON.stringify(action)}:${previousHash}`
     return crypto.createHash('sha256').update(data).digest('hex').slice(0, 16)
   }

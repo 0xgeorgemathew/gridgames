@@ -3,7 +3,13 @@
 // Shared config + server-specific settings
 // =============================================================================
 
-import { STAKE_AMOUNT, PLAYER_COUNT, READY_TIMEOUT_MS, ROOM_DELETION_DELAY_MS, STALE_PLAYER_TIMEOUT_MS } from '@/domains/match/config'
+import {
+  STAKE_AMOUNT,
+  PLAYER_COUNT,
+  READY_TIMEOUT_MS,
+  ROOM_DELETION_DELAY_MS,
+  STALE_PLAYER_TIMEOUT_MS,
+} from '@/domains/match/config'
 
 export const SERVER_GAME_CONFIG = {
   // Match config from shared domain
@@ -15,7 +21,7 @@ export const SERVER_GAME_CONFIG = {
   // Kept for backward compatibility during migration
   // =============================================================================
   /** @deprecated Use STAKE_AMOUNT instead */
-  STARTING_BALANCE: 100,
+  STARTING_BALANCE: 10,
   /** @deprecated Not used in zero-sum matches */
   POSITION_COLLATERAL: 10,
   /** @deprecated Not used in zero-sum matches */
@@ -49,5 +55,5 @@ export const SERVER_GAME_CONFIG = {
 // Runtime invariant check
 if (typeof window !== 'undefined') {
   console.assert(SERVER_GAME_CONFIG.PLAYER_COUNT === 2, 'PLAYER_COUNT must be 2')
-  console.assert(SERVER_GAME_CONFIG.STAKE_AMOUNT === 10, 'STAKE_AMOUNT must be $10')
+  console.assert(SERVER_GAME_CONFIG.STAKE_AMOUNT === 1, 'STAKE_AMOUNT must be $1')
 }

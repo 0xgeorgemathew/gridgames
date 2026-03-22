@@ -198,6 +198,20 @@ export class GameRoom {
   getWinner(): Player | undefined {
     const players = Array.from(this.players.values())
     if (players.length === 0) return undefined
+
+    if (players.length >= 2) {
+      const playerIds = this.getPlayerIds()
+      const player1 = players.find((player) => player.id === playerIds[0])
+      const player2 = players.find((player) => player.id === playerIds[1])
+
+      if (player1 && player2) {
+        if (player1.dollars === player2.dollars) {
+          return player1
+        }
+        return player1.dollars > player2.dollars ? player1 : player2
+      }
+    }
+
     return players.reduce((a, b) => (a.dollars > b.dollars ? a : b), players[0])
   }
 

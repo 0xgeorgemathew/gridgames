@@ -29,6 +29,8 @@ import type {
   GameSettlementEvent,
   LiquidationEvent,
   SocketErrorEvent,
+  PositionCloseRejectedEvent,
+  ZeroSumPositionClosedEvent,
 } from '@/domains/hyper-swiper/shared/trading.types'
 
 export * from '../trading.types'
@@ -186,12 +188,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('position_opened', (position: PositionOpenedEvent) => {
       get().handlePositionOpened(position)
     })
-    nextSocket.on(
-      'position_closed',
-      (data: { positionId: string; closePrice: number; realizedPnl: number; playerId: string }) => {
-        get().handlePositionClosed(data)
-      }
-    )
+    // Zero-sum: Handle new position_closed event with transfer data
+    nextSocket.on('position_closed', (data: ZeroSumPositionClosedEvent) => {
+      get().handlePositionClosed(data)
+    })
+    // Zero-sum: Handle position close rejection (prediction not correct)
+    nextSocket.on('position_close_rejected', (data: PositionCloseRejectedEvent) => {
+      get().handlePositionCloseRejected(data)
+    })
     nextSocket.on('game_settlement', (settlement: GameSettlementEvent) =>
       get().handleGameSettlement(settlement)
     )
@@ -389,7 +393,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       id: positionEvent.positionId,
       playerId: positionEvent.playerId,
       playerName: positionEvent.playerName,
-      isLong: positionEvent.isLong,
+      isUp: positionEvent.isUp,
       leverage: positionEvent.leverage,
       collateral: positionEvent.collateral,
       openPrice: positionEvent.openPrice,
@@ -405,12 +409,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ openPositions: newPositions })
   },
 
-  handlePositionClosed: (data: {
-    positionId: string
-    closePrice: number
-    realizedPnl: number
-    playerId: string
-  }) => {
+  handlePositionClosed: (data: ZeroSumPositionClosedEvent) => {
     const { openPositions, localPlayerId, closingPositions, positionCloseTimeouts } = get()
 
     const position = openPositions.get(data.positionId)
@@ -425,7 +424,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         newClosingPositions.set(data.positionId, {
           positionId: data.positionId,
           reason: 'manual',
-          realizedPnl: data.realizedPnl,
+          realizedPnl: data.amountTransferred, // Zero-sum: use transfer amount
           timestamp: Date.now(),
         })
 
@@ -459,6 +458,25 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         set({ openPositions: newPositions })
       }
     }
+  },
+
+  // Zero-sum: Handle close rejection when prediction is not correct
+  handlePositionCloseRejected: (data: PositionCloseRejectedEvent) => {
+    const { localPlayerId } = get()
+
+    // Only show toast for own position
+    if (data.playerId === localPlayerId) {
+      const direction = data.isUp ? 'UP' : 'DOWN'
+      const reason = data.isUp ? 'price must be above entry' : 'price must be below entry'
+      get().addToast({
+        message: `Cannot close ${direction}: ${reason}`,
+        type: 'warning',
+        duration: 3000,
+      })
+    }
+
+    // Emit event for Phaser to update UI
+    window.phaserEvents?.emit('position_close_rejected', data)
   },
 
   // Game settlement - all positions settled at game end

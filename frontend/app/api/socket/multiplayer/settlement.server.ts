@@ -1,25 +1,20 @@
 /**
- * @deprecated
- * This file is part of the legacy trading/perp settlement system.
- * It will be removed in Phase 6 after the new match lifecycle is fully integrated.
+ * Zero-sum settlement server
+ * Handles end-of-game settlement for zero-sum matches
  *
- * New code should use:
- * - result-artifact.server.ts for building result artifacts
- * - result-store.server.ts for persisting results
- * - settlement-handoff.server.ts for settlement handoff
+ * Zero-sum rules:
+ * - Open positions that were never correctly closed expire with no transfer
+ * - Winner is determined by actual player balance
+ * - Tie fallback: player1 wins
  */
 
 import { Server as SocketIOServer } from 'socket.io'
-import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import { GameRoom } from './room.manager'
 import type {
   GameSettlementData,
   PositionSettlementResult,
   PlayerSettlementResult,
 } from './events.types'
-import { calculatePositionPnl } from './liquidation.server'
-
-const TIE_EPSILON = 1e-9
 
 export function settleAllPositions(
   io: SocketIOServer,
@@ -29,27 +24,27 @@ export function settleAllPositions(
   const closePrice = getLatestPrice()
   const settlements: PositionSettlementResult[] = [...room.closedPositions]
 
+  // Zero-sum: Open positions expire with no transfer (no PnL settlement)
   for (const [positionId, position] of room.openPositions) {
-    const { pnl, isProfitable } = calculatePositionPnl(position, closePrice)
-    const isLong = position.coinType === 'long'
+    const isUp = position.coinType === 'long'
 
     settlements.push({
       positionId,
       playerId: position.playerId,
       playerName: position.playerName,
-      isLong,
+      isUp,
       leverage: position.leverage,
       collateral: position.collateral,
       openPrice: position.priceAtOrder,
       closePrice,
-      realizedPnl: pnl,
-      isProfitable,
+      realizedPnl: 0, // Zero-sum: No transfer on expiry
+      isProfitable: false, // Expired positions are not profitable
       isLiquidated: false,
     })
   }
 
   const playerResults = calculatePlayerResults(room, settlements)
-  const winner = determineWinner(playerResults)
+  const winner = determineWinnerByBalance(room)
 
   const settlementData: GameSettlementData = {
     closePrice,
@@ -76,10 +71,11 @@ function calculatePlayerResults(
       totalPnl: 0,
       positionCount: 0,
       winningPositions: 0,
-      finalBalance: 0,
+      finalBalance: player.dollars, // Use actual balance, not PnL-derived
     })
   }
 
+  // Count positions for stats only (no balance changes)
   for (const settlement of settlements) {
     const playerResult = playerMap.get(settlement.playerId)
     if (playerResult) {
@@ -91,27 +87,41 @@ function calculatePlayerResults(
     }
   }
 
-  for (const playerResult of playerMap.values()) {
-    playerResult.finalBalance = Math.max(0, CFG.STARTING_BALANCE + playerResult.totalPnl)
-  }
-
   return Array.from(playerMap.values())
 }
 
-function determineWinner(
-  playerResults: PlayerSettlementResult[]
-): { playerId: string; playerName: string; winningBalance: number } | null {
-  if (playerResults.length === 0) return null
-
-  const sorted = [...playerResults].sort((a, b) => b.totalPnl - a.totalPnl)
-  if (sorted.length > 1 && Math.abs(sorted[0].totalPnl - sorted[1].totalPnl) <= TIE_EPSILON) {
-    return null
+/**
+ * Zero-sum winner determination by actual balance
+ * Tie fallback: player1 wins
+ */
+function determineWinnerByBalance(room: GameRoom): GameSettlementData['winner'] {
+  const players = Array.from(room.players.values())
+  if (players.length === 0) {
+    throw new Error(`Cannot determine winner for room ${room.id}: no players present`)
   }
-  const winner = sorted[0]
 
+  if (players.length >= 2) {
+    const playerIds = room.getPlayerIds()
+    const p1 = players.find((p) => p.id === playerIds[0])
+    const p2 = players.find((p) => p.id === playerIds[1])
+
+    if (p1 && p2) {
+      if (p1.dollars > p2.dollars) {
+        return { playerId: p1.id, playerName: p1.name, winningBalance: p1.dollars }
+      } else if (p2.dollars > p1.dollars) {
+        return { playerId: p2.id, playerName: p2.name, winningBalance: p2.dollars }
+      } else {
+        // Tie fallback: player1 wins
+        return { playerId: p1.id, playerName: p1.name, winningBalance: p1.dollars }
+      }
+    }
+  }
+
+  // Single player or edge case
+  const winner = players.reduce((a, b) => (a.dollars > b.dollars ? a : b), players[0])
   return {
-    playerId: winner.playerId,
-    playerName: winner.playerName,
-    winningBalance: winner.finalBalance,
+    playerId: winner.id,
+    playerName: winner.name,
+    winningBalance: winner.dollars,
   }
 }

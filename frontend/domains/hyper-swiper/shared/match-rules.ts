@@ -1,6 +1,15 @@
 // =============================================================================
 // HYPER SWIPER MATCH RULES
 // Deterministic zero-sum reducer for Hyper Swiper gameplay
+//
+// ⚠️  NON-LIVE CODE - DO NOT USE FOR PRODUCTION GAMEPLAY ⚠️
+//
+// This file is part of the match-domain path that is NOT currently wired
+// end-to-end. The live product path uses the patched legacy events in
+// index.ts and settlement.server.ts instead.
+//
+// See plans/2026-03-22-zero-sum-regression-fix-plan.md for context.
+//
 // =============================================================================
 
 import type { AuthoritativeAction } from '@/domains/match/types'
@@ -228,9 +237,19 @@ export function resolveHyperSwiperOutcome(
   const score2 = player2.score
 
   if (score1 > score2) {
-    return { winnerId: player1.id, loserId: player2.id, reason: 'points', finalScores: [score1, score2] }
+    return {
+      winnerId: player1.id,
+      loserId: player2.id,
+      reason: 'points',
+      finalScores: [score1, score2],
+    }
   } else if (score2 > score1) {
-    return { winnerId: player2.id, loserId: player1.id, reason: 'points', finalScores: [score1, score2] }
+    return {
+      winnerId: player2.id,
+      loserId: player1.id,
+      reason: 'points',
+      finalScores: [score1, score2],
+    }
   } else {
     // Draw - no winner
     return { winnerId: null, loserId: null, reason: 'draw', finalScores: [score1, score2] }

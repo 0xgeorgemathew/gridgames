@@ -10,6 +10,8 @@ import type {
   GameSettlementEvent,
   LiquidationEvent,
   Direction,
+  PositionCloseRejectedEvent,
+  ZeroSumPositionClosedEvent,
 } from '@/domains/tap-dancer/shared/trading.types'
 import type { Toast } from '@/platform/ui/ToastNotifications'
 
@@ -151,10 +153,8 @@ export interface TradingState
   joinWaitingPool: (playerName: string, walletAddress?: string) => void
   leaveWaitingPool: () => void
   selectOpponent: (opponentSocketId: string) => void
-  handlePositionClosed: (data: {
-    positionId: string
-    closePrice: number
-    realizedPnl: number
-    playerId: string
-  }) => void
+  // Zero-sum: Updated to use new event type
+  handlePositionClosed: (data: ZeroSumPositionClosedEvent) => void
+  // Zero-sum: New handler for close rejection
+  handlePositionCloseRejected: (data: PositionCloseRejectedEvent) => void
 }

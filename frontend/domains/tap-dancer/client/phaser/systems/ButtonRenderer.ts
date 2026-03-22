@@ -13,7 +13,7 @@ export const BUTTON_CONFIG = {
     darkCore: 0x001a12, // Very dark teal core
     edgeColor: 0x00ff88, // Sharp neon edge
     radius: 44,
-    label: 'LONG',
+    label: 'UP',
   },
   short: {
     color: 0xff2266, // Hot pink-red neon
@@ -21,7 +21,7 @@ export const BUTTON_CONFIG = {
     darkCore: 0x1a0812, // Very dark magenta core
     edgeColor: 0xff6699, // Sharp neon edge
     radius: 44,
-    label: 'SHORT',
+    label: 'DOWN',
   },
 } as const
 

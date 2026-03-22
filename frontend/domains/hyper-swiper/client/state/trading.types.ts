@@ -12,6 +12,8 @@ import type {
   Position,
   GameSettlementEvent,
   LiquidationEvent,
+  PositionCloseRejectedEvent,
+  ZeroSumPositionClosedEvent,
 } from '@/domains/hyper-swiper/shared/trading.types'
 import type { Toast } from '@/platform/ui/ToastNotifications'
 
@@ -154,10 +156,8 @@ export interface TradingState
   leaveWaitingPool: () => void
   selectOpponent: (opponentSocketId: string) => void
   closePosition: (positionId: string) => void
-  handlePositionClosed: (data: {
-    positionId: string
-    closePrice: number
-    realizedPnl: number
-    playerId: string
-  }) => void
+  // Zero-sum: Updated to use new event type
+  handlePositionClosed: (data: ZeroSumPositionClosedEvent) => void
+  // Zero-sum: New handler for close rejection
+  handlePositionCloseRejected: (data: PositionCloseRejectedEvent) => void
 }

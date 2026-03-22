@@ -209,17 +209,13 @@ export function createMatchStore(gameId: string) {
 
     updatePlayerReadyState: (playerId: string, readyState: ReadyState) => {
       const { players } = get()
-      const updatedPlayers = players.map((p) =>
-        p.id === playerId ? { ...p, readyState } : p
-      )
+      const updatedPlayers = players.map((p) => (p.id === playerId ? { ...p, readyState } : p))
       set({ players: updatedPlayers })
     },
 
     updatePlayerFundingState: (playerId: string, fundingState: FundingState) => {
       const { players } = get()
-      const updatedPlayers = players.map((p) =>
-        p.id === playerId ? { ...p, fundingState } : p
-      )
+      const updatedPlayers = players.map((p) => (p.id === playerId ? { ...p, fundingState } : p))
       set({ players: updatedPlayers })
     },
   }))

@@ -15,6 +15,7 @@ export type SocketErrorCode =
   | 'POSITION_NOT_FOUND'
   | 'UNAUTHORIZED_POSITION'
   | 'CLOSE_POSITION_FAILED'
+  | 'CLOSE_REJECTED_PREDICTION_WRONG' // Zero-sum: close rejected because prediction not correct
   | 'OPPONENT_UNAVAILABLE'
   | 'NOT_IN_WAITING_POOL'
   | 'DURATION_MISMATCH'
@@ -26,6 +27,45 @@ export interface SocketErrorEvent {
   code: SocketErrorCode
   message: string
   details?: Record<string, unknown>
+}
+
+// =============================================================================
+// ZERO-SUM EVENT TYPES
+// =============================================================================
+
+/**
+ * Zero-sum position close rejection reason
+ */
+export type CloseRejectionReason = 'price_not_above_open' | 'price_not_below_open'
+
+/**
+ * Zero-sum position close rejected event
+ * Emitted when a player tries to close but prediction is not correct
+ */
+export interface PositionCloseRejectedEvent {
+  positionId: string
+  playerId: string
+  openPrice: number
+  currentPrice: number
+  isUp: boolean
+  reason: CloseRejectionReason
+  isPredictionCorrect: false
+}
+
+/**
+ * Zero-sum position closed event
+ * Emitted when a position is successfully closed with a transfer
+ */
+export interface ZeroSumPositionClosedEvent {
+  positionId: string
+  playerId: string
+  closePrice: number
+  openPrice: number
+  isPredictionCorrect: true
+  isUp: boolean
+  amountTransferred: number
+  winnerId: string
+  loserId: string
 }
 
 // =============================================================================
@@ -139,7 +179,7 @@ export interface PositionSettlementResult {
   positionId: string
   playerId: string
   playerName: string
-  isLong: boolean
+  isUp: boolean
   leverage: number
   collateral: number
   openPrice: number
@@ -168,7 +208,7 @@ export interface GameSettlementData {
     playerId: string
     playerName: string
     winningBalance: number
-  } | null
+  }
 }
 
 /** @deprecated Not used in zero-sum matches */
@@ -176,7 +216,7 @@ export interface LiquidationEvent {
   positionId: string
   playerId: string
   playerName: string
-  isLong: boolean
+  isUp: boolean
   leverage: number
   collateral: number
   openPrice: number

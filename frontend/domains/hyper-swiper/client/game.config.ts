@@ -14,7 +14,7 @@ export const CLIENT_GAME_CONFIG = {
   // Kept for backward compatibility during migration
   // =============================================================================
   /** @deprecated Use STAKE_AMOUNT instead */
-  STARTING_BALANCE: 100,
+  STARTING_BALANCE: 10,
   /** @deprecated Not used in zero-sum matches */
   POSITION_COLLATERAL: 1,
   /** @deprecated Not used in zero-sum matches */

@@ -23,7 +23,6 @@ export const GameOverModal = React.memo(function GameOverModal() {
   if (!showModal || !gameOverData) return null
 
   const isWinner = gameOverData.winnerId === localPlayerId
-  const isTie = gameOverData.winnerId === null
 
   const localPlayerResult = gameSettlement?.playerResults?.find((r) => r.playerId === localPlayerId)
   const opponentResult = gameSettlement?.playerResults?.find((r) => r.playerId !== localPlayerId)
@@ -39,9 +38,6 @@ export const GameOverModal = React.memo(function GameOverModal() {
   const opponentFinalBalance = opponentResult?.finalBalance ?? opponent?.dollars ?? 0
 
   function getResultStyle(): { text: string; colorClass: string } {
-    if (isTie) {
-      return { text: 'TIE', colorClass: 'text-white' }
-    }
     if (isWinner) {
       return { text: 'VICTORY', colorClass: 'text-tron-cyan' }
     }
@@ -76,20 +72,18 @@ export const GameOverModal = React.memo(function GameOverModal() {
           >
             {resultStyle.text}
           </h2>
-          {!isTie && gameOverData.winnerName && (
-            <div className="text-white/50 mt-1 text-[10px] tracking-[0.2em] flex items-center justify-center gap-1.5">
-              <PlayerName
-                username={
-                  !gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
-                }
-                address={
-                  gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
-                }
-                className="text-white/70"
-              />
-              <span>WINS</span>
-            </div>
-          )}
+          <div className="text-white/50 mt-1 text-[10px] tracking-[0.2em] flex items-center justify-center gap-1.5">
+            <PlayerName
+              username={
+                !gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
+              }
+              address={
+                gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
+              }
+              className="text-white/70"
+            />
+            <span>WINS</span>
+          </div>
         </m.div>
 
         <m.div
@@ -103,7 +97,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
             pnl={localTotalPnl}
             balance={localFinalBalance}
             positions={localPositionCount}
-            isHighlight={isWinner || isTie}
+            isHighlight={isWinner}
             highlightColor="cyan"
           />
           <PlayerRow
@@ -124,7 +118,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
             pnl={opponentTotalPnl}
             balance={opponentFinalBalance}
             positions={opponentPositionCount}
-            isHighlight={!isWinner && !isTie}
+            isHighlight={!isWinner}
             highlightColor="cyan"
           />
         </m.div>

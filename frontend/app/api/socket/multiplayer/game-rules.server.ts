@@ -1,6 +1,21 @@
 // =============================================================================
 // GAME RULES DISPATCHER
 // Dispatches authoritative actions to the correct game reducer
+//
+// ⚠️  NON-LIVE CODE - DO NOT USE FOR PRODUCTION GAMEPLAY ⚠️
+//
+// This file is part of the match-domain path that is NOT currently wired
+// end-to-end. The live product path uses the patched legacy events in
+// index.ts and settlement.server.ts instead.
+//
+// This file is kept for future match-domain cutover. See:
+// - plans/2026-03-22-zero-sum-regression-fix-plan.md
+//
+// To use this path, the following would need to be completed:
+// 1. Wire match_created, match_started, match_action_applied events
+// 2. Update clients to consume new match lifecycle events
+// 3. Remove legacy trading event paths
+//
 // =============================================================================
 
 import type { MatchId, AuthoritativeAction } from '@/domains/match/types'

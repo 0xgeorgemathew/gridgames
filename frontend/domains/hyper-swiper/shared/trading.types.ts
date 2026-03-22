@@ -69,8 +69,8 @@ export interface HyperSwiperPlayerScore {
   playerId: string
   playerName: string
   slices: number // Total coins sliced
-  longSlices: number
-  shortSlices: number
+  upSlices: number
+  downSlices: number
 }
 
 /**
@@ -181,7 +181,7 @@ export interface Position {
   id: string
   playerId: string
   playerName: string
-  isLong: boolean
+  isUp: boolean
   leverage: number
   collateral: number
   openPrice: number
@@ -197,7 +197,7 @@ export interface PositionOpenedEvent {
   positionId: string
   playerId: string
   playerName: string
-  isLong: boolean
+  isUp: boolean
   leverage: number
   collateral: number
   openPrice: number
@@ -208,7 +208,7 @@ export interface PositionSettlementResult {
   positionId: string
   playerId: string
   playerName: string
-  isLong: boolean
+  isUp: boolean
   leverage: number
   collateral: number
   openPrice: number
@@ -244,7 +244,7 @@ export interface LiquidationEvent {
   positionId: string
   playerId: string
   playerName: string
-  isLong: boolean
+  isUp: boolean
   leverage: number
   collateral: number
   openPrice: number
@@ -257,9 +257,49 @@ export interface LiquidationEvent {
 export type BalanceUpdatedEvent = {
   playerId: string
   newBalance: number
-  reason: 'position_opened' | 'position_closed'
+  reason: 'position_opened' | 'position_closed' | 'position_won' | 'position_lost'
   positionId?: string
   collateral?: number
+  amountTransferred?: number // Zero-sum: amount transferred on close
+}
+
+// =============================================================================
+// ZERO-SUM EVENT TYPES
+// =============================================================================
+
+/**
+ * Zero-sum position close rejection reason
+ */
+export type CloseRejectionReason = 'price_not_above_open' | 'price_not_below_open'
+
+/**
+ * Zero-sum position close rejected event
+ * Emitted when a player tries to close but prediction is not correct
+ */
+export interface PositionCloseRejectedEvent {
+  positionId: string
+  playerId: string
+  openPrice: number
+  currentPrice: number
+  isUp: boolean
+  reason: CloseRejectionReason
+  isPredictionCorrect: false
+}
+
+/**
+ * Zero-sum position closed event
+ * Emitted when a position is successfully closed with a transfer
+ */
+export interface ZeroSumPositionClosedEvent {
+  positionId: string
+  playerId: string
+  closePrice: number
+  openPrice: number
+  isPredictionCorrect: true
+  isUp: boolean
+  amountTransferred: number
+  winnerId: string
+  loserId: string
 }
 
 /** @deprecated Use SocketErrorEvent from events.types instead */

@@ -99,10 +99,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                       TAP TO TRADE
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Tap <strong className="text-green-400 font-bold">UP to LONG</strong> (profit
-                      when price rises) or{' '}
-                      <strong className="text-red-400 font-bold">DOWN to SHORT</strong> (profit when
-                      price falls). Close positions before they liquidate!
+                      Tap <strong className="text-green-400 font-bold">UP</strong> (profit when
+                      price rises) or <strong className="text-red-400 font-bold">DOWN</strong>{' '}
+                      (profit when price falls). Close positions before they liquidate!
                     </p>
                   </m.div>
                 )}

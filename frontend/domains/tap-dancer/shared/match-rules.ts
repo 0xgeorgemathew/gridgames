@@ -1,6 +1,15 @@
 // =============================================================================
 // TAP DANCER MATCH RULES
 // Deterministic zero-sum reducer for Tap Dancer gameplay
+//
+// ⚠️  NON-LIVE CODE - DO NOT USE FOR PRODUCTION GAMEPLAY ⚠️
+//
+// This file is part of the match-domain path that is NOT currently wired
+// end-to-end. The live product path uses the patched legacy events in
+// index.ts and settlement.server.ts instead.
+//
+// See plans/2026-03-22-zero-sum-regression-fix-plan.md for context.
+//
 // =============================================================================
 
 import type { AuthoritativeAction } from '@/domains/match/types'
@@ -14,7 +23,7 @@ import type { AuthoritativeAction } from '@/domains/match/types'
  */
 export interface TapDancerTapAction {
   type: 'tap'
-  direction: 'long' | 'short'
+  direction: 'up' | 'down'
   timestamp: number
 }
 
@@ -35,8 +44,8 @@ export interface TapDancerPlayerState {
   name: string
   score: number
   tapsByDirection: {
-    long: number
-    short: number
+    up: number
+    down: number
   }
 }
 
@@ -101,8 +110,8 @@ export function createInitialTapDancerState(
   return {
     matchId,
     players: [
-      { id: player1.id, name: player1.name, score: 0, tapsByDirection: { long: 0, short: 0 } },
-      { id: player2.id, name: player2.name, score: 0, tapsByDirection: { long: 0, short: 0 } },
+      { id: player1.id, name: player1.name, score: 0, tapsByDirection: { up: 0, down: 0 } },
+      { id: player2.id, name: player2.name, score: 0, tapsByDirection: { up: 0, down: 0 } },
     ],
     startedAt: Date.now(),
     endedAt: null,
@@ -152,7 +161,8 @@ export function applyTapDancerAction(
 
       // Calculate points (base + combo bonus)
       const tapsInDirection = player.tapsByDirection[direction]
-      const comboBonus = tapsInDirection >= COMBO_THRESHOLD && (tapsInDirection + 1) % COMBO_THRESHOLD === 0 ? 1 : 0
+      const comboBonus =
+        tapsInDirection >= COMBO_THRESHOLD && (tapsInDirection + 1) % COMBO_THRESHOLD === 0 ? 1 : 0
       const pointsEarned = BASE_POINTS_PER_TAP + comboBonus
 
       // Update player score
@@ -228,11 +238,26 @@ export function resolveTapDancerOutcome(
   const score2 = player2.score
 
   if (score1 > score2) {
-    return { winnerId: player1.id, loserId: player2.id, reason: 'points', finalScores: [score1, score2] }
+    return {
+      winnerId: player1.id,
+      loserId: player2.id,
+      reason: 'points',
+      finalScores: [score1, score2],
+    }
   } else if (score2 > score1) {
-    return { winnerId: player2.id, loserId: player1.id, reason: 'points', finalScores: [score1, score2] }
+    return {
+      winnerId: player2.id,
+      loserId: player1.id,
+      reason: 'points',
+      finalScores: [score1, score2],
+    }
   } else {
-    // Draw - no winner
-    return { winnerId: null, loserId: null, reason: 'draw', finalScores: [score1, score2] }
+    // Frozen tiebreaker: player1 wins exact-score ties
+    return {
+      winnerId: player1.id,
+      loserId: player2.id,
+      reason: 'points',
+      finalScores: [score1, score2],
+    }
   }
 }

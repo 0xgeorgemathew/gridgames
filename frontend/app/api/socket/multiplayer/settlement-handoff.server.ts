@@ -1,6 +1,15 @@
 // =============================================================================
 // SETTLEMENT HANDOFF
 // Temporary bridge interface for settlement
+//
+// ⚠️  NON-LIVE CODE - DO NOT USE FOR PRODUCTION GAMEPLAY ⚠️
+//
+// This file is part of the match-domain path that is NOT currently wired
+// end-to-end. The live product path uses the patched legacy events in
+// index.ts and settlement.server.ts instead.
+//
+// See plans/2026-03-22-zero-sum-regression-fix-plan.md for context.
+//
 // =============================================================================
 
 import type { ResultArtifact, SettlementHandoffState, MatchId } from '@/domains/match/types'
@@ -25,7 +34,9 @@ const settlementStore = new Map<MatchId, SettlementHandoffResult>()
  * Temporary settlement handoff implementation
  * Currently returns 'noop' or 'recorded' for testing
  */
-export async function initiateSettlementHandoff(artifact: ResultArtifact): Promise<SettlementHandoffResult> {
+export async function initiateSettlementHandoff(
+  artifact: ResultArtifact
+): Promise<SettlementHandoffResult> {
   const matchId = artifact.matchId
 
   console.log(`[SettlementHandoff] Initiating handoff for match ${matchId}`)

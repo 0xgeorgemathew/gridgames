@@ -38,15 +38,12 @@ export function storeMatchResult(artifact: ResultArtifact): void {
 
   resultStore.set(artifact.matchId, storedResult)
 
-  console.log(
-    `[ResultStore] Stored result for match ${artifact.matchId}:`,
-    {
-      winner: artifact.outcome.winnerId,
-      reason: artifact.outcome.reason,
-      winnerAmount: artifact.outcome.winnerAmount,
-      actionLogHash: artifact.actionLogHash.slice(0, 8) + '...',
-    }
-  )
+  console.log(`[ResultStore] Stored result for match ${artifact.matchId}:`, {
+    winner: artifact.outcome.winnerId,
+    reason: artifact.outcome.reason,
+    winnerAmount: artifact.outcome.winnerAmount,
+    actionLogHash: artifact.actionLogHash.slice(0, 8) + '...',
+  })
 }
 
 /**

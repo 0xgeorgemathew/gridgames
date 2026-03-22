@@ -5,9 +5,9 @@
 
 /**
  * Stake amount for zero-sum winner-takes-all matches
- * Both players stake this amount, winner takes all ($20 total pot)
+ * Both players stake this amount, winner takes all ($2 total pot)
  */
-export const STAKE_AMOUNT = 10
+export const STAKE_AMOUNT = 1
 
 /**
  * Number of players per match (1v1)
@@ -38,6 +38,6 @@ export const CLEANUP_INTERVAL_MS = 30000
  * Assert match configuration invariants at runtime
  */
 export function assertMatchConfigInvariants(): void {
-  console.assert(STAKE_AMOUNT === 10, 'STAKE_AMOUNT must be $10')
+  console.assert(STAKE_AMOUNT === 1, 'STAKE_AMOUNT must be $1')
   console.assert(PLAYER_COUNT === 2, 'PLAYER_COUNT must be 2 for 1v1 matches')
 }

@@ -2,6 +2,7 @@ import { Scene, GameObjects, Tweens } from 'phaser'
 import {
   CARD_COLORS,
   getCardDimensions,
+  getCompactCardDimensions,
   type CardVisualState,
 } from '../systems/PositionCardRenderer'
 import type { Position } from '@/domains/tap-dancer/shared/trading.types'
@@ -13,9 +14,15 @@ interface PositionCardConfig {
   onClose: (positionId: string) => void
 }
 
-/**
- * Format price for display
- */
+type PositionCardLayoutMode = 'expanded' | 'compact'
+
+interface CloseUiState {
+  canClose: boolean
+  statusLabel: string
+  ctaLabel: string
+  visualState: CardVisualState
+}
+
 function formatPrice(price: number): string {
   return price.toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -23,22 +30,7 @@ function formatPrice(price: number): string {
   })
 }
 
-/**
- * Format PnL percentage for display
- */
-function formatPnlPercent(value: number): string {
-  const formatted = (value / 100).toLocaleString('en-US', {
-    style: 'percent',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-  return value >= 0 ? `+${formatted}` : formatted
-}
-
-/**
- * Format PnL currency for display
- */
-function formatPnlCurrency(value: number): string {
+function formatCurrency(value: number): string {
   return value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -51,58 +43,113 @@ export class PositionCard extends GameObjects.Container {
   private positionData: Position
   private onClose: (positionId: string) => void
 
-  private background!: GameObjects.Image | GameObjects.Graphics
+  private expandedBackground!: GameObjects.Image | GameObjects.Graphics
+  private compactBackground!: GameObjects.Image | GameObjects.Graphics
   private directionIcon!: GameObjects.Image
   private entryPriceText!: GameObjects.Text
-  private leverageBadge?: GameObjects.Text
   private directionBadge!: GameObjects.Text
-  private pnlText!: GameObjects.Text
-  private closeButton!: GameObjects.Text
+  private statusText!: GameObjects.Text
+  private closeButton!: GameObjects.Image
   private closeZone!: GameObjects.Zone
 
   private currentVisualState: CardVisualState = 'near_zero'
-  private isClosing: boolean = false
-  private closingReason?: 'manual' | 'liquidated'
-  private realizedPnl?: number
-
-  private enterTween?: Tweens.Tween
-  private pulseTween?: Tweens.Tween
-  private targetY: number
-
-  /**
-   * Get leverage badge colors based on leverage level
-   */
-  private getLeverageColors(leverage: number): { bg: string; text: string; border: string } {
-    if (leverage === 2) {
-      return { bg: '#166534', text: '#86efac', border: '#22c55e' } // Green
-    } else if (leverage === 5) {
-      return { bg: '#713f12', text: '#fde047', border: '#eab308' } // Yellow
-    } else if (leverage === 10) {
-      return { bg: '#7f1d1d', text: '#fca5a5', border: '#ef4444' } // Red
-    }
-    return { bg: '#164e63', text: '#67e8f9', border: '#06b6d4' } // Cyan (default)
+  private currentLayoutMode: PositionCardLayoutMode = 'expanded'
+  private latestCloseUiState: CloseUiState = {
+    canClose: false,
+    statusLabel: 'Waiting for move',
+    ctaLabel: 'LOCKED',
+    visualState: 'near_zero',
   }
 
-  /**
-   * Draw fallback background using Graphics when texture doesn't exist
-   */
-  private drawFallbackBackground(): void {
-    const dims = getCardDimensions()
-    const { width, height, borderRadius } = dims
+  private isClosing = false
+  private enterTween?: Tweens.Tween
+  private pulseTween?: Tweens.Tween
+  private closeCueTween?: Tweens.Tween
+  private compactTimer?: Phaser.Time.TimerEvent
+  private targetY: number
+  private expandedX: number
+  private compactX: number
+  private expandedCardWidth = 0
+  private isCloseButtonClosable?: boolean
+
+  private readonly layoutPositions: {
+    expandedIconX: number
+    expandedDirectionX: number
+    expandedEntryX: number
+    compactDirectionX: number
+    compactStatusX: number
+    compactButtonX: number
+    closeZoneWidth: number
+    closeZoneHeight: number
+  }
+
+  private updateExpandedLayout(): void {
+    const expandedDims = getCardDimensions()
+    const maxExpandedWidth = Math.max(180, (this.cardScene.cameras.main?.width ?? 390) - 32)
+    const contentWidth =
+      expandedDims.padding * 2 +
+      expandedDims.iconSize +
+      expandedDims.gap +
+      this.directionBadge.width +
+      expandedDims.gap +
+      this.entryPriceText.width
+
+    this.expandedCardWidth = Math.min(Math.max(contentWidth, 180), maxExpandedWidth)
+
+    const contentLeft = -this.expandedCardWidth / 2 + expandedDims.padding
+    this.layoutPositions.expandedIconX = contentLeft + expandedDims.iconSize / 2
+    this.layoutPositions.expandedDirectionX =
+      this.layoutPositions.expandedIconX +
+      expandedDims.iconSize / 2 +
+      expandedDims.gap +
+      this.directionBadge.width / 2
+    this.layoutPositions.expandedEntryX =
+      this.layoutPositions.expandedDirectionX + this.directionBadge.width / 2 + expandedDims.gap
+
+    this.directionIcon.setPosition(this.layoutPositions.expandedIconX, 0)
+    this.directionIcon.setDisplaySize(expandedDims.iconSize, expandedDims.iconSize)
+    this.directionBadge.setPosition(this.layoutPositions.expandedDirectionX, 0)
+    this.entryPriceText.setPosition(this.layoutPositions.expandedEntryX, 0)
+
+    if ('setDisplaySize' in this.expandedBackground) {
+      this.expandedBackground.setDisplaySize(
+        this.expandedCardWidth + expandedDims.glowPadding * 2,
+        expandedDims.height + expandedDims.glowPadding * 2
+      )
+    }
+
+    this.setSize(
+      this.expandedCardWidth + expandedDims.glowPadding * 2,
+      expandedDims.height + expandedDims.glowPadding * 2
+    )
+  }
+
+  private drawFallbackBackground(
+    compact: boolean = false
+  ): GameObjects.Image | GameObjects.Graphics {
+    const dims = compact ? getCompactCardDimensions() : getCardDimensions()
+    const { width, height, borderRadius, glowPadding } = dims
     const colors = CARD_COLORS[this.currentVisualState]
 
     const bg = this.cardScene.add.graphics()
-
-    // Background fill
     bg.fillStyle(colors.background, colors.backgroundAlpha)
-    bg.fillRoundedRect(-width / 2, -height / 2, width, height, borderRadius)
-
-    // Border
+    bg.fillRoundedRect(
+      -width / 2 - glowPadding,
+      -height / 2 - glowPadding,
+      width + glowPadding * 2,
+      height + glowPadding * 2,
+      borderRadius
+    )
     bg.lineStyle(2, colors.borderColor, colors.borderAlpha)
-    bg.strokeRoundedRect(-width / 2, -height / 2, width, height, borderRadius)
+    bg.strokeRoundedRect(
+      -width / 2 - glowPadding,
+      -height / 2 - glowPadding,
+      width + glowPadding * 2,
+      height + glowPadding * 2,
+      borderRadius
+    )
 
-    this.background = bg
-    this.add(bg)
+    return bg
   }
 
   constructor(scene: Scene, config: PositionCardConfig) {
@@ -112,55 +159,85 @@ export class PositionCard extends GameObjects.Container {
     this.cardScene = scene
     this.positionData = config.position
     this.onClose = config.onClose
+    this.expandedX = config.x
 
-    const dims = getCardDimensions()
-    const { width, height, borderRadius, padding, glowPadding, iconSize, gap } = dims
-    const { entryFontSize, leverageFontSize, badgeFontSize, pnlFontSize, closeFontSize } = dims
+    const expandedDims = getCardDimensions()
+    const compactDims = getCompactCardDimensions()
+    const compactButtonSize = Math.max(20, compactDims.height - compactDims.padding * 2)
+    this.compactX =
+      (scene.cameras.main?.width ?? 390) - compactDims.width / 2 - compactDims.glowPadding - 8
 
-    // =========================================================================
-    // LAYER 1: BACKGROUND
-    // =========================================================================
-    const textureKey = `card_${this.currentVisualState}`
-    const textureExists = this.cardScene.textures.exists(textureKey)
+    const { width, glowPadding, padding, iconSize, gap, badgeFontSize, pnlFontSize } = expandedDims
+    const iconX = 0
+    const closeZoneWidth = 70
+    const closeZoneHeight = Math.max(30, compactDims.iconSize + 8)
 
-    if (textureExists) {
-      this.background = scene.add.image(0, 0, textureKey)
-      this.background.setOrigin(0.5, 0.5)
+    const compactLeft = -compactDims.width / 2
+    const compactRight = compactDims.width / 2
+    const compactDirectionX = compactLeft + compactDims.padding + compactDims.iconSize / 2
+    const compactButtonX = compactRight - compactDims.padding - compactButtonSize / 2
+    const compactStatusX = compactDirectionX + compactDims.iconSize / 2 + compactDims.gap
 
-      const displayedWidth = width + glowPadding * 2
-      const displayedHeight = height + glowPadding * 2
-      this.background.setDisplaySize(displayedWidth, displayedHeight)
-
-      this.add(this.background)
-    } else {
-      this.drawFallbackBackground()
+    this.layoutPositions = {
+      expandedIconX: 0,
+      expandedDirectionX: 0,
+      expandedEntryX: 0,
+      compactDirectionX,
+      compactStatusX,
+      compactButtonX,
+      closeZoneWidth,
+      closeZoneHeight,
     }
 
-    // =========================================================================
-    // LAYER 2: DIRECTION ICON (left side)
-    // =========================================================================
-    const contentLeft = -width / 2 + glowPadding
-    const iconX = contentLeft + padding + iconSize / 2
+    const textureKey = `card_${this.currentVisualState}`
+    if (this.cardScene.textures.exists(textureKey)) {
+      this.expandedBackground = scene.add.image(0, 0, textureKey)
+      this.expandedBackground.setOrigin(0.5, 0.5)
+      this.expandedBackground.setDisplaySize(
+        width + glowPadding * 2,
+        expandedDims.height + glowPadding * 2
+      )
+      this.add(this.expandedBackground)
+    } else {
+      this.expandedBackground = this.drawFallbackBackground(false)
+      this.add(this.expandedBackground)
+      this.sendToBack(this.expandedBackground)
+    }
+
+    const compactTextureKey = `card_compact_${this.currentVisualState}`
+    if (this.cardScene.textures.exists(compactTextureKey)) {
+      this.compactBackground = scene.add.image(0, 0, compactTextureKey)
+      this.compactBackground.setOrigin(0.5, 0.5)
+      this.compactBackground.setDisplaySize(
+        compactDims.width + compactDims.glowPadding * 2,
+        compactDims.height + compactDims.glowPadding * 2
+      )
+      this.compactBackground.setVisible(false)
+      this.compactBackground.setAlpha(0)
+      this.add(this.compactBackground)
+    } else {
+      this.compactBackground = this.drawFallbackBackground(true)
+      this.compactBackground.setVisible(false)
+      this.compactBackground.setAlpha(0)
+      this.add(this.compactBackground)
+      this.sendToBack(this.compactBackground)
+    }
+
     this.directionIcon = scene.add.image(
       iconX,
       0,
-      this.positionData.isLong ? 'indicator_long' : 'indicator_short'
+      this.positionData.isUp ? 'indicator_up' : 'indicator_down'
     )
     this.directionIcon.setDisplaySize(iconSize, iconSize)
     this.add(this.directionIcon)
 
-    // =========================================================================
-    // LAYER 3: ENTRY PRICE (center-left, single row)
-    // =========================================================================
-    const entrySectionX = iconX + iconSize / 2 + gap
-
     this.entryPriceText = scene.add.text(
-      entrySectionX,
+      iconX + iconSize / 2 + gap,
       0,
-      `$${formatPrice(this.positionData.openPrice)}`,
+      `ENTRY $${formatPrice(this.positionData.openPrice)}`,
       {
         fontFamily: 'monospace',
-        fontSize: `${entryFontSize}px`,
+        fontSize: `${expandedDims.entryFontSize}px`,
         fontStyle: 'bold',
         color: '#00f3ff',
       }
@@ -169,286 +246,467 @@ export class PositionCard extends GameObjects.Container {
     this.entryPriceText.setShadow(0, 0, '#00f3ff', 8, true, true)
     this.add(this.entryPriceText)
 
-    // =========================================================================
-    // LAYER 4: LEVERAGE BADGE (after entry price, single row)
-    // =========================================================================
-    const leverageX = entrySectionX + this.entryPriceText.width + gap
-    if (this.positionData.leverage > 1) {
-      const colors = this.getLeverageColors(this.positionData.leverage)
-      this.leverageBadge = scene.add.text(leverageX, 0, `${this.positionData.leverage}X`, {
-        fontFamily: 'monospace',
-        fontSize: `${leverageFontSize}px`,
-        fontStyle: 'bold',
-        color: colors.text,
-        backgroundColor: colors.bg,
-        padding: { x: 4, y: 2 },
-      })
-      this.leverageBadge.setOrigin(0, 0.5)
-      this.add(this.leverageBadge)
-    }
-
-    // =========================================================================
-    // LAYER 5: LONG/SHORT BADGE (after leverage, single row)
-    // =========================================================================
-    let directionX = entrySectionX + this.entryPriceText.width + gap
-    if (this.positionData.leverage > 1 && this.leverageBadge) {
-      directionX = leverageX + this.leverageBadge.width + gap
-    }
-    const badgeColor = this.positionData.isLong
-      ? { bg: '#14532d', text: '#4ade80', border: '#22c55e' }
-      : { bg: '#450a0a', text: '#f87171', border: '#ef4444' }
-
-    this.directionBadge = scene.add.text(
-      directionX,
-      0,
-      this.positionData.isLong ? 'LONG' : 'SHORT',
-      {
-        fontFamily: 'monospace',
-        fontSize: `${badgeFontSize}px`,
-        fontStyle: 'bold',
-        color: badgeColor.text,
-        backgroundColor: badgeColor.bg,
-        padding: { x: 6, y: 4 },
-      }
-    )
-    this.directionBadge.setOrigin(0, 0.5)
+    const badgeColor = this.positionData.isUp
+      ? { text: '#4ade80', glow: '#4ade80' }
+      : { text: '#f87171', glow: '#f87171' }
+    this.directionBadge = scene.add.text(0, 0, this.positionData.isUp ? 'UP' : 'DOWN', {
+      fontFamily: 'monospace',
+      fontSize: `${badgeFontSize}px`,
+      fontStyle: 'bold',
+      color: badgeColor.text,
+    })
+    this.directionBadge.setOrigin(0.5, 0.5)
+    this.directionBadge.setShadow(0, 0, badgeColor.glow, 6, true, true)
     this.add(this.directionBadge)
 
-    // =========================================================================
-    // LAYER 6: PNL TEXT (right side, single row)
-    // =========================================================================
-    const pnlOffset = Math.round(width * 0.147)
-    this.pnlText = scene.add.text(width / 2 - pnlOffset, 0, '+0.00%', {
-      fontFamily: 'monospace',
-      fontSize: `${pnlFontSize}px`,
-      fontStyle: 'bold',
-      color: '#00f3ff',
-    })
-    this.pnlText.setOrigin(1, 0.5)
-    this.add(this.pnlText)
+    this.updateExpandedLayout()
 
-    // =========================================================================
-    // LAYER 7: CLOSE BUTTON (X icon, right side, single row)
-    // =========================================================================
-    const closeOffset = Math.round(width * 0.042)
-    this.closeButton = scene.add.text(width / 2 - closeOffset, 0, '×', {
+    this.statusText = scene.add.text(this.layoutPositions.compactStatusX, 0, 'Waiting', {
       fontFamily: 'monospace',
-      fontSize: `${closeFontSize}px`,
+      fontSize: `${compactDims.fontSize}px`,
       fontStyle: 'bold',
-      color: '#64748b',
-      backgroundColor: '#1e293b',
-      padding: { x: 6, y: 4 },
+      color: '#94a3b8',
     })
+    this.statusText.setOrigin(0, 0.5)
+    this.statusText.setAlpha(0)
+    this.statusText.setVisible(false)
+    this.add(this.statusText)
+
+    const buttonSize = compactButtonSize
+    this.closeButton = scene.add.image(this.layoutPositions.compactButtonX, 0, 'locked_icon')
+    this.closeButton.setDisplaySize(buttonSize, buttonSize)
     this.closeButton.setOrigin(0.5, 0.5)
+    this.closeButton.setAlpha(0)
+    this.closeButton.setVisible(false)
     this.add(this.closeButton)
 
-    // =========================================================================
-    // LAYER 8: CLOSE ZONE (invisible hit area for close button)
-    // =========================================================================
-    const closeZoneSize = Math.round(iconSize * 1.3)
-    this.closeZone = scene.add.zone(width / 2 - closeOffset, 0, closeZoneSize, closeZoneSize)
-    this.closeZone.setInteractive({ useHandCursor: true })
+    this.closeZone = scene.add.zone(this.layoutPositions.compactButtonX, 0, buttonSize, buttonSize)
     this.closeZone.on('pointerdown', this.handleCloseTap, this)
-    this.closeZone.on('pointerover', () => {
-      this.closeButton.setColor('#f87171')
-      this.closeButton.setBackgroundColor('#374151')
-    })
-    this.closeZone.on('pointerout', () => {
-      this.closeButton.setColor('#64748b')
-      this.closeButton.setBackgroundColor('#1e293b')
-    })
+    this.closeZone.on('pointerover', this.handlePointerOver, this)
+    this.closeZone.on('pointerout', this.handlePointerOut, this)
+    this.closeZone.disableInteractive()
     this.add(this.closeZone)
 
-    // Set depth for layering
     this.setDepth(20)
-
-    // Ensure container size matches displayed size for proper hit testing
-    this.setSize(width + glowPadding * 2, height + glowPadding * 2)
-
-    // Play enter animation
     this.playEnterAnimation()
+    this.updateCloseAvailability(this.positionData.openPrice)
   }
 
-  /**
-   * Handle close tap
-   */
+  private handlePointerOver(): void {
+    if (!this.latestCloseUiState.canClose || this.isClosing) return
+    this.stopCloseButtonCue()
+    this.closeButton.setAlpha(1)
+    this.closeButton.setTint(0xa7f3d0)
+  }
+
+  private handlePointerOut(): void {
+    this.closeButton.clearTint()
+    if (this.latestCloseUiState.canClose) {
+      this.startCloseButtonCue()
+    }
+  }
+
   private handleCloseTap(): void {
-    if (this.isClosing) return
+    if (this.isClosing || !this.latestCloseUiState.canClose) return
     this.onClose(this.positionData.id)
   }
 
-  /**
-   * Set target Y position to prevent competing tweens
-   */
-  setTargetY(y: number): void {
-    if (this.targetY === y) return
-    this.targetY = y
+  private getCloseUiState(currentPrice: number): CloseUiState {
+    const isPredictionCorrect = this.positionData.isUp
+      ? currentPrice > this.positionData.openPrice
+      : currentPrice < this.positionData.openPrice
+    if (isPredictionCorrect) {
+      return {
+        canClose: true,
+        statusLabel: 'Can close',
+        ctaLabel: 'CLOSE',
+        visualState: 'profit',
+      }
+    }
+    const isAtEntry = currentPrice === this.positionData.openPrice
+    return {
+      canClose: false,
+      statusLabel: isAtEntry ? 'Waiting' : this.positionData.isUp ? 'Need up' : 'Need down',
+      ctaLabel: 'LOCKED',
+      visualState: isAtEntry ? 'near_zero' : 'loss',
+    }
+  }
+
+  private setVisualState(nextVisualState: CardVisualState): void {
+    if (this.currentVisualState === nextVisualState) return
+    this.currentVisualState = nextVisualState
+
+    if ('setTexture' in this.expandedBackground) {
+      this.expandedBackground.setTexture(`card_${nextVisualState}`)
+    } else {
+      this.remove(this.expandedBackground, true)
+      this.expandedBackground = this.drawFallbackBackground(false)
+      this.add(this.expandedBackground)
+      this.sendToBack(this.expandedBackground)
+    }
+
+    if ('setTexture' in this.compactBackground) {
+      this.compactBackground.setTexture(`card_compact_${nextVisualState}`)
+    } else {
+      this.remove(this.compactBackground, true)
+      this.compactBackground = this.drawFallbackBackground(true)
+      this.compactBackground.setVisible(this.currentLayoutMode === 'compact')
+      this.compactBackground.setAlpha(this.currentLayoutMode === 'compact' ? 1 : 0)
+      this.add(this.compactBackground)
+      this.sendToBack(this.compactBackground)
+    }
+  }
+
+  private applyCloseButtonState(canClose: boolean): void {
+    const compactDims = getCompactCardDimensions()
+    const buttonSize = Math.max(20, compactDims.height - compactDims.padding * 2)
+    const nextTexture = canClose ? 'close_icon' : 'locked_icon'
+
+    if (this.closeButton.texture.key !== nextTexture) {
+      this.closeButton.setTexture(nextTexture)
+    }
+
+    if (
+      this.closeButton.displayWidth !== buttonSize ||
+      this.closeButton.displayHeight !== buttonSize
+    ) {
+      this.closeButton.setDisplaySize(buttonSize, buttonSize)
+      this.closeZone.setSize(buttonSize, buttonSize)
+    }
+
+    if (this.isCloseButtonClosable === canClose) {
+      if (canClose && !this.closeZone.input?.enabled) {
+        this.closeZone.setInteractive({ useHandCursor: true })
+      }
+      if (!canClose && this.closeZone.input?.enabled) {
+        this.closeZone.disableInteractive()
+      }
+      if (canClose && this.currentLayoutMode === 'compact') {
+        this.startCloseButtonCue()
+      } else {
+        this.stopCloseButtonCue()
+      }
+      return
+    }
+
+    this.isCloseButtonClosable = canClose
+    this.closeButton.clearTint()
+
+    if (canClose) {
+      this.closeZone.setInteractive({ useHandCursor: true })
+      if (this.currentLayoutMode === 'compact') {
+        this.startCloseButtonCue()
+      }
+      return
+    }
+    this.stopCloseButtonCue()
+    this.closeZone.disableInteractive()
+  }
+
+  private startCloseButtonCue(): void {
+    if (this.isClosing || this.currentLayoutMode !== 'compact' || !this.closeButton.visible) return
+    if (this.closeCueTween) return
+
+    this.closeButton.setAlpha(1)
+    this.closeCueTween = this.cardScene.tweens.add({
+      targets: this.closeButton,
+      alpha: 0.72,
+      duration: 700,
+      ease: 'Sine.inOut',
+      yoyo: true,
+      repeat: -1,
+    })
+  }
+
+  private stopCloseButtonCue(): void {
+    this.closeCueTween?.destroy()
+    this.closeCueTween = undefined
+    this.closeButton.setAlpha(this.closeButton.visible ? 1 : this.closeButton.alpha)
+  }
+
+  private applyCompactContent(): void {
+    this.statusText.setText(this.latestCloseUiState.statusLabel)
+    this.statusText.setColor(this.latestCloseUiState.canClose ? '#4ade80' : '#94a3b8')
+    this.statusText.setShadow(
+      0,
+      0,
+      this.latestCloseUiState.canClose ? '#4ade80' : '#64748b',
+      6,
+      true,
+      true
+    )
+    this.applyCloseButtonState(this.latestCloseUiState.canClose)
+  }
+
+  private setLayoutMode(mode: PositionCardLayoutMode): void {
+    if (this.currentLayoutMode === mode || this.isClosing) return
+    this.currentLayoutMode = mode
+
+    if (mode === 'expanded') {
+      this.stopCloseButtonCue()
+      this.entryPriceText.setVisible(true)
+      this.statusText.setVisible(false)
+      this.closeButton.setVisible(false)
+      this.closeZone.disableInteractive()
+
+      this.cardScene.tweens.add({
+        targets: this,
+        x: this.expandedX,
+        duration: 300,
+        ease: 'Sine.out',
+      })
+
+      this.cardScene.tweens.add({
+        targets: this.compactBackground,
+        alpha: 0,
+        duration: 150,
+        ease: 'Sine.out',
+        onComplete: () => {
+          this.compactBackground.setVisible(false)
+        },
+      })
+
+      this.directionBadge.setVisible(true)
+      this.cardScene.tweens.add({
+        targets: this.directionBadge,
+        alpha: 1,
+        x: this.layoutPositions.expandedDirectionX,
+        duration: 180,
+        ease: 'Sine.out',
+      })
+
+      this.cardScene.tweens.add({
+        targets: this.directionIcon,
+        x: this.layoutPositions.expandedIconX,
+        duration: 180,
+        ease: 'Sine.out',
+      })
+      return
+    }
+
+    this.applyCompactContent()
+    this.statusText.setVisible(false)
+    this.closeButton.setVisible(true)
+    this.stopCloseButtonCue()
 
     this.cardScene.tweens.add({
       targets: this,
-      y: y,
+      x: this.compactX,
+      duration: 300,
+      ease: 'Sine.out',
+    })
+
+    this.compactBackground.setVisible(true)
+    this.cardScene.tweens.add({
+      targets: this.compactBackground,
+      alpha: 1,
+      duration: 150,
+      ease: 'Sine.out',
+    })
+
+    this.cardScene.tweens.add({
+      targets: this.expandedBackground,
+      alpha: 0,
+      duration: 150,
+      ease: 'Sine.out',
+      onComplete: () => {
+        this.expandedBackground.setVisible(false)
+        this.expandedBackground.setAlpha(1)
+      },
+    })
+
+    this.cardScene.tweens.add({
+      targets: [this.entryPriceText],
+      alpha: 0,
+      duration: 140,
+      ease: 'Sine.out',
+      onComplete: () => {
+        this.entryPriceText.setVisible(false)
+      },
+    })
+
+    this.cardScene.tweens.add({
+      targets: this.directionBadge,
+      alpha: 0,
+      duration: 140,
+      ease: 'Sine.out',
+      onComplete: () => {
+        this.directionBadge.setVisible(false)
+      },
+    })
+
+    this.cardScene.tweens.add({
+      targets: this.directionIcon,
+      x: this.layoutPositions.compactDirectionX,
+      duration: 180,
+      ease: 'Sine.out',
+    })
+
+    this.closeButton.setAlpha(0)
+    this.cardScene.tweens.add({
+      targets: this.closeButton,
+      alpha: 1,
+      duration: 180,
+      ease: 'Sine.out',
+      onComplete: () => {
+        if (this.latestCloseUiState.canClose) {
+          this.startCloseButtonCue()
+        }
+      },
+    })
+  }
+
+  private scheduleCompactTransition(): void {
+    this.compactTimer?.remove(false)
+    this.compactTimer = this.cardScene.time.delayedCall(3000, () => {
+      this.setLayoutMode('compact')
+    })
+  }
+
+  setTargetY(y: number): void {
+    if (this.targetY === y) return
+    this.targetY = y
+    this.cardScene.tweens.add({
+      targets: this,
+      y,
       duration: 300,
       ease: 'Back.out(1.2)',
     })
   }
 
-  /**
-   * Play enter animation
-   */
+  handleResize(expandedX: number): void {
+    this.updateExpandedLayout()
+
+    const compactDims = getCompactCardDimensions()
+    const buttonSize = Math.max(20, compactDims.height - compactDims.padding * 2)
+    const compactLeft = -compactDims.width / 2
+    const compactRight = compactDims.width / 2
+
+    this.expandedX = expandedX
+    this.compactX =
+      (this.cardScene.cameras.main?.width ?? 390) -
+      compactDims.width / 2 -
+      compactDims.glowPadding -
+      8
+
+    this.layoutPositions.compactDirectionX =
+      compactLeft + compactDims.padding + compactDims.iconSize / 2
+    this.layoutPositions.compactStatusX =
+      this.layoutPositions.compactDirectionX + compactDims.iconSize / 2 + compactDims.gap
+    this.layoutPositions.compactButtonX = compactRight - compactDims.padding - buttonSize / 2
+
+    this.statusText.setPosition(this.layoutPositions.compactStatusX, 0)
+    this.closeButton.setPosition(this.layoutPositions.compactButtonX, 0)
+    this.closeButton.setDisplaySize(buttonSize, buttonSize)
+    this.closeZone.setPosition(this.layoutPositions.compactButtonX, 0)
+    this.closeZone.setSize(buttonSize, buttonSize)
+
+    const nextX =
+      this.currentLayoutMode === 'compact' || this.isClosing ? this.compactX : this.expandedX
+    this.x = nextX
+    this.directionIcon.x =
+      this.currentLayoutMode === 'compact' || this.isClosing
+        ? this.layoutPositions.compactDirectionX
+        : this.layoutPositions.expandedIconX
+    this.directionBadge.x = this.layoutPositions.expandedDirectionX
+    this.entryPriceText.x = this.layoutPositions.expandedEntryX
+  }
+
   private playEnterAnimation(): void {
     this.setAlpha(0)
     this.y += 40
-    this.scale = 0.8
-
+    this.scaleX = 0.8
+    this.scaleY = 0.8
     this.enterTween = this.cardScene.tweens.add({
       targets: this,
       alpha: 1,
       y: this.y - 40,
-      scale: 1,
+      scaleX: 1,
+      scaleY: 1,
       duration: 400,
-      ease: 'Back.out(1.0)', // Reduced overshoot for smoother entry
+      ease: 'Back.out(1.0)',
+      onComplete: () => {
+        if (!this.isClosing) {
+          this.scheduleCompactTransition()
+        }
+      },
     })
   }
 
-  /**
-   * Play exit animation
-   */
   playExitAnimation(onComplete: () => void): void {
-    if (this.enterTween) {
-      this.enterTween.destroy()
-    }
-
+    this.enterTween?.destroy()
+    this.compactTimer?.remove(false)
     this.cardScene.tweens.add({
       targets: this,
       alpha: 0,
       y: this.y - 20,
-      scale: 0.8,
+      scaleX: 0.8,
+      scaleY: 0.8,
       duration: 250,
       ease: 'Power2',
       onComplete,
     })
   }
 
-  /**
-   * Update PnL based on current price
-   */
-  updatePnL(currentPrice: number): void {
+  updateCloseAvailability(currentPrice: number): void {
     if (this.isClosing) return
-
-    const priceChangePercent =
-      (currentPrice - this.positionData.openPrice) / this.positionData.openPrice
-    const directionMultiplier = this.positionData.isLong ? 1 : -1
-    const pnlPercent = priceChangePercent * directionMultiplier * this.positionData.leverage * 100
-
-    this.updateVisualState(pnlPercent)
-    this.updatePnLText(pnlPercent)
-  }
-
-  /**
-   * Update visual state based on PnL
-   */
-  private updateVisualState(pnlPercent: number): void {
-    const isNearZero = Math.abs(pnlPercent) < 0.5
-    const isInProfit = pnlPercent > 0
-
-    let newState: CardVisualState
-    if (isNearZero) {
-      newState = 'near_zero'
-    } else if (isInProfit) {
-      newState = 'profit'
-    } else {
-      newState = 'loss'
-    }
-
-    if (newState !== this.currentVisualState) {
-      this.currentVisualState = newState
-      // Only update texture if background is an Image (not Graphics fallback)
-      if ('setTexture' in this.background) {
-        this.background.setTexture(`card_${newState}`)
-      }
-      this.updatePnLColor()
+    this.latestCloseUiState = this.getCloseUiState(currentPrice)
+    this.setVisualState(this.latestCloseUiState.visualState)
+    if (this.currentLayoutMode === 'compact') {
+      this.applyCompactContent()
     }
   }
 
-  /**
-   * Update PnL text color
-   */
-  private updatePnLColor(): void {
-    let color: string
-    switch (this.currentVisualState) {
-      case 'near_zero':
-        color = '#00f3ff'
-        this.pnlText.setShadow(0, 0, '#00f3ff', 8, true, true)
-        break
-      case 'profit':
-        color = '#4ade80'
-        this.pnlText.setShadow(0, 0, '#4ade80', 8, true, true)
-        break
-      case 'loss':
-        color = '#f87171'
-        this.pnlText.setShadow(0, 0, '#f87171', 8, true, true)
-        break
-      case 'closing':
-        color = '#00f3ff'
-        this.pnlText.setShadow(0, 0, '#00f3ff', 8, true, true)
-        break
-      case 'liquidated':
-        color = '#f87171'
-        this.pnlText.setShadow(0, 0, '#f87171', 8, true, true)
-        break
-    }
-    this.pnlText.setColor(color)
-  }
-
-  /**
-   * Update PnL text content
-   */
-  private updatePnLText(pnlPercent: number): void {
-    this.pnlText.setText(formatPnlPercent(pnlPercent))
-  }
-
-  /**
-   * Set card to closing state
-   */
-  setClosing(reason: 'manual' | 'liquidated', realizedPnl?: number): void {
+  setClosing(reason: 'manual' | 'liquidated', amountTransferred?: number): void {
     this.isClosing = true
-    this.closingReason = reason
-    this.realizedPnl = realizedPnl
-
-    // Update visual state
-    this.currentVisualState = reason === 'liquidated' ? 'liquidated' : 'closing'
-    // Only update texture if background is an Image (not Graphics fallback)
-    if ('setTexture' in this.background) {
-      this.background.setTexture(`card_${this.currentVisualState}`)
-    }
-    this.updatePnLColor()
-
-    // Show closing text
-    const closingText = reason === 'liquidated' ? 'Liquidated' : 'Closed'
-    if (realizedPnl !== undefined) {
-      this.pnlText.setText(`${closingText} ${formatPnlCurrency(realizedPnl)}`)
-    } else {
-      this.pnlText.setText(closingText)
-    }
-
-    // Disable close zone
+    this.compactTimer?.remove(false)
+    this.stopCloseButtonCue()
     this.closeZone.disableInteractive()
+    this.entryPriceText.setVisible(false)
+    this.directionBadge.setVisible(false)
+    this.closeButton.setVisible(false)
 
-    // Play pulse animation
+    const isLiquidated = reason === 'liquidated'
+    this.setVisualState(isLiquidated ? 'liquidated' : 'closing')
+
+    if (isLiquidated) {
+      this.statusText.setVisible(true)
+      this.statusText.setText('Liquidated')
+      this.statusText.setAlpha(1)
+      this.statusText.setColor('#f87171')
+      this.statusText.setShadow(0, 0, '#f87171', 8, true, true)
+    } else {
+      this.statusText.setVisible(false)
+      this.statusText.setAlpha(0)
+    }
+
+    this.cardScene.tweens.add({
+      targets: this,
+      x: this.compactX,
+      duration: 120,
+      ease: 'Sine.out',
+    })
+
+    this.compactBackground.setVisible(true)
+    this.compactBackground.setAlpha(1)
+    this.expandedBackground.setVisible(false)
+
+    this.cardScene.tweens.add({
+      targets: this.directionIcon,
+      x: this.layoutPositions.compactDirectionX,
+      duration: 120,
+      ease: 'Sine.out',
+    })
+
     this.playPulseAnimation()
   }
 
-  /**
-   * Play pulse animation for closing state
-   */
   private playPulseAnimation(): void {
-    if (this.pulseTween) {
-      this.pulseTween.destroy()
-    }
-
-    const colors = CARD_COLORS[this.currentVisualState]
+    const bgToPulse =
+      this.currentLayoutMode === 'compact' ? this.compactBackground : this.expandedBackground
+    this.pulseTween?.destroy()
     this.pulseTween = this.cardScene.tweens.add({
-      targets: this.background,
+      targets: bgToPulse,
       alpha: { from: 1, to: 0.7 },
       duration: 500,
       yoyo: true,
@@ -456,40 +714,23 @@ export class PositionCard extends GameObjects.Container {
     })
   }
 
-  /**
-   * Get position ID
-   */
   getPositionId(): string {
     return this.positionData.id
   }
 
-  /**
-   * Get position data
-   */
   getPosition(): Position {
     return this.positionData
   }
 
-  /**
-   * Check if card is closing
-   */
   getIsClosing(): boolean {
     return this.isClosing
   }
 
-  /**
-   * Cleanup
-   */
   destroy(): void {
-    if (this.enterTween) {
-      this.enterTween.destroy()
-      this.enterTween = undefined
-    }
-    if (this.pulseTween) {
-      this.pulseTween.destroy()
-      this.pulseTween = undefined
-    }
-
+    this.enterTween?.destroy()
+    this.pulseTween?.destroy()
+    this.closeCueTween?.destroy()
+    this.compactTimer?.remove(false)
     super.destroy()
   }
 }

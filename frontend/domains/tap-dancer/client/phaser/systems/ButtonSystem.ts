@@ -139,9 +139,9 @@ export class ButtonSystem {
       }
       this.lastBeatActive = state.beatActive
 
-      // Check balance for disabled state
+      // Check balance for disabled state (zero-sum: only need $1 to play)
       const player = state.players.find((p) => p.id === state.localPlayerId)
-      const canOpen = player && player.dollars >= CFG.POSITION_COLLATERAL
+      const canOpen = player && player.dollars > 0
       if (canOpen !== this.lastCanOpen) {
         this.lastCanOpen = canOpen ?? true
         this.upButton?.setDisabled(!canOpen)
@@ -156,7 +156,7 @@ export class ButtonSystem {
   private updateButtonStates(): void {
     const state = useTradingStore.getState()
     const player = state.players.find((p) => p.id === state.localPlayerId)
-    const canOpen = player && player.dollars >= CFG.POSITION_COLLATERAL
+    const canOpen = player && player.dollars > 0
 
     this.lastCanOpen = canOpen ?? true
     this.upButton?.setDisabled(!canOpen)

@@ -40,9 +40,10 @@ function ensurePriceFeedConnected(io: SocketIOServer, manager?: RoomManager): vo
   priceFeed.setBroadcastCallback((data) => {
     io.emit('btc_price', data)
 
-    if (roomManagerRef) {
-      checkLiquidations(io, roomManagerRef, data.price)
-    }
+    // Zero-sum: Liquidation disabled - positions can only be closed when prediction is correct
+    // if (roomManagerRef) {
+    //   checkLiquidations(io, roomManagerRef, data.price)
+    // }
   })
 
   priceFeed.connect('btcusdt')
@@ -66,13 +67,12 @@ function endGame(
   if (room.getIsClosing()) return
   room.setClosing()
 
+  // Zero-sum settlement: Use actual player balances, not PnL-based settlement
   const settlementData = settleAllPositions(io, room, () => priceFeed.getLatestPrice())
 
-  const winner = settlementData.winner
-
   io.to(room.id).emit('game_over', {
-    winnerId: winner?.playerId ?? null,
-    winnerName: winner?.playerName ?? null,
+    winnerId: settlementData.winner.playerId,
+    winnerName: settlementData.winner.playerName,
     reason,
     playerResults: settlementData.playerResults,
   })
@@ -83,7 +83,7 @@ function endGame(
 
 async function handleSlice(
   io: SocketIOServer,
-  manager: RoomManager,
+  _manager: RoomManager,
   room: GameRoom,
   playerId: string,
   data: { coinId: string; coinType: string; priceAtSlice: number },
@@ -99,14 +99,8 @@ async function handleSlice(
   const player = room.players.get(playerId)
   if (!player) return
 
-  if (player.dollars < CFG.POSITION_COLLATERAL) {
-    io.to(playerId).emit('error', {
-      code: 'INSUFFICIENT_BALANCE' as SocketErrorCode,
-      message: 'Insufficient balance to open position',
-      details: { required: CFG.POSITION_COLLATERAL, current: player.dollars },
-    })
-    return
-  }
+  // Zero-sum: No balance deduction on position open
+  // Balance only changes when money is actually won or lost on close
 
   const playerIds = room.getPlayerIds()
   const isPlayer1 = playerId === playerIds[0]
@@ -127,27 +121,20 @@ async function handleSlice(
     isPlayer1,
   }
 
-  player.dollars -= CFG.POSITION_COLLATERAL
-
+  // Zero-sum: Do NOT deduct balance on open
   room.addOpenPosition(position)
 
   io.to(room.id).emit('position_opened', {
     positionId: position.id,
     playerId: position.playerId,
     playerName: position.playerName,
-    isLong: position.coinType === 'long',
+    isUp: position.coinType === 'long',
     leverage: position.leverage,
     collateral: position.collateral,
     openPrice: position.priceAtOrder,
   })
 
-  io.to(room.id).emit('balance_updated', {
-    playerId,
-    newBalance: player.dollars,
-    reason: 'position_opened',
-    positionId: position.id,
-    collateral: CFG.POSITION_COLLATERAL,
-  })
+  // Zero-sum: No balance_updated event on open - balance only changes on transfer
 
   io.to(room.id).emit('coin_sliced', {
     playerId,
@@ -485,49 +472,106 @@ export function setupGameEvents(io: SocketIOServer): {
         }
 
         const currentPrice = priceFeed.getLatestPrice()
-        const priceChange = (currentPrice - position.priceAtOrder) / position.priceAtOrder
-        const isLong = position.coinType === 'long'
-        const directionMultiplier = isLong ? 1 : -1
-        const pnl = position.collateral * position.leverage * priceChange * directionMultiplier
-        const isProfitable = pnl > 0
+        const isUp = position.coinType === 'long'
 
+        // Zero-sum: Check if prediction is correct
+        // UP can close only if currentPrice > openPrice
+        // DOWN can close only if currentPrice < openPrice
+        const isPredictionCorrect = isUp
+          ? currentPrice > position.priceAtOrder
+          : currentPrice < position.priceAtOrder
+
+        if (!isPredictionCorrect) {
+          // Reject close - prediction is not currently correct
+          io.to(roomId).emit('position_close_rejected', {
+            positionId: position.id,
+            playerId: position.playerId,
+            openPrice: position.priceAtOrder,
+            currentPrice,
+            isUp,
+            reason: isUp ? 'price_not_above_open' : 'price_not_below_open',
+            isPredictionCorrect: false,
+          })
+          return
+        }
+
+        // Zero-sum: Transfer stake amount from opponent to closer (capped by opponent balance)
+        const TRANSFER_AMOUNT = STAKE_AMOUNT
+        const playerIds = room.getPlayerIds()
+        const opponentId = playerIds.find((id) => id !== socket.id)
+
+        if (!opponentId) {
+          socket.emit('error', {
+            code: 'CLOSE_POSITION_FAILED' as SocketErrorCode,
+            message: 'No opponent found',
+          })
+          return
+        }
+
+        const closer = room.players.get(socket.id)
+        const opponent = room.players.get(opponentId)
+
+        if (!closer || !opponent) {
+          socket.emit('error', {
+            code: 'CLOSE_POSITION_FAILED' as SocketErrorCode,
+            message: 'Player not found',
+          })
+          return
+        }
+
+        // Calculate transfer amount (capped by opponent balance)
+        const amountTransferred = Math.min(TRANSFER_AMOUNT, opponent.dollars)
+
+        // Update balances
+        opponent.dollars -= amountTransferred
+        closer.dollars += amountTransferred
+
+        // Record closed position
         room.addClosedPosition({
           positionId: position.id,
           playerId: position.playerId,
           playerName: position.playerName,
-          isLong: position.coinType === 'long',
+          isUp,
           leverage: position.leverage,
           collateral: position.collateral,
           openPrice: position.priceAtOrder,
           closePrice: currentPrice,
-          realizedPnl: pnl,
-          isProfitable,
+          realizedPnl: amountTransferred, // For zero-sum, this is the transfer amount
+          isProfitable: amountTransferred > 0,
           isLiquidated: false,
         })
 
         room.removeOpenPosition(position.id)
 
-        const player = room.players.get(socket.id)
-        if (player) {
-          player.dollars += position.collateral + pnl
-        }
-
+        // Emit position closed event with zero-sum payload
         io.to(roomId).emit('position_closed', {
           positionId: position.id,
           playerId: position.playerId,
           closePrice: currentPrice,
-          realizedPnl: pnl,
+          openPrice: position.priceAtOrder,
+          isPredictionCorrect: true,
+          isUp,
+          amountTransferred,
+          winnerId: socket.id,
+          loserId: opponentId,
         })
 
-        if (player) {
-          io.to(roomId).emit('balance_updated', {
-            playerId: socket.id,
-            newBalance: player.dollars,
-            reason: 'position_closed',
-            positionId: position.id,
-            pnl,
-          })
-        }
+        // Emit balance updates for both players
+        io.to(roomId).emit('balance_updated', {
+          playerId: socket.id,
+          newBalance: closer.dollars,
+          reason: 'position_won',
+          positionId: position.id,
+          amountTransferred,
+        })
+
+        io.to(roomId).emit('balance_updated', {
+          playerId: opponentId,
+          newBalance: opponent.dollars,
+          reason: 'position_lost',
+          positionId: position.id,
+          amountTransferred,
+        })
       } catch (error) {
         console.error('[Server] close_position error:', error)
         socket.emit('error', {
@@ -636,6 +680,7 @@ export function setupGameEvents(io: SocketIOServer): {
     /**
      * Open Position Handler - TapDancer
      * Direct position opening via LONG/SHORT buttons (no coin slicing required)
+     * Zero-sum: No balance deduction on open
      */
     socket.on('open_position', async (data: { direction: 'long' | 'short' }) => {
       try {
@@ -657,11 +702,8 @@ export function setupGameEvents(io: SocketIOServer): {
           return
         }
 
-        // Check balance
-        if (player.dollars < CFG.POSITION_COLLATERAL) {
-          socket.emit('error', { message: 'Insufficient balance to open position' })
-          return
-        }
+        // Zero-sum: No balance check or deduction on open
+        // Balance only changes when money is actually won or lost on close
 
         // Check max positions
         const playerPositions = Array.from(room.openPositions.values()).filter(
@@ -672,11 +714,10 @@ export function setupGameEvents(io: SocketIOServer): {
           return
         }
 
-        // Deduct collateral
-        player.dollars -= CFG.POSITION_COLLATERAL
+        // Zero-sum: Do NOT deduct balance on open
 
         const currentPrice = priceFeed.getLatestPrice()
-        const isLong = data.direction === 'long'
+        const isUp = data.direction === 'long'
         const playerIds = room.getPlayerIds()
         const isPlayer1 = socket.id === playerIds[0]
 
@@ -700,20 +741,13 @@ export function setupGameEvents(io: SocketIOServer): {
           positionId: position.id,
           playerId: position.playerId,
           playerName: position.playerName,
-          isLong,
+          isUp,
           leverage: position.leverage,
           collateral: position.collateral,
           openPrice: position.priceAtOrder,
         })
 
-        // Broadcast balance update
-        io.to(room.id).emit('balance_updated', {
-          playerId: socket.id,
-          newBalance: player.dollars,
-          reason: 'position_opened',
-          positionId: position.id,
-          collateral: CFG.POSITION_COLLATERAL,
-        })
+        // Zero-sum: No balance_updated event on open - balance only changes on transfer
       } catch (error) {
         console.error('[Server] open_position error:', error)
         socket.emit('error', { message: 'Failed to open position' })
@@ -749,9 +783,7 @@ export function setupGameEvents(io: SocketIOServer): {
         const sequence = room.appendMatchAction(socket.id, data.action)
 
         // Log action sequence (for debugging)
-        console.log(
-          `[Match] ${roomId} action seq=${sequence} from ${socket.id}`
-        )
+        console.log(`[Match] ${roomId} action seq=${sequence} from ${socket.id}`)
 
         // Assert sequence is contiguous
         console.assert(

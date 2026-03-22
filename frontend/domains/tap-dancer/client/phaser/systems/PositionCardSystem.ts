@@ -36,7 +36,7 @@ function getCardLayoutSizes(): CardLayoutSizes {
  *
  * Subscribes to Zustand store for position updates.
  * Creates/destroys cards as positions open/close.
- * Handles throttled PnL updates.
+ * Handles throttled close-state updates.
  */
 export class PositionCardSystem {
   private scene: Scene
@@ -49,7 +49,7 @@ export class PositionCardSystem {
   // Track if initial resize has happened (camera dimensions are ready)
   private hasInitialResize = false
 
-  // PnL update throttling
+  // Close-state update throttling
   private priceUpdateThrottle: number = 0
   private readonly PRICE_UPDATE_INTERVAL: number = 100 // ms
 
@@ -274,14 +274,14 @@ export class PositionCardSystem {
     this.priceUpdateThrottle += delta
     if (this.priceUpdateThrottle >= this.PRICE_UPDATE_INTERVAL) {
       this.priceUpdateThrottle = 0
-      this.updatePnL()
+      this.updateCloseAvailability()
     }
   }
 
   /**
-   * Update PnL for all cards
+   * Update close availability for all cards
    */
-  private updatePnL(): void {
+  private updateCloseAvailability(): void {
     const state = useTradingStore.getState()
     const currentPrice = state.priceData?.price
 
@@ -289,7 +289,7 @@ export class PositionCardSystem {
 
     this.cards.forEach((card) => {
       if (!card.getIsClosing()) {
-        card.updatePnL(currentPrice)
+        card.updateCloseAvailability(currentPrice)
       }
     })
   }
@@ -309,7 +309,7 @@ export class PositionCardSystem {
     }
 
     this.cards.forEach((card) => {
-      card.x = x
+      card.handleResize(x)
     })
 
     this.repositionCards()

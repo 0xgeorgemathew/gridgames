@@ -43,7 +43,7 @@ function liquidatePosition(
     positionId: position.id,
     playerId: position.playerId,
     playerName: position.playerName,
-    isLong: position.coinType === 'long',
+    isUp: position.coinType === 'long',
     leverage: position.leverage,
     collateral: position.collateral,
     openPrice: position.priceAtOrder,
@@ -57,7 +57,7 @@ function liquidatePosition(
     positionId: position.id,
     playerId: position.playerId,
     playerName: position.playerName,
-    isLong: position.coinType === 'long',
+    isUp: position.coinType === 'long',
     leverage: position.leverage,
     collateral: position.collateral,
     openPrice: position.priceAtOrder,
@@ -82,9 +82,9 @@ export function calculatePositionPnl(
   closePrice: number
 ): { pnl: number; isProfitable: boolean } {
   const priceChange = (closePrice - position.priceAtOrder) / position.priceAtOrder
-  const isLong = position.coinType === 'long'
+  const isUp = position.coinType === 'long'
 
-  const directionMultiplier = isLong ? 1 : -1
+  const directionMultiplier = isUp ? 1 : -1
   const pnl = position.collateral * position.leverage * priceChange * directionMultiplier
   const isProfitable = pnl > 0
 

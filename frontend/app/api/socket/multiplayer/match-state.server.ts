@@ -63,7 +63,12 @@ export interface ServerMatchState {
  */
 export class MatchStateMachine {
   private state: ServerMatchState
-  private transitionLog: Array<{ from: MatchStatus; to: MatchStatus; timestamp: number; stateVersion: number }> = []
+  private transitionLog: Array<{
+    from: MatchStatus
+    to: MatchStatus
+    timestamp: number
+    stateVersion: number
+  }> = []
 
   constructor(matchId: string, gameDuration: number) {
     this.state = {
@@ -103,7 +108,10 @@ export class MatchStateMachine {
    * Attempt to transition to a new status
    * Returns true if transition was valid and applied
    */
-  transition(to: MatchStatus, reason?: { abortReason?: 'player_disconnect' | 'timeout' | 'error'; affectedPlayerId?: string }): boolean {
+  transition(
+    to: MatchStatus,
+    reason?: { abortReason?: 'player_disconnect' | 'timeout' | 'error'; affectedPlayerId?: string }
+  ): boolean {
     const from = this.state.status
 
     // Check if transition is valid
@@ -206,7 +214,12 @@ export class MatchStateMachine {
   /**
    * Get transition log for debugging
    */
-  getTransitionLog(): ReadonlyArray<{ from: MatchStatus; to: MatchStatus; timestamp: number; stateVersion: number }> {
+  getTransitionLog(): ReadonlyArray<{
+    from: MatchStatus
+    to: MatchStatus
+    timestamp: number
+    stateVersion: number
+  }> {
     return this.transitionLog
   }
 

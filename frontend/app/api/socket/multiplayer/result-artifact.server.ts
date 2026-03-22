@@ -1,6 +1,15 @@
 // =============================================================================
 // RESULT ARTIFACT BUILDER
 // Creates verifiable match result artifacts for settlement
+//
+// ⚠️  NON-LIVE CODE - DO NOT USE FOR PRODUCTION GAMEPLAY ⚠️
+//
+// This file is part of the match-domain path that is NOT currently wired
+// end-to-end. The live product path uses the patched legacy events in
+// index.ts and settlement.server.ts instead.
+//
+// See plans/2026-03-22-zero-sum-regression-fix-plan.md for context.
+//
 // =============================================================================
 
 import type { ResolvedMatchOutcome, ResultArtifact, MatchId } from '@/domains/match/types'
@@ -20,7 +29,12 @@ export function buildResultArtifact<GameAction>(
     name: player.name,
     walletAddress: player.walletAddress,
     stake: outcome.stakeAmount,
-    result: player.id === outcome.winnerId ? ('win' as const) : player.id === outcome.loserId ? ('loss' as const) : ('draw' as const),
+    result:
+      player.id === outcome.winnerId
+        ? ('win' as const)
+        : player.id === outcome.loserId
+          ? ('loss' as const)
+          : ('draw' as const),
   }))
 
   const artifact: ResultArtifact = {
