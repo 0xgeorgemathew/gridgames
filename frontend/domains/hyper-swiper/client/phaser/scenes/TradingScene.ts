@@ -20,9 +20,10 @@ export class TradingScene extends Scene {
   }
 
   create(): void {
-    this.services.create(this.eventEmitter)
+    // Assign window.phaserEvents BEFORE services.create so event listeners can register
     ;(window as { phaserEvents?: PhaserEventBridge }).phaserEvents = this
       .eventEmitter as PhaserEventBridge
+    this.services.create(this.eventEmitter)
     ;(window as { setSceneReady?: (ready: boolean) => void }).setSceneReady = (ready: boolean) => {
       useTradingStore.getState().isSceneReady = ready
     }
