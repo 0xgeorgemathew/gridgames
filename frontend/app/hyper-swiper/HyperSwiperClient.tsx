@@ -11,7 +11,6 @@ import { GameCanvasBackground } from '@/platform/ui/GameCanvasBackground'
 import { ToastNotifications } from '@/platform/ui/ToastNotifications'
 import { GameHUD } from '@/domains/hyper-swiper/client/components/hud/GameHUD'
 import { MatchmakingScreen } from '@/domains/hyper-swiper/client/components/screens/MatchmakingScreen'
-import { PositionIndicator } from '@/domains/hyper-swiper/client/components/effects/PositionIndicator'
 import { GameOverModal } from '@/domains/hyper-swiper/client/components/screens/GameOverModal'
 import { RoundEndFlash } from '@/domains/hyper-swiper/client/components/effects/RoundEndFlash'
 
@@ -26,7 +25,6 @@ function GameUI(): ReactNode {
       <GameCanvasBackground />
       <GameHUD />
       <GameCanvas scene="TradingScene" />
-      <PositionIndicator />
     </div>
   )
 }

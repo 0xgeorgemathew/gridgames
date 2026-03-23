@@ -37,24 +37,25 @@ export class CoinRenderer {
   }
 
   /**
-   * Draw an equilateral triangle pointing up
+   * Draw a chevron pointing up (like » rotated -90 degrees)
    */
-  private drawEquilateralTriangleUp(
+  private drawChevronUp(
     graphics: Phaser.GameObjects.Graphics,
     cx: number,
     cy: number,
     size: number,
     fill: boolean = true
   ): void {
-    const height = (size * Math.sqrt(3)) / 2
-    const topY = cy - height * 0.6
-    const bottomY = cy + height * 0.4
-    const halfBase = size / 2
+    const halfSize = size / 2
+    const thickness = size * 0.3
 
     graphics.beginPath()
-    graphics.moveTo(cx, topY) // Top point
-    graphics.lineTo(cx - halfBase, bottomY) // Bottom left
-    graphics.lineTo(cx + halfBase, bottomY) // Bottom right
+    graphics.moveTo(cx - halfSize, cy - thickness / 2)
+    graphics.lineTo(cx, cy - halfSize)
+    graphics.lineTo(cx + halfSize, cy - thickness / 2)
+    graphics.lineTo(cx + halfSize, cy + thickness / 2)
+    graphics.lineTo(cx, cy)
+    graphics.lineTo(cx - halfSize, cy + thickness / 2)
     graphics.closePath()
 
     if (fill) {
@@ -65,24 +66,25 @@ export class CoinRenderer {
   }
 
   /**
-   * Draw an equilateral triangle pointing down
+   * Draw a chevron pointing down (like » rotated 90 degrees)
    */
-  private drawEquilateralTriangleDown(
+  private drawChevronDown(
     graphics: Phaser.GameObjects.Graphics,
     cx: number,
     cy: number,
     size: number,
     fill: boolean = true
   ): void {
-    const height = (size * Math.sqrt(3)) / 2
-    const topY = cy - height * 0.4
-    const bottomY = cy + height * 0.6
-    const halfBase = size / 2
+    const halfSize = size / 2
+    const thickness = size * 0.3
 
     graphics.beginPath()
-    graphics.moveTo(cx - halfBase, topY) // Top left
-    graphics.lineTo(cx + halfBase, topY) // Top right
-    graphics.lineTo(cx, bottomY) // Bottom point
+    graphics.moveTo(cx - halfSize, cy - thickness / 2)
+    graphics.lineTo(cx, cy)
+    graphics.lineTo(cx + halfSize, cy - thickness / 2)
+    graphics.lineTo(cx + halfSize, cy + thickness / 2)
+    graphics.lineTo(cx, cy + halfSize)
+    graphics.lineTo(cx - halfSize, cy + thickness / 2)
     graphics.closePath()
 
     if (fill) {
@@ -97,7 +99,7 @@ export class CoinRenderer {
    * Tron Legacy aesthetic - clean and minimal:
    * - Solid opaque dark discs
    * - Refined multi-layer neon edge
-   * - Single glowing equilateral triangle
+   * - Single glowing chevron
    */
   generateCachedTextures(): void {
     const textureKeys: Array<CoinType> = ['long', 'short']
@@ -158,28 +160,28 @@ export class CoinRenderer {
       container.add(edge)
 
       // =========================================================================
-      // LAYER 4: EQUILATERAL TRIANGLE (Drawn with graphics, not text)
+      // LAYER 4: CHEVRON (Drawn with graphics, not text)
       // =========================================================================
-      const triangleSize = scaledRadius * 0.55
-      const triangle = this.scene.add.graphics()
+      const chevronSize = scaledRadius * 0.55
+      const chevron = this.scene.add.graphics()
 
-      // Outer glow triangle
-      triangle.fillStyle(config.glowColor, 0.3)
+      // Outer glow chevron
+      chevron.fillStyle(config.glowColor, 0.3)
       if (type === 'long') {
-        this.drawEquilateralTriangleUp(triangle, 0, 0, triangleSize * 1.15)
+        this.drawChevronUp(chevron, 0, 0, chevronSize * 1.15)
       } else {
-        this.drawEquilateralTriangleDown(triangle, 0, 0, triangleSize * 1.15)
+        this.drawChevronDown(chevron, 0, 0, chevronSize * 1.15)
       }
 
-      // Main white triangle
-      triangle.fillStyle(0xffffff, 0.95)
+      // Main white chevron
+      chevron.fillStyle(0xffffff, 0.95)
       if (type === 'long') {
-        this.drawEquilateralTriangleUp(triangle, 0, 0, triangleSize)
+        this.drawChevronUp(chevron, 0, 0, chevronSize)
       } else {
-        this.drawEquilateralTriangleDown(triangle, 0, 0, triangleSize)
+        this.drawChevronDown(chevron, 0, 0, chevronSize)
       }
 
-      container.add(triangle)
+      container.add(chevron)
 
       // =========================================================================
       // GENERATE TEXTURE FROM CONTAINER
