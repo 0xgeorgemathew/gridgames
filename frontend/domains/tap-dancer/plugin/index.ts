@@ -5,7 +5,7 @@
 
 export * from './definition'
 import { tapDancerDefinition } from './definition'
-import { gameRegistry } from '@/domains/game-engine/core'
+import { gameRegistry } from '@/platform/game-engine/core'
 
 export function registerTapDancerGame() {
   if (!gameRegistry.has(tapDancerDefinition.metadata.slug)) {

@@ -1,7 +1,4 @@
-export type PositionOpeningLimitReason =
-  | 'player_balance'
-  | 'opponent_funding'
-  | 'risk_reserve'
+export type PositionOpeningLimitReason = 'player_balance' | 'opponent_funding' | 'risk_reserve'
 
 export interface PositionOpeningSnapshot {
   playerBalance: number

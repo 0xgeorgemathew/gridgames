@@ -9,7 +9,7 @@ import type {
   GameCapabilities,
   ResolvedGameOutcome,
   ActionResult,
-} from '@/domains/game-engine/core'
+} from '@/platform/game-engine/core'
 import type { SliceAction, CoinType, SpawnedCoin } from '../shared/trading.types'
 
 // =============================================================================

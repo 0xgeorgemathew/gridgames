@@ -465,6 +465,13 @@ export const useTradingStore = create<TradingState>((set, get) => ({
           timestamp: Date.now(),
         })
 
+        window.phaserEvents?.emit('position_closed', {
+          positionId: data.positionId,
+          amountTransferred: data.amountTransferred,
+          isUp: data.isUp,
+          isWinner: data.winnerId === localPlayerId,
+        })
+
         // Remove both from closing and open positions after animation completes
         const timeoutId = setTimeout(() => {
           const currentClosing = get().closingPositions

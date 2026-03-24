@@ -1,27 +1,30 @@
 import { GameObjects, Scene } from 'phaser'
+import { PositionCloseEffectsController } from '@/domains/match/client/phaser/price-graph/PositionCloseEffects'
 import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.store'
 import { SnakePriceGraph } from './SnakePriceGraph'
 
 export class PriceGraphSystem {
-  private scene: Scene
   private snakeGraphics!: GameObjects.Graphics
   private snakeGraph!: SnakePriceGraph
-  private scrollSpeed: number
+  private closeEffects!: PositionCloseEffectsController
 
-  constructor(scene: Scene, scrollSpeed: number) {
-    this.scene = scene
-    this.scrollSpeed = scrollSpeed
-  }
+  constructor(
+    private scene: Scene,
+    private scrollSpeed: number
+  ) {}
 
   create(): void {
     this.snakeGraphics = this.scene.add.graphics()
     this.snakeGraphics.setDepth(-0.5)
     this.snakeGraph = new SnakePriceGraph(this.snakeGraphics)
+    this.closeEffects = new PositionCloseEffectsController(this.scene, this.snakeGraph)
+    this.closeEffects.create()
   }
 
   update(delta: number): void {
     const { priceData, isPlaying, firstPrice } = useTradingStore.getState()
     const pixelsPerMs = this.scrollSpeed / 1000
+
     this.snakeGraph.update({
       delta,
       priceData,
@@ -33,7 +36,13 @@ export class PriceGraphSystem {
     })
   }
 
+  handleResize(): void {
+    this.closeEffects.handleResize()
+  }
+
   shutdown(): void {
+    this.closeEffects?.shutdown()
+    this.snakeGraph?.destroy()
     this.snakeGraphics?.destroy()
   }
 }

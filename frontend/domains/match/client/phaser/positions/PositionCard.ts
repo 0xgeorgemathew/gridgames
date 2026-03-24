@@ -4,8 +4,8 @@ import {
   getCardDimensions,
   getCompactCardDimensions,
   type CardVisualState,
-} from '../systems/PositionCardRenderer'
-import type { Position } from '@/domains/hyper-swiper/shared/trading.types'
+} from './PositionCardRenderer'
+import type { SharedPosition as Position } from './types'
 
 interface PositionCardConfig {
   position: Position
@@ -27,6 +27,14 @@ function formatPrice(price: number): string {
   return price.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  })
+}
+
+function formatCurrency(value: number): string {
+  return value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    signDisplay: 'exceptZero',
   })
 }
 

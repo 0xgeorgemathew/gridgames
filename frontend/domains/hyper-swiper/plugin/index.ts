@@ -5,7 +5,7 @@
 
 export * from './definition'
 import { hyperSwiperDefinition } from './definition'
-import { gameRegistry } from '@/domains/game-engine/core'
+import { gameRegistry } from '@/platform/game-engine/core'
 
 export function registerHyperSwiperGame() {
   if (!gameRegistry.has(hyperSwiperDefinition.metadata.slug)) {

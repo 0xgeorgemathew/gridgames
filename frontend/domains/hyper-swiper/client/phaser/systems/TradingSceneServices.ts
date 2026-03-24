@@ -87,6 +87,7 @@ export class TradingSceneServices {
 
   handleResize(): void {
     this.gridBackground.handleResize()
+    this.priceGraph.handleResize()
     this.positionCardSystem.handleResize()
   }
 
