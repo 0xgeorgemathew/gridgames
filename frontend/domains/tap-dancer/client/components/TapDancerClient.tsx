@@ -23,7 +23,7 @@ function GameUI(): ReactNode {
       <GameOverModal />
       <GameCanvasBackground />
       <GameHUD />
-      <GameCanvas scene="TapDancerScene" />
+      <GameCanvas gameSlug="tap-dancer" scene="TapDancerScene" />
       {/* PositionList and PositionButtons moved to Phaser for performance */}
     </div>
   )

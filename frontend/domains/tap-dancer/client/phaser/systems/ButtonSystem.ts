@@ -2,6 +2,7 @@ import { Scene } from 'phaser'
 import { ButtonRenderer, type ButtonType } from './ButtonRenderer'
 import { CoinButton } from '../objects/CoinButton'
 import { useTradingStore } from '@/domains/tap-dancer/client/state/slices/index'
+import { getPositionOpeningCapacity } from '@/domains/match/position-opening'
 import { CLIENT_GAME_CONFIG as CFG } from '@/domains/tap-dancer/client/game.config'
 
 interface ButtonSizes {
@@ -139,9 +140,7 @@ export class ButtonSystem {
       }
       this.lastBeatActive = state.beatActive
 
-      // Check balance for disabled state (zero-sum: only need $1 to play)
-      const player = state.players.find((p) => p.id === state.localPlayerId)
-      const canOpen = player && player.dollars > 0
+      const canOpen = this.getCanOpen(state)
       if (canOpen !== this.lastCanOpen) {
         this.lastCanOpen = canOpen ?? true
         this.upButton?.setDisabled(!canOpen)
@@ -155,12 +154,35 @@ export class ButtonSystem {
    */
   private updateButtonStates(): void {
     const state = useTradingStore.getState()
-    const player = state.players.find((p) => p.id === state.localPlayerId)
-    const canOpen = player && player.dollars > 0
+    const canOpen = this.getCanOpen(state)
 
     this.lastCanOpen = canOpen ?? true
     this.upButton?.setDisabled(!canOpen)
     this.downButton?.setDisabled(!canOpen)
+  }
+
+  private getCanOpen(state: ReturnType<typeof useTradingStore.getState>): boolean {
+    const player = state.players.find((entry) => entry.id === state.localPlayerId)
+    const opponent = state.players.find((entry) => entry.id !== state.localPlayerId)
+
+    if (!player || !opponent) {
+      return false
+    }
+
+    const playerOpenPositions = Array.from(state.openPositions.values()).filter(
+      (position) => position.playerId === state.localPlayerId && position.status === 'open'
+    ).length
+    const opponentOpenPositions = Array.from(state.openPositions.values()).filter(
+      (position) => position.playerId !== state.localPlayerId && position.status === 'open'
+    ).length
+
+    return getPositionOpeningCapacity({
+      playerBalance: player.dollars,
+      opponentBalance: opponent.dollars,
+      playerOpenPositions,
+      opponentOpenPositions,
+      stakeAmount: CFG.STAKE_AMOUNT,
+    }).canOpen
   }
 
   /**

@@ -13,6 +13,10 @@ import { create } from 'zustand'
 import { io } from 'socket.io-client'
 import { CLIENT_GAME_CONFIG as CFG } from '../../game.config'
 import type { TradingState, CryptoSymbol } from '../trading.types'
+import {
+  getPositionOpeningCapacity,
+  getPositionOpeningLimitMessage,
+} from '@/domains/match/position-opening'
 import type {
   Player,
   CoinSpawnEvent,
@@ -229,12 +233,15 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     })
 
     nextSocket.on('lobby_players', (players: LobbyPlayersEvent) => {
-      set({ lobbyPlayers: players, isRefreshingLobby: false })
+      const filteredPlayers = players.filter((p) => !p.gameSlug || p.gameSlug === CFG.SLUG)
+      set({ lobbyPlayers: filteredPlayers, isRefreshingLobby: false })
     })
 
     nextSocket.on('lobby_updated', (data: LobbyUpdatedEvent) => {
       const { localPlayerId } = get()
-      const filteredPlayers = data.players.filter((p) => p.socketId !== localPlayerId)
+      const filteredPlayers = data.players.filter(
+        (p) => p.socketId !== localPlayerId && (!p.gameSlug || p.gameSlug === CFG.SLUG)
+      )
       set({ lobbyPlayers: filteredPlayers })
     })
 
@@ -302,6 +309,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     socket?.emit('find_match', {
       playerName,
+      gameSlug: CFG.SLUG,
       sceneWidth,
       sceneHeight,
       walletAddress,
@@ -318,8 +326,37 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   },
 
   sliceCoin: (coinId, coinType) => {
-    const { socket, localPlayerId } = get()
+    const { socket, localPlayerId, players, openPositions } = get()
     if (!socket || !localPlayerId) return
+
+    const player = players.find((entry) => entry.id === localPlayerId)
+    const opponent = players.find((entry) => entry.id !== localPlayerId)
+    if (!player || !opponent) return
+
+    const playerOpenPositions = Array.from(openPositions.values()).filter(
+      (position) => position.playerId === localPlayerId && position.status === 'open'
+    ).length
+    const opponentOpenPositions = Array.from(openPositions.values()).filter(
+      (position) => position.playerId !== localPlayerId && position.status === 'open'
+    ).length
+
+    const openingCapacity = getPositionOpeningCapacity({
+      playerBalance: player.dollars,
+      opponentBalance: opponent.dollars,
+      playerOpenPositions,
+      opponentOpenPositions,
+      stakeAmount: CFG.STAKE_AMOUNT,
+    })
+
+    if (!openingCapacity.canOpen) {
+      get().addToast({
+        message: getPositionOpeningLimitMessage(openingCapacity),
+        type: 'warning',
+        duration: 3000,
+      })
+      return
+    }
+
     socket.emit('slice_coin', { coinId, coinType })
   },
 
@@ -481,22 +518,14 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   // Game settlement - all positions settled at game end
   handleGameSettlement: (settlement) => {
-    const { openPositions } = get()
+    const { positionCloseTimeouts } = get()
 
-    // Update all positions with settlement data
-    const newPositions = new Map(openPositions)
-    for (const settledPos of settlement.positions) {
-      const position = newPositions.get(settledPos.positionId)
-      if (position) {
-        position.closePrice = settledPos.closePrice
-        position.realizedPnl = settledPos.realizedPnl
-        position.settledAt = Date.now()
-        position.status = 'settled'
-      }
-    }
+    positionCloseTimeouts.forEach((timeoutId) => clearTimeout(timeoutId))
 
     set({
-      openPositions: newPositions,
+      openPositions: new Map(),
+      closingPositions: new Map(),
+      positionCloseTimeouts: new Map(),
       gameSettlement: settlement,
     })
   },
@@ -672,7 +701,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     const { socket } = get()
     if (!socket) return
     set({ isRefreshingLobby: true })
-    socket.emit('get_lobby_players')
+    socket.emit('get_lobby_players', { gameSlug: CFG.SLUG })
     setTimeout(() => set({ isRefreshingLobby: false }), 5000)
   },
 
@@ -688,6 +717,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     socket.emit('join_waiting_pool', {
       playerName,
+      gameSlug: CFG.SLUG,
       sceneWidth,
       sceneHeight,
       walletAddress,

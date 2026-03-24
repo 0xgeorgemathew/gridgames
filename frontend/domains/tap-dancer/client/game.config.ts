@@ -6,6 +6,8 @@
 import { STAKE_AMOUNT } from '@/domains/match/config'
 
 export const CLIENT_GAME_CONFIG = {
+  SLUG: 'tap-dancer',
+
   // Match config
   STAKE_AMOUNT,
 

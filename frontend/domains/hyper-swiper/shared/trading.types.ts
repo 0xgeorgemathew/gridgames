@@ -159,6 +159,7 @@ export type LobbyPlayer = {
   joinedAt: number
   leverage: number
   gameDuration: number
+  gameSlug?: string
 }
 
 /** @deprecated */
