@@ -1,13 +1,11 @@
 'use client'
 
 import React from 'react'
-import { m } from 'framer-motion'
-import { Volume2, VolumeX, LogOut } from 'lucide-react'
 import { cn } from '@/platform/utils/classNames.utils'
-import { CountUp } from '@/platform/ui/CountUp'
+import { Clock } from 'lucide-react'
 import type { CryptoSymbol } from '@/domains/hyper-swiper/client/state/trading.store'
 import type { PriceData } from '@/domains/hyper-swiper/shared/trading.types'
-import { CRYPTO_SYMBOLS, getPriceColor, formatTime } from './types'
+import { formatTime } from './types'
 
 interface CompactPriceRowProps {
   priceData: PriceData | null
@@ -21,131 +19,151 @@ interface CompactPriceRowProps {
   onEndGame: () => void
   isGameReady: boolean
   playerBalance?: number
+  opponentBalance?: number
+  playerName?: string
+  opponentName?: string
 }
 
-/**
- * CompactPriceRow - Single-row minimal TRON layout.
- * Maximum play space with essential info only.
- *
- * Layout: [1:23] [BTC $94,123 +2.34%] [🔊] [✕]
- */
+function getDisplayName(name: string | undefined, maxLength: number = 8): string {
+  if (!name) return 'YOU'
+  if (name.toLowerCase().endsWith('.base.eth')) {
+    const baseName = name.slice(0, -9)
+    return baseName.length > maxLength ? baseName.slice(0, maxLength) : baseName
+  }
+  const firstName = name.split(' ')[0] || name
+  return firstName.length > maxLength ? firstName.slice(0, maxLength) : firstName
+}
+
 export const CompactPriceRow = React.memo(function CompactPriceRow({
-  priceData,
-  selectedCrypto,
   gameTimeRemaining,
-  isSoundMuted,
-  onToggleSound,
-  onEndGame,
   isGameReady,
   playerBalance,
+  opponentBalance,
+  playerName,
+  opponentName,
 }: CompactPriceRowProps) {
-  const { color: priceColor, glow: priceGlow } = getPriceColor(priceData?.changePercent ?? 0)
   const isLowTime = gameTimeRemaining <= 30000
+  const isWinning =
+    playerBalance !== undefined && opponentBalance !== undefined && playerBalance > opponentBalance
+  const isTied =
+    playerBalance !== undefined &&
+    opponentBalance !== undefined &&
+    playerBalance === opponentBalance
 
   return (
-    <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2">
-      {/* Left: Timer + Balance */}
-      {isGameReady && (
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center justify-center min-w-[48px] px-2 py-1 border-l-2 border-tron-cyan/60 bg-tron-cyan/5">
-            <span
-              className={cn(
-                'text-sm font-black font-numeric tracking-wider',
-                isLowTime ? 'text-red-400' : 'text-tron-cyan'
-              )}
-              style={{
-                textShadow: isLowTime
-                  ? '0 0 10px rgba(248,113,113,0.6)'
-                  : '0 0 10px rgba(0,243,255,0.6)',
-              }}
-            >
-              {formatTime(gameTimeRemaining)}
-            </span>
-          </div>
-
-          {/* Player Balance */}
-          {playerBalance !== undefined && (
-            <div className="flex items-center gap-1 px-2 py-1 border-l border-tron-cyan/30 bg-tron-cyan/5">
-              <span className="text-[9px] text-tron-cyan/50 uppercase tracking-wider font-bold">
-                $
-              </span>
-              <span
-                className="text-sm font-black font-numeric text-tron-cyan"
-                style={{ textShadow: '0 0 8px rgba(0,243,255,0.5)' }}
-              >
-                {playerBalance.toLocaleString()}
-              </span>
-            </div>
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
+      {/* Left: Your Balance */}
+      {isGameReady && playerBalance !== undefined && (
+        <div
+          className={cn(
+            'flex flex-col items-center px-3 py-1.5 rounded-lg transition-all duration-300',
+            isWinning
+              ? 'bg-tron-cyan/10 border border-tron-cyan/40'
+              : 'bg-tron-black/50 border border-tron-cyan/20'
           )}
-        </div>
-      )}
-
-      {/* Center: Price Display */}
-      {priceData ? (
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-center min-w-0">
-          <span
-            className="text-[10px] text-tron-cyan/50 uppercase tracking-[0.15em] font-bold shrink-0 hidden sm:block"
-            style={{ textShadow: '0 0 6px rgba(0,243,255,0.3)' }}
-          >
-            {CRYPTO_SYMBOLS[selectedCrypto as CryptoSymbol]}
-          </span>
-
-          <CountUp
-            value={priceData.price}
-            className={cn('text-base sm:text-lg font-black font-numeric', priceColor)}
-            style={{ textShadow: priceGlow }}
-          />
-
-          <m.span
-            className={cn(
-              'text-[10px] font-bold font-numeric shrink-0 px-1 py-0.5 border-l-2',
-              priceData.changePercent >= 0
-                ? 'text-green-400 border-green-400/50 bg-green-400/5'
-                : 'text-red-400 border-red-400/50 bg-red-400/5'
-            )}
-            style={{ textShadow: priceGlow }}
-            animate={{ opacity: [1, 0.7, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            {priceData.changePercent >= 0 ? '+' : ''}
-            {priceData.changePercent.toFixed(1)}%
-          </m.span>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center">
-          <span className="text-xs text-tron-cyan/40 animate-pulse">...</span>
-        </div>
-      )}
-
-      {/* Right: Actions */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        <button
-          onClick={() => {
-            if (typeof window !== 'undefined' && (window as any).phaserEvents) {
-              ;(window as any).phaserEvents.emit('unlock_audio')
-            }
-            onToggleSound()
+          style={{
+            boxShadow: isWinning ? '0 0 12px rgba(0,243,255,0.3)' : 'none',
           }}
-          className="w-8 h-8 flex items-center justify-center border-l border-tron-cyan/30 hover:bg-tron-cyan/10 transition-colors"
-          title={isSoundMuted ? 'Unmute' : 'Mute'}
         >
-          {isSoundMuted ? (
-            <VolumeX className="w-4 h-4 text-tron-orange/70" />
-          ) : (
-            <Volume2 className="w-4 h-4 text-tron-cyan/70" />
-          )}
-        </button>
-
-        {isGameReady && (
-          <button
-            onClick={onEndGame}
-            className="w-8 h-8 flex items-center justify-center border-l border-tron-orange/30 hover:bg-tron-orange/10 transition-colors"
-            title="End"
+          <span
+            className={cn(
+              'text-[10px] uppercase tracking-wider font-bold',
+              isWinning ? 'text-tron-cyan' : 'text-tron-cyan/60'
+            )}
+            style={{
+              textShadow: isWinning ? '0 0 8px rgba(0,243,255,0.6)' : 'none',
+            }}
           >
-            <LogOut className="w-4 h-4 text-tron-orange/60" />
-          </button>
-        )}
-      </div>
+            {getDisplayName(playerName)}
+          </span>
+          <span
+            className={cn(
+              'text-base font-black font-numeric',
+              isWinning ? 'text-tron-cyan' : 'text-tron-cyan/70'
+            )}
+            style={{
+              textShadow: isWinning ? '0 0 10px rgba(0,243,255,0.6)' : 'none',
+            }}
+          >
+            ${playerBalance.toLocaleString()}
+          </span>
+        </div>
+      )}
+
+      {/* Center: Timer (Main Component) */}
+      {isGameReady && (
+        <div
+          className={cn(
+            'flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2',
+            isLowTime ? 'bg-red-500/10 border-red-400/60' : 'bg-tron-cyan/10 border-tron-cyan/50'
+          )}
+          style={{
+            boxShadow: isLowTime
+              ? '0 0 20px rgba(248,113,113,0.4)'
+              : '0 0 20px rgba(0,243,255,0.3)',
+          }}
+        >
+          <Clock
+            className={cn('w-5 h-5', isLowTime ? 'text-red-400' : 'text-tron-cyan')}
+            style={{
+              filter: isLowTime
+                ? 'drop-shadow(0 0 6px rgba(248,113,113,0.8))'
+                : 'drop-shadow(0 0 6px rgba(0,243,255,0.8))',
+            }}
+          />
+          <span
+            className={cn(
+              'text-xl font-black font-numeric tracking-wider',
+              isLowTime ? 'text-red-400' : 'text-tron-cyan'
+            )}
+            style={{
+              textShadow: isLowTime
+                ? '0 0 15px rgba(248,113,113,0.9)'
+                : '0 0 15px rgba(0,243,255,0.9)',
+            }}
+          >
+            {formatTime(gameTimeRemaining)}
+          </span>
+        </div>
+      )}
+
+      {/* Right: Opponent Balance */}
+      {isGameReady && playerBalance !== undefined && (
+        <div
+          className={cn(
+            'flex flex-col items-center px-3 py-1.5 rounded-lg transition-all duration-300',
+            !isWinning && !isTied
+              ? 'bg-tron-orange/10 border border-tron-orange/40'
+              : 'bg-tron-black/50 border border-tron-cyan/20'
+          )}
+          style={{
+            boxShadow: !isWinning && !isTied ? '0 0 12px rgba(255,107,0,0.3)' : 'none',
+          }}
+        >
+          <span
+            className={cn(
+              'text-[10px] uppercase tracking-wider font-bold',
+              !isWinning && !isTied ? 'text-tron-orange' : 'text-tron-cyan/50'
+            )}
+            style={{
+              textShadow: !isWinning && !isTied ? '0 0 8px rgba(255,107,0,0.6)' : 'none',
+            }}
+          >
+            {getDisplayName(opponentName, 8) || 'OPP'}
+          </span>
+          <span
+            className={cn(
+              'text-base font-black font-numeric',
+              !isWinning && !isTied ? 'text-tron-orange' : 'text-tron-cyan/50'
+            )}
+            style={{
+              textShadow: !isWinning && !isTied ? '0 0 10px rgba(255,107,0,0.6)' : 'none',
+            }}
+          >
+            ${opponentBalance !== undefined ? opponentBalance.toLocaleString() : '---'}
+          </span>
+        </div>
+      )}
     </div>
   )
 })
