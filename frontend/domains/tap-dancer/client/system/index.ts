@@ -1,4 +1,6 @@
-// Sound toggle - kept for minimal exports
+/**
+ * TapDancer Systems - Sound toggle and kept minimal
+ */
 import { useTradingStore } from '@/domains/tap-dancer/client/state/slices/index'
 
 export { useTradingStore }
