@@ -21,32 +21,32 @@ Next.js route → Game Client (Zustand + Socket.IO) → Phaser Scene → Game Sy
 
 ## Folder Structure
 
-| Folder | Purpose |
-|--------|---------|
-| `domains/hyper-swiper/` | Hyper Swiper game logic, state, Phaser systems |
-| `domains/tap-dancer/` | Tap Dancer game logic, state, Phaser systems |
-| `domains/match/` | Shared match rules, position UX, events (used by both games) |
-| `platform/ui/` | Shared UI: canvas bootstrapping, toasts, backgrounds |
-| `platform/game-engine/` | Game registration, runtime bootstrap |
-| `platform/auth/` | Privy/Mini App auth |
-| `platform/utils/` | Helpers (`cn()`, formatting) |
-| `app/api/socket/multiplayer/` | Authoritative server: matchmaking, rooms, settlement |
+| Folder                        | Purpose                                                      |
+| ----------------------------- | ------------------------------------------------------------ |
+| `domains/hyper-swiper/`       | Hyper Swiper game logic, state, Phaser systems               |
+| `domains/tap-dancer/`         | Tap Dancer game logic, state, Phaser systems                 |
+| `domains/match/`              | Shared match rules, position UX, events (used by both games) |
+| `platform/ui/`                | Shared UI: canvas bootstrapping, toasts, backgrounds         |
+| `platform/game-engine/`       | Game registration, runtime bootstrap                         |
+| `platform/auth/`              | Privy/Mini App auth                                          |
+| `platform/utils/`             | Helpers (`cn()`, formatting)                                 |
+| `app/api/socket/multiplayer/` | Authoritative server: matchmaking, rooms, settlement         |
 
 **Placement rule**: Game/match logic → `domains/`. Reusable infrastructure → `platform/`.
 
 ## Key Files by Task
 
-| Task | Start Here |
-|------|------------|
-| Matchmaking/lobby | [`app/api/socket/multiplayer/index.ts`](app/api/socket/multiplayer/index.ts) |
-| Room state | [`app/api/socket/multiplayer/room.manager.ts`](app/api/socket/multiplayer/room.manager.ts) |
-| Game-end/settlement | [`app/api/socket/multiplayer/settlement.server.ts`](app/api/socket/multiplayer/settlement.server.ts) |
-| Position opening limits | [`domains/match/position-opening.ts`](domains/match/position-opening.ts) |
-| Shared position cards | [`domains/match/client/phaser/positions/`](domains/match/client/phaser/positions/) |
-| Hyper Swiper gameplay | [`domains/hyper-swiper/client/state/slices/index.ts`](domains/hyper-swiper/client/state/slices/index.ts) |
-| Tap Dancer gameplay | [`domains/tap-dancer/client/state/slices/index.ts`](domains/tap-dancer/client/state/slices/index.ts) |
-| Add new game | [`platform/game-engine/register-core-games.ts`](platform/game-engine/register-core-games.ts) |
-| Phaser bootstrap | [`platform/ui/GameCanvasClient.tsx`](platform/ui/GameCanvasClient.tsx) |
+| Task                    | Start Here                                                                                               |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| Matchmaking/lobby       | [`app/api/socket/multiplayer/index.ts`](app/api/socket/multiplayer/index.ts)                             |
+| Room state              | [`app/api/socket/multiplayer/room.manager.ts`](app/api/socket/multiplayer/room.manager.ts)               |
+| Game-end/settlement     | [`app/api/socket/multiplayer/settlement.server.ts`](app/api/socket/multiplayer/settlement.server.ts)     |
+| Position opening limits | [`domains/match/position-opening.ts`](domains/match/position-opening.ts)                                 |
+| Shared position cards   | [`domains/match/client/phaser/positions/`](domains/match/client/phaser/positions/)                       |
+| Hyper Swiper gameplay   | [`domains/hyper-swiper/client/state/slices/index.ts`](domains/hyper-swiper/client/state/slices/index.ts) |
+| Tap Dancer gameplay     | [`domains/tap-dancer/client/state/slices/index.ts`](domains/tap-dancer/client/state/slices/index.ts)     |
+| Add new game            | [`platform/game-engine/register-core-games.ts`](platform/game-engine/register-core-games.ts)             |
+| Phaser bootstrap        | [`platform/ui/GameCanvasClient.tsx`](platform/ui/GameCanvasClient.tsx)                                   |
 
 ## Game Structure Pattern
 
