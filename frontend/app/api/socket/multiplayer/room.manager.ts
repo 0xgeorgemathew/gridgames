@@ -14,6 +14,7 @@ interface ActiveCoinEntry {
 
 export class GameRoom {
   readonly id: string
+  readonly gameSlug: string
   readonly players: Map<string, Player>
   readonly coins: Map<string, Coin>
 
@@ -65,8 +66,9 @@ export class GameRoom {
   /** Result artifact (set when match ends) */
   resultArtifact: import('@/domains/match/types').ResultArtifact | null = null
 
-  constructor(roomId: string, gameDuration: number = 60000) {
+  constructor(roomId: string, gameSlug: string, gameDuration: number = 60000) {
     this.id = roomId
+    this.gameSlug = gameSlug
     this.players = new Map()
     this.coins = new Map()
     this.openPositions = new Map()
@@ -157,6 +159,10 @@ export class GameRoom {
 
   removeOpenPosition(positionId: string): void {
     this.openPositions.delete(positionId)
+  }
+
+  clearOpenPositions(): void {
+    this.openPositions.clear()
   }
 
   addClosedPosition(settlement: PositionSettlementResult): void {

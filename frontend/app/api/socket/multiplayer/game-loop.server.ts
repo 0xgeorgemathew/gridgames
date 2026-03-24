@@ -51,7 +51,10 @@ export function startGameLoop(
   if (room.gameLoopActive) return
   room.gameLoopActive = true
 
-  room.initCoinSequence()
+  const spawnsCoins = room.gameSlug === 'hyper-swiper'
+  if (spawnsCoins) {
+    room.initCoinSequence()
+  }
   const gameStartTime = Date.now()
 
   // Transition match state to in_progress
@@ -83,29 +86,28 @@ export function startGameLoop(
     })
   }
 
-  const scheduleNextSpawn = () => {
-    if (!manager.hasRoom(room.id) || room.players.size < 2 || room.isShutdown) return
+  if (spawnsCoins) {
+    const scheduleNextSpawn = () => {
+      if (!manager.hasRoom(room.id) || room.players.size < 2 || room.isShutdown) return
 
-    // Note: expireOldCoins() removed - client now handles expiry via coin_expired event
-    // This prevents spawning new coins while old ones are still visible on screen
-
-    if (room.canSpawnCoin()) {
-      const forceType = room.getRequiredCoinType()
-      const coin = spawnCoin(room, forceType)
-      if (coin) {
-        emitCoinSpawn(coin)
+      if (room.canSpawnCoin()) {
+        const forceType = room.getRequiredCoinType()
+        const coin = spawnCoin(room, forceType)
+        if (coin) {
+          emitCoinSpawn(coin)
+        }
       }
+
+      const elapsedMs = Date.now() - gameStartTime
+      const heartbeatInterval = room.getHeartbeatInterval(elapsedMs)
+      const timeoutId = setTimeout(scheduleNextSpawn, heartbeatInterval)
+      room.trackTimeout(timeoutId)
     }
 
-    const elapsedMs = Date.now() - gameStartTime
-    const heartbeatInterval = room.getHeartbeatInterval(elapsedMs)
-    const timeoutId = setTimeout(scheduleNextSpawn, heartbeatInterval)
+    const initialDelay = 500
+    const timeoutId = setTimeout(scheduleNextSpawn, initialDelay)
     room.trackTimeout(timeoutId)
   }
-
-  const initialDelay = 500
-  const timeoutId = setTimeout(scheduleNextSpawn, initialDelay)
-  room.trackTimeout(timeoutId)
 
   if (room.gameTimeout) clearTimeout(room.gameTimeout)
 
@@ -149,6 +151,7 @@ export async function createMatch(
   sceneHeight2: number,
   leverage1: number,
   leverage2: number,
+  gameSlug: string,
   gameDuration: number,
   ensurePriceFeedConnectedFn: (io: SocketIOServer, manager: RoomManager) => void,
   startGameWhenClientsReadyFn: (io: SocketIOServer, manager: RoomManager, room: GameRoom) => void
@@ -156,7 +159,7 @@ export async function createMatch(
   ensurePriceFeedConnectedFn(io, manager)
 
   const roomId = `room-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
-  const room = manager.createRoom(roomId, gameDuration)
+  const room = manager.createRoom(roomId, gameSlug, gameDuration)
 
   room.addPlayer(playerId1, name1, sceneWidth1, sceneHeight1, leverage1)
   room.addPlayer(playerId2, name2, sceneWidth2, sceneHeight2, leverage2)

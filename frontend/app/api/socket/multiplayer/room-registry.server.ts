@@ -5,6 +5,7 @@ import type { WaitingPlayer } from './events.types'
 
 interface LastGameMeta {
   name: string
+  gameSlug?: string
   walletAddress?: string
   sceneWidth: number
   sceneHeight: number
@@ -31,6 +32,7 @@ export class RoomManager {
 
       this.lastGameMeta.set(pid, {
         name: player.name,
+        gameSlug: room.gameSlug,
         walletAddress: room.getWalletAddressPublic(pid),
         sceneWidth: player.sceneWidth,
         sceneHeight: player.sceneHeight,
@@ -49,8 +51,8 @@ export class RoomManager {
     this.lastGameMeta.delete(socketId)
   }
 
-  createRoom(roomId: string, gameDuration: number = 60000): GameRoom {
-    const room = new GameRoom(roomId, gameDuration)
+  createRoom(roomId: string, gameSlug: string, gameDuration: number = 60000): GameRoom {
+    const room = new GameRoom(roomId, gameSlug, gameDuration)
     this.rooms.set(roomId, room)
     return room
   }
@@ -108,18 +110,21 @@ export class RoomManager {
   addWaitingPlayer(
     socketId: string,
     name: string,
+    gameSlug: string,
     leverage: number = CFG.FIXED_LEVERAGE,
     gameDuration: number = 60000
   ): void {
     const existing = this.waitingPlayers.get(socketId)
     if (existing) {
       existing.name = name
+      existing.gameSlug = gameSlug
       existing.leverage = leverage
       existing.gameDuration = gameDuration
     } else {
       this.waitingPlayers.set(socketId, {
         name,
         socketId,
+        gameSlug,
         joinedAt: Date.now(),
         leverage,
         gameDuration,

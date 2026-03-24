@@ -20,10 +20,33 @@ import { MATCH_EVENTS } from '@/domains/match/events'
 import { buildResultArtifact, resolveMatchOutcome } from './result-artifact.server'
 import { initiateSettlementHandoff, storeResultArtifact } from './settlement-handoff.server'
 import { STAKE_AMOUNT } from '@/domains/match/config'
+import {
+  getPositionOpeningCapacity,
+  getPositionOpeningLimitMessage,
+} from '@/domains/match/position-opening'
+import { ensureCoreGamesRegistered } from '@/domains/game-engine/register-core-games'
+import { gameRegistry } from '@/domains/game-engine/core/registry'
+import type { WaitingPlayer } from './events.types'
 
 let priceFeedConnected = false
 
 let roomManagerRef: RoomManager | null = null
+
+function toLobbyPlayer(player: WaitingPlayer) {
+  return {
+    socketId: player.socketId,
+    name: player.name,
+    joinedAt: player.joinedAt,
+    leverage: player.leverage,
+    gameDuration: player.gameDuration,
+    gameSlug: player.gameSlug,
+  }
+}
+
+function emitLobbyUpdated(io: SocketIOServer, manager: RoomManager): void {
+  const players = Array.from(manager.getWaitingPlayers().values()).map(toLobbyPlayer)
+  io.emit('lobby_updated', { players })
+}
 
 function ensurePriceFeedConnected(io: SocketIOServer, manager?: RoomManager): void {
   if (manager) {
@@ -81,6 +104,47 @@ function endGame(
   setTimeout(() => disconnectPriceFeedIfIdle(manager), CFG.ROOM_DELETION_DELAY_MS + 100)
 }
 
+function getOpenPositionCounts(
+  room: GameRoom,
+  playerId: string
+): {
+  playerOpenPositions: number
+  opponentOpenPositions: number
+} {
+  let playerOpenPositions = 0
+  let opponentOpenPositions = 0
+
+  for (const position of room.openPositions.values()) {
+    if (position.playerId === playerId) {
+      playerOpenPositions += 1
+    } else {
+      opponentOpenPositions += 1
+    }
+  }
+
+  return { playerOpenPositions, opponentOpenPositions }
+}
+
+function getPositionOpeningGuard(room: GameRoom, playerId: string) {
+  const player = room.players.get(playerId)
+  const opponentId = room.getPlayerIds().find((id) => id !== playerId)
+  const opponent = opponentId ? room.players.get(opponentId) : undefined
+
+  if (!player || !opponent) {
+    return null
+  }
+
+  const { playerOpenPositions, opponentOpenPositions } = getOpenPositionCounts(room, playerId)
+
+  return getPositionOpeningCapacity({
+    playerBalance: player.dollars,
+    opponentBalance: opponent.dollars,
+    playerOpenPositions,
+    opponentOpenPositions,
+    stakeAmount: STAKE_AMOUNT,
+  })
+}
+
 async function handleSlice(
   io: SocketIOServer,
   _manager: RoomManager,
@@ -98,6 +162,26 @@ async function handleSlice(
 
   const player = room.players.get(playerId)
   if (!player) return
+
+  const openingGuard = getPositionOpeningGuard(room, playerId)
+  if (!openingGuard) return
+
+  if (!openingGuard.canOpen) {
+    const message = getPositionOpeningLimitMessage(openingGuard)
+    const payload = {
+      code: 'ACTION_REJECTED' as SocketErrorCode,
+      message,
+      details: {
+        maxOpenPositions: openingGuard.maxOpenPositions,
+        playerOpenPositions: openingGuard.playerOpenPositions,
+        remainingOpenSlots: openingGuard.remainingOpenSlots,
+        limitingReason: openingGuard.limitingReason,
+      },
+    }
+
+    io.to(playerId).emit('error', payload)
+    return
+  }
 
   // Zero-sum: No balance deduction on position open
   // Balance only changes when money is actually won or lost on close
@@ -148,6 +232,8 @@ export function setupGameEvents(io: SocketIOServer): {
   cleanup: () => void
   emergencyShutdown: () => void
 } {
+  ensureCoreGamesRegistered()
+
   // Log shared socket event names at startup (Phase 1 feedback loop)
   console.log('[SocketEvents] Shared match events:', Object.values(MATCH_EVENTS).join(', '))
 
@@ -187,12 +273,14 @@ export function setupGameEvents(io: SocketIOServer): {
       'find_match',
       ({
         playerName,
+        gameSlug,
         sceneWidth,
         sceneHeight,
         walletAddress,
         gameDuration,
       }: {
         playerName: string
+        gameSlug?: string
         sceneWidth?: number
         sceneHeight?: number
         walletAddress?: string
@@ -201,6 +289,15 @@ export function setupGameEvents(io: SocketIOServer): {
       }) => {
         try {
           const validatedName = validatePlayerName(playerName)
+          const requestedGameSlug = gameSlug ?? 'hyper-swiper'
+
+          if (!gameRegistry.has(requestedGameSlug)) {
+            socket.emit('error', {
+              code: 'FIND_MATCH_FAILED' as SocketErrorCode,
+              message: `Unknown game: ${requestedGameSlug}`,
+            })
+            return
+          }
 
           const p1Width = sceneWidth || CFG.DEFAULT_SCENE_WIDTH
           const p1Height = sceneHeight || CFG.DEFAULT_SCENE_HEIGHT
@@ -208,7 +305,13 @@ export function setupGameEvents(io: SocketIOServer): {
           const p1Leverage = CFG.FIXED_LEVERAGE
           const p1GameDuration = gameDuration ?? 60000
 
-          manager.addWaitingPlayer(socket.id, validatedName, p1Leverage, p1GameDuration)
+          manager.addWaitingPlayer(
+            socket.id,
+            validatedName,
+            requestedGameSlug,
+            p1Leverage,
+            p1GameDuration
+          )
           const waitingPlayer = manager.getWaitingPlayer(socket.id)
           if (waitingPlayer) {
             if (sceneWidth && sceneHeight) {
@@ -220,19 +323,11 @@ export function setupGameEvents(io: SocketIOServer): {
             }
           }
 
-          const allWaitingPlayers = Array.from(manager.getWaitingPlayers().entries()).map(
-            ([_id, player]) => ({
-              socketId: player.socketId,
-              name: player.name,
-              joinedAt: player.joinedAt,
-              leverage: player.leverage,
-              gameDuration: player.gameDuration,
-            })
-          )
-          io.emit('lobby_updated', { players: allWaitingPlayers })
+          emitLobbyUpdated(io, manager)
 
           for (const [waitingId, waiting] of manager.getWaitingPlayers()) {
             if (waitingId !== socket.id) {
+              if (waiting.gameSlug !== requestedGameSlug) continue
               if (waiting.gameDuration !== p1GameDuration) continue
 
               const waitingSocket = io.of('/').sockets.get(waitingId)
@@ -257,6 +352,7 @@ export function setupGameEvents(io: SocketIOServer): {
                   p2Height,
                   p1Leverage,
                   p2Leverage,
+                  requestedGameSlug,
                   p1GameDuration,
                   ensurePriceFeedConnected,
                   (io, mgr, room) =>
@@ -267,16 +363,7 @@ export function setupGameEvents(io: SocketIOServer): {
                   console.error('[Match] Failed to create match:', error)
                 })
 
-                const remainingPlayers = Array.from(manager.getWaitingPlayers().entries())
-                  .filter(([id]) => id !== socket.id && id !== waitingId)
-                  .map(([_id, player]) => ({
-                    socketId: player.socketId,
-                    name: player.name,
-                    joinedAt: player.joinedAt,
-                    leverage: player.leverage,
-                    gameDuration: player.gameDuration,
-                  }))
-                io.emit('lobby_updated', { players: remainingPlayers })
+                emitLobbyUpdated(io, manager)
 
                 return
               }
@@ -301,12 +388,14 @@ export function setupGameEvents(io: SocketIOServer): {
       'join_waiting_pool',
       ({
         playerName,
+        gameSlug,
         sceneWidth,
         sceneHeight,
         walletAddress,
         gameDuration,
       }: {
         playerName: string
+        gameSlug?: string
         sceneWidth?: number
         sceneHeight?: number
         walletAddress?: string
@@ -315,6 +404,15 @@ export function setupGameEvents(io: SocketIOServer): {
       }) => {
         try {
           const validatedName = validatePlayerName(playerName)
+          const requestedGameSlug = gameSlug ?? 'hyper-swiper'
+
+          if (!gameRegistry.has(requestedGameSlug)) {
+            socket.emit('error', {
+              code: 'JOIN_POOL_FAILED' as SocketErrorCode,
+              message: `Unknown game: ${requestedGameSlug}`,
+            })
+            return
+          }
 
           if (manager.getWaitingPlayer(socket.id)) {
             socket.emit('already_in_pool')
@@ -324,6 +422,7 @@ export function setupGameEvents(io: SocketIOServer): {
           manager.addWaitingPlayer(
             socket.id,
             validatedName,
+            requestedGameSlug,
             CFG.FIXED_LEVERAGE,
             gameDuration ?? 60000
           )
@@ -338,16 +437,7 @@ export function setupGameEvents(io: SocketIOServer): {
             }
           }
 
-          const allWaitingPlayers = Array.from(manager.getWaitingPlayers().entries()).map(
-            ([_id, player]) => ({
-              socketId: player.socketId,
-              name: player.name,
-              joinedAt: player.joinedAt,
-              leverage: player.leverage,
-              gameDuration: player.gameDuration,
-            })
-          )
-          io.emit('lobby_updated', { players: allWaitingPlayers })
+          emitLobbyUpdated(io, manager)
 
           socket.emit('joined_waiting_pool')
         } catch (error) {
@@ -361,17 +451,7 @@ export function setupGameEvents(io: SocketIOServer): {
 
     socket.on('leave_waiting_pool', () => {
       manager.removeWaitingPlayer(socket.id)
-
-      const allWaitingPlayers = Array.from(manager.getWaitingPlayers().entries()).map(
-        ([_id, player]) => ({
-          socketId: player.socketId,
-          name: player.name,
-          joinedAt: player.joinedAt,
-          leverage: player.leverage,
-          gameDuration: player.gameDuration,
-        })
-      )
-      io.emit('lobby_updated', { players: allWaitingPlayers })
+      emitLobbyUpdated(io, manager)
     })
 
     socket.on('scene_ready', () => {
@@ -422,6 +502,14 @@ export function setupGameEvents(io: SocketIOServer): {
           const room = manager.getRoom(roomId)
           if (!room) {
             manager.removePlayerFromRoom(socket.id)
+            return
+          }
+
+          if (room.gameSlug !== 'hyper-swiper') {
+            socket.emit('error', {
+              code: 'ACTION_REJECTED' as SocketErrorCode,
+              message: 'Slice actions are only valid for Hyper Swiper matches',
+            })
             return
           }
 
@@ -581,15 +669,15 @@ export function setupGameEvents(io: SocketIOServer): {
       }
     })
 
-    socket.on('get_lobby_players', () => {
+    socket.on('get_lobby_players', ({ gameSlug }: { gameSlug?: string } = {}) => {
+      const requestedGameSlug = gameSlug ?? manager.getWaitingPlayer(socket.id)?.gameSlug
       const players = Array.from(manager.getWaitingPlayers().entries())
-        .filter(([id]) => id !== socket.id)
+        .filter(
+          ([id, player]) =>
+            id !== socket.id && (!requestedGameSlug || player.gameSlug === requestedGameSlug)
+        )
         .map(([_id, player]) => ({
-          socketId: player.socketId,
-          name: player.name,
-          joinedAt: player.joinedAt,
-          leverage: player.leverage,
-          gameDuration: player.gameDuration,
+          ...toLobbyPlayer(player),
         }))
       socket.emit('lobby_players', players)
     })
@@ -621,6 +709,14 @@ export function setupGameEvents(io: SocketIOServer): {
         return
       }
 
+      if (localPlayer.gameSlug !== opponent.gameSlug) {
+        socket.emit('error', {
+          code: 'OPPONENT_UNAVAILABLE' as SocketErrorCode,
+          message: 'Cannot match: opponent is queued for a different game',
+        })
+        return
+      }
+
       const opponentSocket = io.of('/').sockets.get(opponentSocketId)
       if (!opponentSocket?.connected) {
         socket.emit('error', {
@@ -646,6 +742,7 @@ export function setupGameEvents(io: SocketIOServer): {
         opponent.sceneHeight || 800,
         localPlayer.leverage,
         opponent.leverage,
+        localPlayer.gameSlug,
         localPlayer.gameDuration,
         ensurePriceFeedConnected,
         (io, mgr, room) =>
@@ -696,25 +793,29 @@ export function setupGameEvents(io: SocketIOServer): {
           return
         }
 
+        if (room.gameSlug !== 'tap-dancer') {
+          socket.emit('error', { message: 'Open position is only valid for Tap Dancer matches' })
+          return
+        }
+
         const player = room.players.get(socket.id)
         if (!player) {
           socket.emit('error', { message: 'Player not found' })
           return
         }
 
-        // Zero-sum: No balance check or deduction on open
-        // Balance only changes when money is actually won or lost on close
-
-        // Check max positions
-        const playerPositions = Array.from(room.openPositions.values()).filter(
-          (p) => p.playerId === socket.id
-        )
-        if (playerPositions.length >= CFG.MAX_POSITIONS) {
-          socket.emit('error', { message: 'Maximum positions reached' })
+        const openingGuard = getPositionOpeningGuard(room, socket.id)
+        if (!openingGuard) {
+          socket.emit('error', { message: 'Player state unavailable' })
           return
         }
 
-        // Zero-sum: Do NOT deduct balance on open
+        if (!openingGuard.canOpen) {
+          socket.emit('error', {
+            message: getPositionOpeningLimitMessage(openingGuard),
+          })
+          return
+        }
 
         const currentPrice = priceFeed.getLatestPrice()
         const isUp = data.direction === 'long'
@@ -810,17 +911,7 @@ export function setupGameEvents(io: SocketIOServer): {
 
     socket.on('disconnect', () => {
       manager.removeWaitingPlayer(socket.id)
-
-      const allWaitingPlayers = Array.from(manager.getWaitingPlayers().entries()).map(
-        ([_id, player]) => ({
-          socketId: player.socketId,
-          name: player.name,
-          joinedAt: player.joinedAt,
-          leverage: player.leverage,
-          gameDuration: player.gameDuration,
-        })
-      )
-      io.emit('lobby_updated', { players: allWaitingPlayers })
+      emitLobbyUpdated(io, manager)
 
       const roomId = manager.getPlayerRoomId(socket.id)
       if (roomId) {

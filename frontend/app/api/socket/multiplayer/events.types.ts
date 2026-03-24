@@ -117,6 +117,7 @@ export interface SpawnedCoin {
 export interface WaitingPlayer {
   name: string
   socketId: string
+  gameSlug: string
   joinedAt: number
   sceneWidth?: number
   sceneHeight?: number

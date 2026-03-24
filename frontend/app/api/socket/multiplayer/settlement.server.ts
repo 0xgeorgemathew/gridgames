@@ -22,13 +22,12 @@ export function settleAllPositions(
   getLatestPrice: () => number
 ): GameSettlementData {
   const closePrice = getLatestPrice()
-  const settlements: PositionSettlementResult[] = [...room.closedPositions]
 
   // Zero-sum: Open positions expire with no transfer (no PnL settlement)
   for (const [positionId, position] of room.openPositions) {
     const isUp = position.coinType === 'long'
 
-    settlements.push({
+    room.addClosedPosition({
       positionId,
       playerId: position.playerId,
       playerName: position.playerName,
@@ -42,6 +41,10 @@ export function settleAllPositions(
       isLiquidated: false,
     })
   }
+
+  room.clearOpenPositions()
+
+  const settlements: PositionSettlementResult[] = [...room.closedPositions]
 
   const playerResults = calculatePlayerResults(room, settlements)
   const winner = determineWinnerByBalance(room)
