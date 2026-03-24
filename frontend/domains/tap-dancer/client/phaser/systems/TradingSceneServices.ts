@@ -12,6 +12,7 @@ import type { Direction } from '@/domains/tap-dancer/shared/trading.types'
  * Orchestrator for all Phaser-based gameplay visuals:
  * - Grid background
  * - Price graph (Tron-style light cycle trail)
+ * - Background music
  */
 export class TradingSceneServices {
   private scene: Scene
@@ -22,17 +23,20 @@ export class TradingSceneServices {
   private priceGraph!: PriceGraphSystem
   private buttonSystem!: ButtonSystem
   private positionCardSystem!: PositionCardSystem
+  private bgm: Phaser.Sound.BaseSound | null = null
 
   // Event handler references for cleanup
   private buttonTapHandler?: ({ direction }: { direction: Direction }) => void
   private closePositionHandler?: ({ positionId }: { positionId: string }) => void
+  private soundMutedHandler?: (muted: boolean) => void
 
   constructor(scene: Scene) {
     this.scene = scene
   }
 
   preload(): void {
-    // No assets to preload
+    // Load background music
+    this.scene.load.audio('bgm-game', 'audio/digital_dividend.mp3')
   }
 
   create(eventEmitter: Phaser.Events.EventEmitter): void {
@@ -67,6 +71,23 @@ export class TradingSceneServices {
       useTradingStore.getState().closePosition(positionId)
     }
     window.phaserEvents?.on('close_position', this.closePositionHandler)
+
+    // Setup background music
+    const { isSoundMuted } = useTradingStore.getState()
+    this.bgm = this.scene.sound.add('bgm-game', { loop: true, volume: 0.3 })
+    if (!isSoundMuted) {
+      this.bgm.play()
+    }
+
+    // Listen for sound mute changes
+    this.soundMutedHandler = (muted: boolean) => {
+      if (muted && this.bgm) {
+        this.bgm.stop()
+      } else if (!muted && this.bgm && !this.bgm.isPlaying) {
+        this.bgm.play()
+      }
+    }
+    window.phaserEvents?.on('sound_muted', this.soundMutedHandler)
   }
 
   update(delta: number): void {
@@ -95,6 +116,14 @@ export class TradingSceneServices {
     if (this.closePositionHandler) {
       window.phaserEvents?.off('close_position', this.closePositionHandler)
     }
+    if (this.soundMutedHandler) {
+      window.phaserEvents?.off('sound_muted', this.soundMutedHandler)
+    }
+
+    // Stop and destroy background music
+    this.bgm?.stop()
+    this.bgm?.destroy()
+    this.bgm = null
 
     this.scene.tweens.killAll()
 

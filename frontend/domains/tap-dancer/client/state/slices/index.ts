@@ -74,7 +74,6 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   // Audio state
   isSoundMuted:
     typeof window !== 'undefined' ? localStorage.getItem('tapDancer_soundMuted') === 'true' : false,
-  beatActive: false,
 
   // Price feed state
   priceSocket: null,
@@ -683,11 +682,5 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       localStorage.setItem('tapDancer_soundMuted', String(newMutedState))
     }
     window.phaserEvents?.emit('sound_muted', newMutedState)
-  },
-
-  triggerBeat: () => {
-    set({ beatActive: true })
-    // Reset beat state after a longer duration for smooth, atmospheric pulse
-    setTimeout(() => set({ beatActive: false }), 400)
   },
 }))

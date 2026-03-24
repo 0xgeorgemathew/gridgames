@@ -6,7 +6,6 @@ import { useEffect } from 'react'
 import { sdk } from '@farcaster/miniapp-sdk'
 
 import { useTradingStore } from '@/domains/tap-dancer/client/state/trading.store'
-import { useBeatAnimation } from '@/domains/tap-dancer/client/systems/useBeatAnimation'
 import GameCanvas from '@/platform/ui/GameCanvas'
 import { GameCanvasBackground } from '@/platform/ui/GameCanvasBackground'
 import { ToastNotifications } from '@/platform/ui/ToastNotifications'
@@ -24,7 +23,6 @@ function GameUI(): ReactNode {
       <GameCanvasBackground />
       <GameHUD />
       <GameCanvas gameSlug="tap-dancer" scene="TapDancerScene" />
-      {/* PositionList and PositionButtons moved to Phaser for performance */}
     </div>
   )
 }
@@ -43,9 +41,6 @@ function MatchmakingUI(): ReactNode {
 
 export function TapDancerClient(): ReactNode {
   const { isPlaying, connect, disconnect } = useTradingStore()
-
-  // Initialize beat-reactive animations
-  useBeatAnimation()
 
   useEffect(() => {
     sdk.actions.ready().catch(console.error)

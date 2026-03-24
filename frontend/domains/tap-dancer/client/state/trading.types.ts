@@ -95,7 +95,6 @@ interface MatchmakingSettingsState {
 // Audio state slice
 interface AudioState {
   isSoundMuted: boolean
-  beatActive: boolean // True when a beat pulse should animate
 }
 
 // Price feed state slice
@@ -148,7 +147,6 @@ export interface TradingState
   playAgain: () => void
   endGame: () => void
   toggleSound: () => void
-  triggerBeat: () => void // Trigger a beat pulse animation
   getLobbyPlayers: () => void
   joinWaitingPool: (playerName: string, walletAddress?: string) => void
   leaveWaitingPool: () => void
