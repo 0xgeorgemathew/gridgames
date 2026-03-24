@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 import { Game } from 'phaser'
-import { ensureClientGamesRegistered } from '@/domains/game-engine/register-client-games'
-import { bootstrapGame } from '@/domains/game-engine/client/registry'
+import { ensureClientGamesRegistered } from '@/platform/game-engine/register-client-games'
+import { bootstrapGame } from '@/platform/game-engine/client/registry'
 import { GridScene } from '@/domains/hyper-swiper/client/phaser/scenes/GridScene'
 import { TradingScene as HyperSwiperTradingScene } from '@/domains/hyper-swiper/client/phaser/scenes/TradingScene'
 import { TradingScene as TapDancerTradingScene } from '@/domains/tap-dancer/client/phaser/scenes/TradingScene'

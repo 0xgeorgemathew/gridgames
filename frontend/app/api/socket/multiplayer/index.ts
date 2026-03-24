@@ -24,8 +24,8 @@ import {
   getPositionOpeningCapacity,
   getPositionOpeningLimitMessage,
 } from '@/domains/match/position-opening'
-import { ensureCoreGamesRegistered } from '@/domains/game-engine/register-core-games'
-import { gameRegistry } from '@/domains/game-engine/core/registry'
+import { ensureCoreGamesRegistered } from '@/platform/game-engine/register-core-games'
+import { gameRegistry } from '@/platform/game-engine/core/registry'
 import type { WaitingPlayer } from './events.types'
 
 let priceFeedConnected = false
