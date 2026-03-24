@@ -20,5 +20,6 @@ bun run format # Format code
 
 ## Architecture
 
-See [codebase.md](./frontend/codebase.md) for a quick reference of important files In the Codebase
-See [dev-server-rules.md](.kilocode/rules/dev-server-rule.md) For quikc reference to important Rules when you run the dev server
+Read [codebase.md](./frontend/codebase.md) first for the semantic and functional map of the app. It explains the runtime flow, folder responsibilities, and the main files to inspect for each kind of task.
+See [architecture.md](./frontend/architecture.md) for the short folder-placement guide.
+See [dev-server-rules.md](.kilocode/rules/dev-server-rule.md) for quick reference on dev server rules.

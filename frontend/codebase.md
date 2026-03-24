@@ -1,173 +1,79 @@
-# Codebase Overview
+# Codebase Reference
 
-Quick reference for important files in the codebase.
+Minimal context for working in `frontend/`. Read this before making changes.
 
-## App Routes (`app/`)
+## What This App Is
 
-| File                                 | Purpose                                            |
-| ------------------------------------ | -------------------------------------------------- |
-| `page.tsx`                           | Home page - game selection screen                  |
-| `HomeClient.tsx`                     | Client wrapper for home page with Farcaster SDK    |
-| `hyper-swiper/page.tsx`              | Hyper Swiper game route                            |
-| `hyper-swiper/HyperSwiperClient.tsx` | Game client - connects socket, renders HUD/canvas  |
-| `tap-dancer/page.tsx`                | Tap Dancer game route                              |
-| `tap-dancer/TapDancerClient.tsx`     | Game client wrapper for Tap Dancer                 |
-| `providers.tsx`                      | Root providers (Privy, Wagmi, QueryClient, Motion) |
-| `layout.tsx`                         | Root layout with fonts and metadata                |
-| `grid/page.tsx`                      | Grid scene test page                               |
-| `test/page.tsx`                      | Grid background test page                          |
+Two multiplayer mini-games with shared match infrastructure:
 
-## API Routes (`app/api/`)
+- **hyper-swiper**: Slice falling long/short coins
+- **tap-dancer**: Tap directional buttons in rhythm sequences
 
-| File                    | Purpose                              |
-| ----------------------- | ------------------------------------ |
-| `socket/route.ts`       | Socket.IO initialization endpoint    |
-| `socket/game-events.ts` | Barrel export for multiplayer module |
-| `auth/route.ts`         | Farcaster QuickAuth verification     |
-| `health/route.ts`       | Health check endpoint                |
-| `webhook/route.ts`      | Webhook handler                      |
+Both are head-to-head matches where players start with fixed balances, and the server is authoritative for prices, room state, and settlement.
 
-## Multiplayer Server (`app/api/socket/multiplayer/`)
+## Runtime Flow
 
-| File                      | Purpose                                                    |
-| ------------------------- | ---------------------------------------------------------- |
-| `index.ts`                | Main Socket.IO event handler - wires all multiplayer logic |
-| `room.manager.ts`         | GameRoom class - manages players, mechanics, logic         |
-| `room-registry.server.ts` | RoomManager - tracks rooms, waiting players, matchmaking   |
-| `game-loop.server.ts`     | Game loop orchestration, sequences, match creation         |
-| `liquidation.server.ts`   | Position liquidation logic                                 |
-| `settlement.server.ts`    | Game-end settlement, PnL calculation, winner determination |
-| `price-feed.server.ts`    | Binance WebSocket for real-time BTC prices                 |
-| `coin-sequence.server.ts` | Deterministic sequences for fair play                      |
-| `events.types.ts`         | Server-side types                                          |
-| `validation.utils.ts`     | Input validation (player names, etc.)                      |
-| `seeded-random.utils.ts`  | Deterministic RNG                                          |
-| `game.config.ts`          | Server-side game configurations                            |
+```
+Next.js route → Game Client (Zustand + Socket.IO) → Phaser Scene → Game Systems
+                                    ↓
+              Server: app/api/socket/multiplayer/ (room registry, game loop, settlement)
+```
 
-## Domain: Hyper Swiper (`domains/hyper-swiper/`)
+## Folder Structure
 
-### Config & Types
+| Folder | Purpose |
+|--------|---------|
+| `domains/hyper-swiper/` | Hyper Swiper game logic, state, Phaser systems |
+| `domains/tap-dancer/` | Tap Dancer game logic, state, Phaser systems |
+| `domains/match/` | Shared match rules, position UX, events (used by both games) |
+| `platform/ui/` | Shared UI: canvas bootstrapping, toasts, backgrounds |
+| `platform/game-engine/` | Game registration, runtime bootstrap |
+| `platform/auth/` | Privy/Mini App auth |
+| `platform/utils/` | Helpers (`cn()`, formatting) |
+| `app/api/socket/multiplayer/` | Authoritative server: matchmaking, rooms, settlement |
 
-| File                      | Purpose                                               |
-| ------------------------- | ----------------------------------------------------- |
-| `meta.config.ts`          | Game metadata (name, description, icon, status)       |
-| `shared/trading.types.ts` | Shared types (Player, Position, CoinSpawnEvent, etc.) |
-| `index.ts`                | Public exports                                        |
+**Placement rule**: Game/match logic → `domains/`. Reusable infrastructure → `platform/`.
 
-### Client Components (`client/components/`)
+## Key Files by Task
 
-| File                                | Purpose                                               |
-| ----------------------------------- | ----------------------------------------------------- |
-| `screens/MatchmakingScreen.tsx`     | Lobby UI, player selection, game settings             |
-| `screens/GameOverModal.tsx`         | Victory/defeat screen with final balances             |
-| `hud/GameHUD.tsx`                   | Bottom navigation HUD - price, timer, health, actions |
-| `hud/CompactPriceRow.tsx`           | Price display, timer, sound/end buttons               |
-| `hud/PlayerHealthBar.tsx`           | Balance/health bar visualization                      |
-| `effects/PositionIndicator.tsx`     | Active positions display with PnL                     |
-| `effects/RoundEndFlash.tsx`         | Round end visual effect                               |
-| `modals/OnboardingModal.tsx`        | First-time user tutorial                              |
-| `modals/HowToPlayModal.tsx`         | Game instructions overlay                             |
-| `settings/GameSettingsSelector.tsx` | Game duration selector                                |
+| Task | Start Here |
+|------|------------|
+| Matchmaking/lobby | [`app/api/socket/multiplayer/index.ts`](app/api/socket/multiplayer/index.ts) |
+| Room state | [`app/api/socket/multiplayer/room.manager.ts`](app/api/socket/multiplayer/room.manager.ts) |
+| Game-end/settlement | [`app/api/socket/multiplayer/settlement.server.ts`](app/api/socket/multiplayer/settlement.server.ts) |
+| Position opening limits | [`domains/match/position-opening.ts`](domains/match/position-opening.ts) |
+| Shared position cards | [`domains/match/client/phaser/positions/`](domains/match/client/phaser/positions/) |
+| Hyper Swiper gameplay | [`domains/hyper-swiper/client/state/slices/index.ts`](domains/hyper-swiper/client/state/slices/index.ts) |
+| Tap Dancer gameplay | [`domains/tap-dancer/client/state/slices/index.ts`](domains/tap-dancer/client/state/slices/index.ts) |
+| Add new game | [`platform/game-engine/register-core-games.ts`](platform/game-engine/register-core-games.ts) |
+| Phaser bootstrap | [`platform/ui/GameCanvasClient.tsx`](platform/ui/GameCanvasClient.tsx) |
 
-### Phaser Engine (`client/phaser/`)
+## Game Structure Pattern
 
-| File                              | Purpose                                        |
-| --------------------------------- | ---------------------------------------------- |
-| `config.ts`                       | Phaser game config factories                   |
-| `constants.ts`                    | Game economy constants                         |
-| `scenes/TradingScene.ts`          | Main game scene - coordinates all systems      |
-| `scenes/GridScene.ts`             | Grid test scene                                |
-| `objects/Token.ts`                | Coin game object with physics and rendering    |
-| `systems/TradingSceneServices.ts` | Service locator - initializes all game systems |
-| `systems/CoinLifecycleSystem.ts`  | Coin pooling, spawning, lifecycle management   |
-| `systems/CollisionSystem.ts`      | Blade-coin collision detection and handling    |
-| `systems/BladeRenderer.ts`        | Swipe trail rendering with glow effects        |
-| `systems/CoinRenderer.ts`         | Coin visual rendering with cached textures     |
-| `systems/AudioManager.ts`         | Sound effects and mobile audio unlock          |
-| `systems/ParticleSystem.ts`       | Slice particle effects                         |
-| `systems/VisualEffects.ts`        | Explosion effects, screen shake                |
-| `systems/GridBackgroundSystem.ts` | Scrolling grid background                      |
-| `systems/PriceGraphSystem.ts`     | Price graph overlay                            |
-| `systems/InputAudioSystem.ts`     | Input handling with audio feedback             |
+Each game follows this pattern:
 
-### State (`client/state/`)
+```
+domains/<game>/
+├── client/
+│   ├── state/slices/index.ts     # Zustand store (start here for client state)
+│   ├── phaser/
+│   │   ├── scenes/TradingScene.ts      # Phaser entry point
+│   │   └── systems/TradingSceneServices.ts  # System coordinator
+│   └── components/*Client.tsx    # Page-level React component
+└── plugin/definition.ts          # Game registration metadata
+```
 
-| File               | Purpose                                                 |
-| ------------------ | ------------------------------------------------------- |
-| `trading.store.ts` | Zustand store barrel export                             |
-| `slices/index.ts`  | Main store implementation - socket, game state, actions |
-| `trading.types.ts` | Store types (TradingState, PhaserEventBridge)           |
+## Critical Contracts
 
-## Domain: Tap Dancer (`domains/tap-dancer/`)
+Change carefully - check both sides:
 
-### Config & Types
+- Socket payloads: [`app/api/socket/multiplayer/events.types.ts`](app/api/socket/multiplayer/events.types.ts)
+- Match events: [`domains/match/events.ts`](domains/match/events.ts)
+- Game definitions: [`platform/game-engine/core/types.ts`](platform/game-engine/core/types.ts)
 
-| File             | Purpose                                         |
-| ---------------- | ----------------------------------------------- |
-| `meta.config.ts` | Game metadata (name, description, icon, status) |
-| `types.ts`       | Domain specific types                           |
-| `index.ts`       | Public exports                                  |
+## Working Rules
 
-### Client Components (`client/components/`)
-
-| File                            | Purpose                                    |
-| ------------------------------- | ------------------------------------------ |
-| `screens/MatchmakingScreen.tsx` | Lobby UI for Tap Dancer                    |
-| `screens/GameOverModal.tsx`     | Victory/defeat screen                      |
-| `hud/GameHUD.tsx`               | Main HUD component for tracking game state |
-| `hud/CompactPriceRow.tsx`       | Price row and timer display                |
-| `hud/PriceLoadingState.tsx`     | Loading state for price                    |
-
-### Phaser Engine (`client/phaser/`)
-
-| File                              | Purpose                                         |
-| --------------------------------- | ----------------------------------------------- |
-| `scenes/TradingScene.ts`          | Main Tap Dancer game scene                      |
-| `systems/ButtonRenderer.ts`       | Renderer for in-game interactive buttons        |
-| `systems/ButtonSystem.ts`         | Logic and input handling for buttons            |
-| `systems/GridBackgroundSystem.ts` | Scrolling grid background component             |
-| `systems/PositionCardRenderer.ts` | Renders active position cards                   |
-| `systems/PositionCardSystem.ts`   | Logic handling for position cards               |
-| `systems/PriceGraphSystem.ts`     | Renders dynamic price graphs                    |
-| `systems/SnakePriceGraph.ts`      | Advanced snake effect price graph visualization |
-| `systems/TradingSceneServices.ts` | Service locator                                 |
-
-## Platform (`platform/`)
-
-### UI Components (`ui/`)
-
-| File                       | Purpose                                |
-| -------------------------- | -------------------------------------- |
-| `GameSelectionScreen.tsx`  | Home page game selection UI            |
-| `GameCanvas.tsx`           | Phaser canvas wrapper (dynamic import) |
-| `GameCanvasClient.tsx`     | Phaser game initialization             |
-| `GameCanvasBackground.tsx` | Gradient background component          |
-| `GridScanBackground.tsx`   | Three.js animated grid background      |
-| `TestGridBackground.tsx`   | Testing grid background visualization  |
-| `ToastNotifications.tsx`   | Toast message display                  |
-| `CountUp.tsx`              | Animated price counter                 |
-| `ActionButton.tsx`         | Styled button component                |
-| `PlayerName.tsx`           | Player name display with truncation    |
-| `UserProfileBadge.tsx`     | User profile display element           |
-| `MotionProvider.tsx`       | Framer Motion provider                 |
-
-### Auth (`auth/`)
-
-| File               | Purpose                            |
-| ------------------ | ---------------------------------- |
-| `privy.config.ts`  | Privy authentication configuration |
-| `mini-app.hook.ts` | Farcaster Mini App auth hook       |
-
-### Utils (`utils/`)
-
-| File                  | Purpose                               |
-| --------------------- | ------------------------------------- |
-| `classNames.utils.ts` | `cn()` helper for conditional classes |
-| `price.utils.ts`      | Price formatting utilities            |
-
-## Domain Registry (`domains/`)
-
-| File       | Purpose                                     |
-| ---------- | ------------------------------------------- |
-| `index.ts` | Game registry - exports all available games |
-| `types.ts` | GameConfig type definition                  |
+- Don't run dev server (assume it's running)
+- Commands: `bun run types`, `bun run format`
+- Use `@/` imports
+- TypeScript strict is off → add explicit null checks
