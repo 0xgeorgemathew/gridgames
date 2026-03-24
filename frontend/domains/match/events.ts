@@ -23,6 +23,7 @@ import type {
  */
 export interface FindMatchPayload {
   playerName: string
+  gameSlug: string
   gameDuration: number
   sceneWidth: number
   sceneHeight: number
@@ -122,6 +123,20 @@ export interface SettlementStateUpdatedPayload {
   state: SettlementHandoffState
 }
 
+/**
+ * Match domain event payload
+ * For authoritative runtime effects like coin spawns
+ */
+export interface MatchDomainEventPayload<DomainEvent = unknown> {
+  matchId: MatchId
+  /** Monotonic sequence number */
+  sequence: number
+  /** State version after event */
+  stateVersion: number
+  /** The domain-specific event */
+  event: DomainEvent
+}
+
 // =============================================================================
 // EVENT NAMES
 // =============================================================================
@@ -137,6 +152,7 @@ export const MATCH_EVENTS = {
   MATCH_UPDATED: 'match_updated',
   MATCH_STARTED: 'match_started',
   MATCH_ACTION_APPLIED: 'match_action_applied',
+  MATCH_DOMAIN_EVENT: 'match_domain_event',
   MATCH_RESULT_READY: 'match_result_ready',
   MATCH_ABORTED: 'match_aborted',
   FUNDING_STATE_UPDATED: 'funding_state_updated',

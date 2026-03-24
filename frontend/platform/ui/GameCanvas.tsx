@@ -10,8 +10,9 @@ const GameCanvasClient = dynamic(() => import('./GameCanvasClient').then((mod) =
 
 interface GameCanvasProps {
   scene?: SceneType
+  gameSlug?: string
 }
 
-export default function GameCanvas({ scene }: GameCanvasProps) {
-  return <GameCanvasClient scene={scene} />
+export default function GameCanvas({ scene, gameSlug }: GameCanvasProps) {
+  return <GameCanvasClient scene={scene} gameSlug={gameSlug} />
 }

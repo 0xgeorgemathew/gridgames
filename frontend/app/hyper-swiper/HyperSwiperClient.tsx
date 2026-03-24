@@ -24,7 +24,7 @@ function GameUI(): ReactNode {
       <RoundEndFlash />
       <GameCanvasBackground />
       <GameHUD />
-      <GameCanvas scene="TradingScene" />
+      <GameCanvas gameSlug="hyper-swiper" scene="TradingScene" />
     </div>
   )
 }
