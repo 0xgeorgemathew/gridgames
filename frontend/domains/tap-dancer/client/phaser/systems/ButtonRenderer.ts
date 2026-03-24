@@ -1,27 +1,16 @@
 import { Scene } from 'phaser'
 
 /**
- * Premium button configuration for visual rendering
- * Tron Legacy-inspired coin buttons matching Hyper Swiper aesthetic
- *
- * Optimized for Farcaster Mini App - crisp rendering when viewed up close on mobile
+ * Simplified button configuration
  */
 export const BUTTON_CONFIG = {
   long: {
-    color: 0x00ffaa, // Bright cyan-green neon
-    glowColor: 0x00ffcc, // Luminous glow
-    darkCore: 0x001a12, // Very dark teal core
-    edgeColor: 0x00ff88, // Sharp neon edge
-    radius: 44,
-    label: 'UP',
+    color: 0x00ffaa, // Cyan-green
+    label: '↑',
   },
   short: {
-    color: 0xff2266, // Hot pink-red neon
-    glowColor: 0xff4488, // Luminous glow
-    darkCore: 0x1a0812, // Very dark magenta core
-    edgeColor: 0xff6699, // Sharp neon edge
-    radius: 44,
-    label: 'DOWN',
+    color: 0xff4466, // Red-pink
+    label: '↓',
   },
 } as const
 
@@ -29,10 +18,7 @@ export type ButtonType = keyof typeof BUTTON_CONFIG
 export type ButtonGlowState = 'light' | 'medium' | 'brightest' | 'disabled'
 
 /**
- * Premium button renderer using Canvas 2D API for smooth gradients
- *
- * Uses native Canvas 2D radial gradients instead of Phaser Graphics
- * to eliminate banding and achieve buttery-smooth glow effects.
+ * Simplified button renderer using Canvas 2D API
  */
 export class ButtonRenderer {
   private scene: Scene
@@ -68,33 +54,7 @@ export class ButtonRenderer {
   }
 
   /**
-   * Draw triangle path on canvas context
-   */
-  private drawTriangle(ctx: CanvasRenderingContext2D, type: ButtonType, size: number): void {
-    const height = (size * Math.sqrt(3)) / 2
-
-    ctx.beginPath()
-    if (type === 'long') {
-      // Upward triangle
-      const topY = -height * 0.6
-      const bottomY = height * 0.4
-      ctx.moveTo(0, topY)
-      ctx.lineTo(-size / 2, bottomY)
-      ctx.lineTo(size / 2, bottomY)
-    } else {
-      // Downward triangle
-      const topY = -height * 0.4
-      const bottomY = height * 0.6
-      ctx.moveTo(-size / 2, topY)
-      ctx.lineTo(size / 2, topY)
-      ctx.lineTo(0, bottomY)
-    }
-    ctx.closePath()
-  }
-
-  /**
    * Generate all cached button textures
-   * Creates 8 textures: 2 types x 4 states each
    */
   generateCachedTextures(): void {
     const types: Array<ButtonType> = ['long', 'short']
@@ -109,17 +69,16 @@ export class ButtonRenderer {
 
   /**
    * Generate a single texture for a button type and state
-   * Uses Canvas 2D API for mathematically smooth gradients
    */
   private generateTexture(type: ButtonType, state: ButtonGlowState): void {
     const config = BUTTON_CONFIG[type]
     const isDisabled = state === 'disabled'
+    const radius = 44
 
     // High resolution for crisp rendering
-    // Canvas 2D handles gradients smoothly, so 4x scale is sufficient
     const scale = 4
-    const diameter = (config.radius * 2 + 32) * scale
-    const scaledRadius = config.radius * scale
+    const diameter = (radius * 2 + 32) * scale
+    const scaledRadius = radius * scale
 
     // Create offscreen canvas
     const canvas = document.createElement('canvas')
@@ -132,9 +91,8 @@ export class ButtonRenderer {
     const glowIntensity = this.getGlowIntensity(state)
 
     // =========================================================================
-    // LAYER 1: OUTER GLOW with smooth radial gradient
+    // LAYER 1: OUTER GLOW
     // =========================================================================
-    // Native Canvas 2D radial gradient - no banding!
     const outerGlow = ctx.createRadialGradient(
       center,
       center,
@@ -144,7 +102,7 @@ export class ButtonRenderer {
       scaledRadius * 1.4
     )
     outerGlow.addColorStop(0, 'rgba(0,0,0,0)')
-    outerGlow.addColorStop(0.6, this.hexToRgba(config.glowColor, glowIntensity * 0.3))
+    outerGlow.addColorStop(0.6, this.hexToRgba(config.color, glowIntensity * 0.3))
     outerGlow.addColorStop(1, 'rgba(0,0,0,0)')
 
     ctx.fillStyle = outerGlow
@@ -155,13 +113,14 @@ export class ButtonRenderer {
     // =========================================================================
     // LAYER 2: SOLID DARK CORE
     // =========================================================================
-    ctx.fillStyle = this.hexToRgba(config.darkCore, isDisabled ? 0.5 : 1.0)
+    const darkCore = type === 'long' ? 0x001a12 : 0x1a0812
+    ctx.fillStyle = this.hexToRgba(darkCore, isDisabled ? 0.5 : 1.0)
     ctx.beginPath()
     ctx.arc(center, center, scaledRadius, 0, Math.PI * 2)
     ctx.fill()
 
     // =========================================================================
-    // LAYER 3: INNER GLOW GRADIENT
+    // LAYER 3: INNER GLOW
     // =========================================================================
     const innerGlow = ctx.createRadialGradient(
       center,
@@ -171,8 +130,8 @@ export class ButtonRenderer {
       center,
       scaledRadius
     )
-    innerGlow.addColorStop(0, this.hexToRgba(config.glowColor, 0))
-    innerGlow.addColorStop(1, this.hexToRgba(config.glowColor, glowIntensity * 0.5))
+    innerGlow.addColorStop(0, this.hexToRgba(config.color, 0))
+    innerGlow.addColorStop(1, this.hexToRgba(config.color, glowIntensity * 0.5))
 
     ctx.fillStyle = innerGlow
     ctx.beginPath()
@@ -180,70 +139,47 @@ export class ButtonRenderer {
     ctx.fill()
 
     // =========================================================================
-    // LAYER 4: MULTI-STROKE EDGE (Canvas 2D anti-aliases strokes well)
+    // LAYER 4: BORDER
     // =========================================================================
     const edgeAlpha = isDisabled ? 0.4 : 1.0
 
-    // Outer glow ring
-    ctx.strokeStyle = this.hexToRgba(config.glowColor, edgeAlpha * 0.3)
-    ctx.lineWidth = 3 * scale
-    ctx.beginPath()
-    ctx.arc(center, center, scaledRadius + scale, 0, Math.PI * 2)
-    ctx.stroke()
-
-    // Primary neon ring
+    // Primary border
     ctx.strokeStyle = this.hexToRgba(config.color, edgeAlpha * 0.9)
     ctx.lineWidth = 3 * scale
     ctx.beginPath()
     ctx.arc(center, center, scaledRadius - 1.5 * scale, 0, Math.PI * 2)
     ctx.stroke()
 
-    // Inner highlight ring
-    ctx.strokeStyle = this.hexToRgba(config.edgeColor, edgeAlpha * 0.8)
-    ctx.lineWidth = 1.5 * scale
-    ctx.beginPath()
-    ctx.arc(center, center, scaledRadius - 3.5 * scale, 0, Math.PI * 2)
-    ctx.stroke()
-
-    // White accent
-    ctx.strokeStyle = `rgba(255,255,255,${edgeAlpha * 0.5})`
-    ctx.lineWidth = scale * 0.8
-    ctx.beginPath()
-    ctx.arc(center, center, scaledRadius - 0.5 * scale, 0, Math.PI * 2)
-    ctx.stroke()
-
     // =========================================================================
-    // LAYER 5: TRIANGLE ICON
+    // LAYER 5: ARROW ICON (thick bold arrows)
     // =========================================================================
-    const triangleAlpha = isDisabled ? 0.35 : 1.0
-    const triangleSize = scaledRadius * 0.55
+    const textAlpha = isDisabled ? 0.35 : 1.0
+    const fontSize = scaledRadius * 1.1
 
     ctx.save()
     ctx.translate(center, center)
+    ctx.font = `900 ${fontSize}px Arial`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
 
-    // Triangle glow
-    ctx.fillStyle = this.hexToRgba(config.glowColor, triangleAlpha * 0.25)
-    this.drawTriangle(ctx, type, triangleSize * 1.3)
-    ctx.fill()
+    // Thick stroke outline
+    ctx.strokeStyle = this.hexToRgba(config.color, textAlpha * 0.8)
+    ctx.lineWidth = scale * 2
+    ctx.strokeText(config.label, 0, 0)
 
-    // Triangle main
-    ctx.fillStyle = `rgba(255,255,255,${triangleAlpha})`
-    this.drawTriangle(ctx, type, triangleSize)
-    ctx.fill()
+    // Text glow
+    ctx.fillStyle = this.hexToRgba(config.color, textAlpha * 0.4)
+    ctx.fillText(config.label, 2, 2)
 
-    // Triangle stroke
-    ctx.strokeStyle = this.hexToRgba(config.color, triangleAlpha * 0.6)
-    ctx.lineWidth = scale * 0.5
-    this.drawTriangle(ctx, type, triangleSize)
-    ctx.stroke()
+    // Main text
+    ctx.fillStyle = `rgba(255,255,255,${textAlpha})`
+    ctx.fillText(config.label, 0, 0)
 
     ctx.restore()
 
     // =========================================================================
     // CREATE PHASER TEXTURE FROM CANVAS
     // =========================================================================
-    // CRITICAL: Use RenderTexture to convert Canvas to WebGL-compatible texture
-    // addCanvas() creates a CanvasTexture which doesn't work with Image game objects
     const textureKey = `button_${type}_${state}`
 
     // Remove existing texture if present
@@ -276,9 +212,7 @@ export class ButtonRenderer {
 
 /**
  * Get the display size for buttons (used by CoinButton)
- * This is the visual size of the button core plus glow padding
  */
 export function getButtonDisplaySize(): number {
-  // (BUTTON_RADIUS * 2 + 32 padding) = 44 * 2 + 32 = 120
   return 44 * 2 + 32
 }

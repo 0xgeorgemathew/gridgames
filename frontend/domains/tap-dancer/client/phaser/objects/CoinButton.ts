@@ -11,7 +11,7 @@ interface CoinButtonConfig {
   x: number
   y: number
   onToggle: (direction: ButtonType) => void
-  size?: number // Visual size of the button core (excludes glow) - defaults to 88
+  size?: number
 }
 
 const BASE_BUTTON_SIZE = 88
@@ -21,17 +21,15 @@ export class CoinButton extends GameObjects.Container {
   private buttonScene: Scene
   private direction: ButtonType
   private onToggle: (direction: ButtonType) => void
-  private size: number // Core button size (excludes glow)
+  private size: number
 
   private buttonImage: GameObjects.Image
   private ripple?: GameObjects.Graphics
   private pressTween?: Tweens.Tween
-  private beatTween?: Tweens.Tween
   private rippleTween?: Tweens.Tween
 
   private isPressed: boolean = false
   private isDisabled: boolean = false
-  private currentGlowState: ButtonGlowState = 'light'
 
   constructor(scene: Scene, config: CoinButtonConfig) {
     super(scene, config.x, config.y)
@@ -41,7 +39,6 @@ export class CoinButton extends GameObjects.Container {
     this.onToggle = config.onToggle
     this.size = config.size ?? 88
 
-    // Scale display size based on actual button size vs base size
     const scale = this.size / BASE_BUTTON_SIZE
     const displaySize = BASE_TEXTURE_DISPLAY_SIZE * scale
 
@@ -50,18 +47,13 @@ export class CoinButton extends GameObjects.Container {
     this.buttonImage.setInteractive({ useHandCursor: true })
     this.add(this.buttonImage)
 
-    // Set up pointer events
     this.buttonImage.on('pointerdown', this.handlePointerDown, this)
     this.buttonImage.on('pointerup', this.handlePointerUp, this)
     this.buttonImage.on('pointerout', this.handlePointerOut, this)
 
-    // Set depth for layering
     this.setDepth(10)
   }
 
-  /**
-   * Handle pointer down - show pressed state and trigger ripple
-   */
   private handlePointerDown(): void {
     if (this.isDisabled) return
 
@@ -71,9 +63,6 @@ export class CoinButton extends GameObjects.Container {
     this.playRippleEffect()
   }
 
-  /**
-   * Handle pointer up - trigger callback
-   */
   private handlePointerUp(): void {
     if (this.isDisabled) return
 
@@ -84,9 +73,6 @@ export class CoinButton extends GameObjects.Container {
     this.updateTexture()
   }
 
-  /**
-   * Handle pointer out - reset state
-   */
   private handlePointerOut(): void {
     if (this.isDisabled) return
 
@@ -94,9 +80,6 @@ export class CoinButton extends GameObjects.Container {
     this.updateTexture()
   }
 
-  /**
-   * Update button texture based on current state
-   */
   private updateTexture(): void {
     if (!this.buttonImage) return
 
@@ -106,16 +89,11 @@ export class CoinButton extends GameObjects.Container {
       state = 'disabled'
     } else if (this.isPressed) {
       state = 'brightest'
-    } else if (this.currentGlowState === 'medium') {
-      state = 'medium'
     }
 
     this.buttonImage.setTexture(`button_${this.direction}_${state}`)
   }
 
-  /**
-   * Play press animation - scale down and back up
-   */
   private playPressAnimation(): void {
     if (this.pressTween) {
       this.pressTween.destroy()
@@ -130,11 +108,7 @@ export class CoinButton extends GameObjects.Container {
     })
   }
 
-  /**
-   * Play ripple effect on tap
-   */
   private playRippleEffect(): void {
-    // Clean up existing ripple
     if (this.ripple) {
       this.ripple.destroy()
     }
@@ -149,7 +123,6 @@ export class CoinButton extends GameObjects.Container {
     this.ripple.setAlpha(0.9)
     this.add(this.ripple)
 
-    // Animate ripple expansion
     this.rippleTween = this.buttonScene.tweens.add({
       targets: this.ripple,
       alpha: 0,
@@ -163,37 +136,6 @@ export class CoinButton extends GameObjects.Container {
     })
   }
 
-  /**
-   * Play beat pulse animation (called from ButtonSystem when beat is active)
-   */
-  playBeatPulse(): void {
-    if (this.isDisabled || this.isPressed || !this.buttonImage) return
-
-    // Set medium glow state
-    this.currentGlowState = 'medium'
-    this.updateTexture()
-
-    // Scale pulse
-    if (this.beatTween) {
-      this.beatTween.destroy()
-    }
-
-    this.beatTween = this.buttonScene.tweens.add({
-      targets: this,
-      scale: 1.02,
-      duration: 100,
-      ease: 'Power2',
-      yoyo: true,
-      onComplete: () => {
-        this.currentGlowState = 'light'
-        this.updateTexture()
-      },
-    })
-  }
-
-  /**
-   * Set disabled state
-   */
   setDisabled(disabled: boolean): void {
     if (!this.buttonImage) return
 
@@ -202,31 +144,18 @@ export class CoinButton extends GameObjects.Container {
     this.updateTexture()
   }
 
-  /**
-   * Get current disabled state
-   */
   getDisabled(): boolean {
     return this.isDisabled
   }
 
-  /**
-   * Get button direction
-   */
   getDirection(): ButtonType {
     return this.direction
   }
 
-  /**
-   * Cleanup
-   */
   destroy(): void {
     if (this.pressTween) {
       this.pressTween.destroy()
       this.pressTween = undefined
-    }
-    if (this.beatTween) {
-      this.beatTween.destroy()
-      this.beatTween = undefined
     }
     if (this.rippleTween) {
       this.rippleTween.destroy()
