@@ -565,53 +565,31 @@ export class PositionCardRenderer {
 
     if (!lockCtx) return
 
-    lockCtx.fillStyle = '#1e293b'
+    // Grey background for "locked" state
+    lockCtx.fillStyle = '#6b7280'
     lockCtx.beginPath()
     lockCtx.arc(center, center, radius, 0, Math.PI * 2)
     lockCtx.fill()
 
-    const accentColor = '#f8fafc'
-    const shackleStrokeWidth = 3 * scale
-    const bodyWidth = scaledSize * 0.34
-    const bodyHeight = scaledSize * 0.26
-    const bodyX = (scaledSize - bodyWidth) / 2
-    const bodyY = scaledSize * 0.54
-    const shackleOuterRadius = bodyWidth * 0.42
-    const shackleCenterX = scaledSize / 2
-    const shackleCenterY = bodyY - shackleOuterRadius * 1.08
+    // Phosphor lock-fill icon using Path2D
+    const iconColor = '#ffffff'
+    const padding = scaledSize * 0.12
+    const iconSize = scaledSize - padding * 2
+    const iconScale = iconSize / 256
 
-    lockCtx.strokeStyle = accentColor
-    lockCtx.lineWidth = shackleStrokeWidth
-    lockCtx.lineCap = 'round'
-    lockCtx.lineJoin = 'round'
-    lockCtx.beginPath()
-    lockCtx.moveTo(bodyX + shackleStrokeWidth / 2, bodyY)
-    lockCtx.lineTo(bodyX + shackleStrokeWidth / 2, shackleCenterY)
-    lockCtx.arc(shackleCenterX, shackleCenterY, shackleOuterRadius, Math.PI, 0, false)
-    lockCtx.lineTo(bodyX + bodyWidth - shackleStrokeWidth / 2, bodyY)
-    lockCtx.stroke()
+    lockCtx.save()
+    lockCtx.translate(padding, padding)
+    lockCtx.scale(iconScale, iconScale)
 
-    lockCtx.fillStyle = accentColor
-    lockCtx.beginPath()
-    lockCtx.roundRect(bodyX, bodyY - scale, bodyWidth, bodyHeight, 5 * scale)
-    lockCtx.fill()
-
-    const keyholeRadius = bodyWidth * 0.05
-    const keyholeX = scaledSize / 2
-    const keyholeY = bodyY + bodyHeight * 0.32
-    lockCtx.fillStyle = '#334155'
-    lockCtx.beginPath()
-    lockCtx.arc(keyholeX, keyholeY, keyholeRadius, 0, Math.PI * 2)
-    lockCtx.fill()
-    lockCtx.beginPath()
-    lockCtx.roundRect(
-      keyholeX - keyholeRadius * 0.42,
-      keyholeY,
-      keyholeRadius * 0.84,
-      bodyHeight * 0.16,
-      keyholeRadius * 0.42
+    // Main lock body path (Phosphor lock-fill)
+    const lockPath = new Path2D(
+      'M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80Zm-80,84a12,12,0,1,1,12-12A12,12,0,0,1,128,164Zm32-84H96V56a32,32,0,0,1,64,0Z'
     )
-    lockCtx.fill()
+
+    lockCtx.fillStyle = iconColor
+    lockCtx.fill(lockPath)
+
+    lockCtx.restore()
 
     this.saveCanvasTexture('locked_icon', lockCanvas)
   }
