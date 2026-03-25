@@ -6,7 +6,7 @@ const dev = process.env.NODE_ENV !== 'production'
 const hostname = process.env.HOSTNAME || (dev ? 'localhost' : '0.0.0.0')
 const port = parseInt(process.env.PORT || '3000', 10)
 
-const app = next({ dev, hostname, port })
+const app = next({ dev, hostname, port, turbo: dev })
 const handler = app.getRequestHandler()
 
 // Store emergency shutdown for error handling
