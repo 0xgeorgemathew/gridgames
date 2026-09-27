@@ -4,3 +4,5 @@ node_modules/
 cloudflared/
 .worktrees/
 .DS_Store
+docs/agent-memory/local/*.md
+!docs/agent-memory/local/*.example.md

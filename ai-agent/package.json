@@ -1,0 +1,20 @@
+{
+  "name": "@grid-games/ai-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "types": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "langchain": "^1.2.37",
+    "@langchain/openai": "^1.3.1",
+    "@langchain/langgraph": "^1.2.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "@types/bun": "^1.2.4"
+  }
+}
