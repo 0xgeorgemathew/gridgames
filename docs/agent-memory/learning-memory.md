@@ -31,3 +31,14 @@ written upfront as policy.
   do not create a repeating JavaScript timer. Terminal room cleanup closes the feed.
 - Railway production has zero active deployments. Removing the Worker route does
   not provide a live rollback. Check previous Worker version bindings instead.
+
+### Matchmaking waiting state (2026-10-05)
+
+Both matchmaking screens derive their waiting view from the store's `isMatching`.
+A local entering flag can survive request failure, room abort or disconnect and
+hide retry controls. Keep only lobby navigation in local state. An authenticated
+player waits for another real player in the same game with the same round length.
+There is no bot or solo start. Queue cancellation currently has no acknowledgement
+and cannot safely distinguish queue waiting from a reserved room handoff. Do not
+show successful cancellation until the transport exposes a safe phase/ack.
+The focused screen/store regression is `platform/multiplayer/matchmaking-ui.test.tsx`.

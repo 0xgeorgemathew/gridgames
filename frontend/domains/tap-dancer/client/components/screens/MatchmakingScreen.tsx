@@ -15,8 +15,8 @@ import { OnboardingModal } from '@/domains/tap-dancer/client/components/modals/O
 import { GameSettingsSelector } from '@/domains/tap-dancer/client/components/settings/GameSettingsSelector'
 
 type AuthMatchState = 'login' | 'ready'
-type UserMatchState = 'lobby' | 'entering'
-type MatchState = AuthMatchState | UserMatchState
+type UserMatchState = 'lobby'
+type MatchState = AuthMatchState | UserMatchState | 'entering'
 
 interface MatchmakingAuthPanelProps {
   matchState: MatchState
@@ -88,6 +88,10 @@ function MatchmakingAuthPanel({
           <div key="entering" className="flex flex-col items-center gap-3">
             <p className="font-mono text-[var(--arena-accent)] text-xs tracking-[0.2em] ">
               FINDING YOUR RIVAL...
+            </p>
+            <p className="arena-meta text-center leading-relaxed">
+              Waiting for another real player in Tap Dancer with a {selectedGameDuration / 60000}
+              -minute round. Both players must choose the same game and round length.
             </p>
           </div>
         )}
@@ -227,7 +231,9 @@ export function MatchmakingScreen() {
     return 'login'
   }, [isInMiniApp, miniAppConnected, miniAppUser, authenticated, user?.wallet])
 
-  const matchState = userState || authState
+  // Waiting belongs to the live request, not a local state that outlives an error.
+  const matchState: MatchState =
+    authState === 'login' ? 'login' : isMatching ? 'entering' : userState || authState
 
   useEffect(() => {
     const shouldRedirectMiniApp =
@@ -263,8 +269,6 @@ export function MatchmakingScreen() {
   const handleEnter = useCallback(() => {
     if (!isConnected || isMatching || !walletAddress) return
 
-    setUserState('entering')
-
     findMatch(displayName || 'Grid Runner', walletAddress)
   }, [displayName, findMatch, isConnected, isMatching, walletAddress])
 
@@ -272,7 +276,6 @@ export function MatchmakingScreen() {
     (opponentSocketId: string) => {
       if (!isConnected || isMatching || !walletAddress) return
 
-      setUserState('entering')
       selectOpponent(opponentSocketId)
     },
     [isConnected, isMatching, walletAddress, selectOpponent]
