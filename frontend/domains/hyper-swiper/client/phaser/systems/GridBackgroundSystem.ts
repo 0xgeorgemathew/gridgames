@@ -1,8 +1,7 @@
-import * as Phaser from 'phaser'
-import type { GameObjects, Scene } from 'phaser'
+import Phaser, { GameObjects, Scene } from 'phaser'
 
 const GRID_CONFIG = {
-  color: 0xaa95ff,
+  color: 0x00f3ff,
   minCellWidth: 42,
   maxCellWidth: 72,
   minCellHeight: 30,
@@ -47,7 +46,6 @@ export class GridBackgroundSystem {
       this.scene.textures.remove(GRID_CONFIG.textureKey)
     }
     this.backgroundImage?.destroy()
-    if (this.scene.textures.exists('vignette-bg')) this.scene.textures.remove('vignette-bg')
   }
 
   getScrollSpeed(): number {
@@ -97,20 +95,20 @@ export class GridBackgroundSystem {
       tileHeight / 2,
       Math.max(tileWidth, tileHeight)
     )
-    bgGradient.addColorStop(0, 'rgba(170, 149, 255, 0.02)')
+    bgGradient.addColorStop(0, 'rgba(0, 188, 255, 0.0375)')
     bgGradient.addColorStop(1, 'rgba(0, 50, 100, 0.0)')
     ctx.fillStyle = bgGradient
     ctx.fillRect(0, 0, tileWidth, tileHeight)
 
     const drawH = (y: number) => {
-      ctx.strokeStyle = 'rgba(170, 149, 255, 0.02)'
+      ctx.strokeStyle = 'rgba(0, 188, 255, 0.0625)'
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(0, y)
       ctx.lineTo(tileWidth, y)
       ctx.stroke()
 
-      ctx.strokeStyle = 'rgba(170, 149, 255, 0.11)'
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.25)'
       ctx.lineWidth = 0.8
       ctx.beginPath()
       ctx.moveTo(0, y)
@@ -119,14 +117,14 @@ export class GridBackgroundSystem {
     }
 
     const drawV = (x: number) => {
-      ctx.strokeStyle = 'rgba(170, 149, 255, 0.02)'
+      ctx.strokeStyle = 'rgba(0, 188, 255, 0.0625)'
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.moveTo(x, 0)
       ctx.lineTo(x, tileHeight)
       ctx.stroke()
 
-      ctx.strokeStyle = 'rgba(170, 149, 255, 0.11)'
+      ctx.strokeStyle = 'rgba(0, 243, 255, 0.25)'
       ctx.lineWidth = 0.8
       ctx.beginPath()
       ctx.moveTo(x, 0)
@@ -153,7 +151,7 @@ export class GridBackgroundSystem {
       for (let j = 0; j < rows; j++) {
         const y = j * cellHeight
 
-        ctx.fillStyle = 'rgba(247, 245, 238, 0.23)'
+        ctx.fillStyle = 'rgba(0, 243, 255, 0.375)'
         ctx.fillRect(x - 0.5, y - 0.5, 1, 1)
       }
     }
@@ -162,6 +160,25 @@ export class GridBackgroundSystem {
       this.scene.textures.remove(GRID_CONFIG.textureKey)
     }
     this.scene.textures.addCanvas(GRID_CONFIG.textureKey, canvas)
+  }
+
+  private configureGridBloom(): void {
+    const bloomPipeline = this.gridLayer.getPostPipeline('BloomPostFX') as any
+    if (!bloomPipeline) return
+
+    if (typeof bloomPipeline.setBlurStrength === 'function') {
+      bloomPipeline.setBlurStrength(1.15)
+    } else if ('strength' in bloomPipeline) {
+      bloomPipeline.strength = 1.15
+    } else if ('blurStrength' in bloomPipeline) {
+      bloomPipeline.blurStrength = 1.15
+    }
+
+    if (typeof bloomPipeline.setBlurQuality === 'function') {
+      bloomPipeline.setBlurQuality(2)
+    } else if ('blurQuality' in bloomPipeline) {
+      bloomPipeline.blurQuality = 2
+    }
   }
 
   private ensureGridLayer(): void {
@@ -175,18 +192,24 @@ export class GridBackgroundSystem {
       this.gridLayer.setOrigin(0, 0)
       this.gridLayer.setDepth(-1)
       this.gridLayer.setBlendMode(Phaser.BlendModes.ADD)
+      this.gridLayer.setPostPipeline('BloomPostFX')
+      this.configureGridBloom()
     } else {
       this.gridLayer.setTexture(GRID_CONFIG.textureKey)
       this.gridLayer.setPosition(0, 0)
       this.gridLayer.setSize(width, height)
       this.gridLayer.setDisplaySize(width, height)
+      this.configureGridBloom()
     }
   }
 
   private updateGrid(delta: number): void {
+    const time = this.scene.time.now / 1000
+    const pulseIntensity = 0.4 + Math.sin(time * 2) * 0.15
+
     this.gridScrollX += (GRID_CONFIG.scrollSpeed * delta) / 1000
     this.gridLayer.tilePositionX = this.gridScrollX
-    this.gridLayer.setAlpha(0.85)
+    this.gridLayer.setAlpha(0.98 + pulseIntensity * 0.14)
   }
 
   private createVignetteBackground(): void {
@@ -204,31 +227,12 @@ export class GridBackgroundSystem {
     const maxRadius = Math.max(width, height) / 1.5
     const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius)
 
-    gradient.addColorStop(0, '#17182f')
-    gradient.addColorStop(0.6, '#0c1225')
-    gradient.addColorStop(1, '#080b1b')
+    gradient.addColorStop(0, 'rgba(8, 25, 32, 0.5)')
+    gradient.addColorStop(0.6, 'rgba(3, 8, 10, 0.7)')
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.95)')
 
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, width, height)
-
-    // Static exchange rings and deterministic stars are drawn only on create/resize.
-    ctx.save()
-    ctx.translate(width * 0.78, height * 0.38)
-    ctx.rotate(-0.4)
-    for (let i = 0; i < 4; i++) {
-      ctx.beginPath()
-      ctx.ellipse(0, 0, width * (0.45 + i * 0.16), height * (0.24 + i * 0.09), 0, 0, Math.PI * 2)
-      ctx.strokeStyle = i === 0 ? '#aa95ff20' : '#aa95ff0b'
-      ctx.lineWidth = 1
-      ctx.stroke()
-    }
-    ctx.restore()
-    for (let i = 0; i < 45; i++) {
-      const x = (((i * 137 + 31) % 997) / 997) * width
-      const y = (((i * 211 + 73) % 991) / 991) * height
-      ctx.fillStyle = i % 4 === 0 ? '#a3ffdb50' : '#f7f5ee25'
-      ctx.fillRect(x, y, i % 5 === 0 ? 2 : 1, 1)
-    }
 
     const textureKey = 'vignette-bg'
     if (this.scene.textures.exists(textureKey)) {

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { cn } from '@/platform/utils/classNames.utils'
-import styles from '../stage.module.css'
+import { Clock } from 'lucide-react'
 import type { CryptoSymbol } from '@/domains/tap-dancer/client/state/trading.types'
 import type { PriceData } from '@/domains/tap-dancer/shared/trading.types'
 import { formatTime } from './types'
@@ -51,25 +51,117 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
     playerBalance === opponentBalance
 
   return (
-    <div className={styles.scores}>
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
+      {/* Left: Your Balance */}
       {isGameReady && playerBalance !== undefined && (
-        <div className={styles.score}>
-          <span className="arena-label">{getDisplayName(playerName)}</span>
-          <strong className={styles.balance}>{'$'}{playerBalance.toLocaleString()}</strong>
-          <span className={styles.scoreStatus}>{isWinning ? 'LEADING' : isTied ? 'LEVEL' : 'CHASING'}</span>
+        <div
+          className={cn(
+            'flex flex-col items-center px-3 py-1.5 rounded-lg transition-all duration-300',
+            isWinning
+              ? 'bg-tron-cyan/10 border border-tron-cyan/40'
+              : 'bg-tron-black/50 border border-tron-cyan/20'
+          )}
+          style={{
+            boxShadow: isWinning ? '0 0 12px rgba(0,243,255,0.3)' : 'none',
+          }}
+        >
+          <span
+            className={cn(
+              'text-[10px] uppercase tracking-wider font-bold',
+              isWinning ? 'text-tron-cyan' : 'text-tron-cyan/60'
+            )}
+            style={{
+              textShadow: isWinning ? '0 0 8px rgba(0,243,255,0.6)' : 'none',
+            }}
+          >
+            {getDisplayName(playerName)}
+          </span>
+          <span
+            className={cn(
+              'text-base font-black font-numeric',
+              isWinning ? 'text-tron-cyan' : 'text-tron-cyan/70'
+            )}
+            style={{
+              textShadow: isWinning ? '0 0 10px rgba(0,243,255,0.6)' : 'none',
+            }}
+          >
+            ${playerBalance.toLocaleString()}
+          </span>
         </div>
       )}
+
+      {/* Center: Timer (Main Component) */}
       {isGameReady && (
-        <div className={styles.roundClock}>
-          <span className="arena-label">ROUND</span>
-          <strong className={cn(styles.clock, isLowTime && styles.negative)}>{formatTime(gameTimeRemaining)}</strong>
+        <div
+          className={cn(
+            'flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2',
+            isLowTime ? 'bg-red-500/10 border-red-400/60' : 'bg-tron-cyan/10 border-tron-cyan/50'
+          )}
+          style={{
+            boxShadow: isLowTime
+              ? '0 0 20px rgba(248,113,113,0.4)'
+              : '0 0 20px rgba(0,243,255,0.3)',
+          }}
+        >
+          <Clock
+            className={cn('w-5 h-5', isLowTime ? 'text-red-400' : 'text-tron-cyan')}
+            style={{
+              filter: isLowTime
+                ? 'drop-shadow(0 0 6px rgba(248,113,113,0.8))'
+                : 'drop-shadow(0 0 6px rgba(0,243,255,0.8))',
+            }}
+          />
+          <span
+            className={cn(
+              'text-xl font-black font-numeric tracking-wider',
+              isLowTime ? 'text-red-400' : 'text-tron-cyan'
+            )}
+            style={{
+              textShadow: isLowTime
+                ? '0 0 15px rgba(248,113,113,0.9)'
+                : '0 0 15px rgba(0,243,255,0.9)',
+            }}
+          >
+            {formatTime(gameTimeRemaining)}
+          </span>
         </div>
       )}
+
+      {/* Right: Opponent Balance */}
       {isGameReady && playerBalance !== undefined && (
-        <div className={cn(styles.score, styles.rival)}>
-          <span className="arena-label">{getDisplayName(opponentName || 'RIVAL')}</span>
-          <strong className={styles.balance}>{'$'}{opponentBalance?.toLocaleString() ?? '0'}</strong>
-          <span className={styles.scoreStatus}>OPPONENT</span>
+        <div
+          className={cn(
+            'flex flex-col items-center px-3 py-1.5 rounded-lg transition-all duration-300',
+            !isWinning && !isTied
+              ? 'bg-tron-orange/10 border border-tron-orange/40'
+              : 'bg-tron-black/50 border border-tron-cyan/20'
+          )}
+          style={{
+            boxShadow: !isWinning && !isTied ? '0 0 12px rgba(255,107,0,0.3)' : 'none',
+          }}
+        >
+          <span
+            className={cn(
+              'text-[10px] uppercase tracking-wider font-bold',
+              !isWinning && !isTied ? 'text-tron-orange' : 'text-tron-cyan/50'
+            )}
+            style={{
+              textShadow: !isWinning && !isTied ? '0 0 8px rgba(255,107,0,0.6)' : 'none',
+            }}
+          >
+            {getDisplayName(opponentName, 8) || 'OPP'}
+          </span>
+          <span
+            className={cn(
+              'text-base font-black font-numeric',
+              !isWinning && !isTied ? 'text-tron-orange' : 'text-tron-cyan/50'
+            )}
+            style={{
+              textShadow: !isWinning && !isTied ? '0 0 10px rgba(255,107,0,0.6)' : 'none',
+            }}
+          >
+            ${opponentBalance !== undefined ? opponentBalance.toLocaleString() : '---'}
+          </span>
         </div>
       )}
     </div>

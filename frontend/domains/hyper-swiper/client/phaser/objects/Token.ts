@@ -1,4 +1,3 @@
-import * as Phaser from 'phaser'
 import { Scene, GameObjects, Physics, Tweens } from 'phaser'
 import type { CoinType } from '@/domains/hyper-swiper/shared/trading.types'
 
@@ -23,6 +22,7 @@ export class Token extends GameObjects.Container {
   private spawnScaleTween?: Tweens.Tween
   private spawnRotationTween?: Tweens.Tween
   private yoyoScaleTween?: Tweens.Tween
+  private breatheTween?: Tweens.Tween
   private glowGraphics?: GameObjects.Graphics
 
   private velocityX: number = 0
@@ -163,8 +163,6 @@ export class Token extends GameObjects.Container {
     this.y += this.velocityY * deltaSeconds
 
     this.angle += this.angularVelocity * deltaSeconds
-    // Keep the type label upright while the container keeps its original motion.
-    this.image.rotation = -this.rotation
 
     if (this.body) {
       this.body.position.x = this.x - this.body.width / 2
@@ -212,11 +210,30 @@ export class Token extends GameObjects.Container {
       this.yoyoScaleTween.destroy()
       this.yoyoScaleTween = undefined
     }
+    if (this.breatheTween) {
+      this.breatheTween.destroy()
+      this.breatheTween = undefined
+    }
   }
 
-  /** Stop bounded spawn effects when a pooled token leaves the field. */
-  stopVisualEffects(): void {
-    this.cleanupTweens()
+  /**
+   * Start a gentle idle breathing scale pulse.
+   * ±3% scale oscillation for a living, premium feel.
+   */
+  private startBreathing(targetScale: number): void {
+    if (this.breatheTween) {
+      this.breatheTween.destroy()
+      this.breatheTween = undefined
+    }
+
+    this.breatheTween = this.scene.tweens.add({
+      targets: this,
+      scale: targetScale * 1.03,
+      duration: 1200,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    })
   }
 
   private playSpawnAnimation(targetScale: number): void {
@@ -237,6 +254,8 @@ export class Token extends GameObjects.Container {
           if (Math.abs(this.scale - targetScale) > tolerance) {
             this.setScale(targetScale)
           }
+          // Start idle breathing after spawn completes
+          this.startBreathing(targetScale)
         },
       })
     } else {
@@ -257,6 +276,8 @@ export class Token extends GameObjects.Container {
               if (Math.abs(this.scale - targetScale) > tolerance) {
                 this.setScale(targetScale)
               }
+              // Start idle breathing after spawn completes
+              this.startBreathing(targetScale)
             },
           })
         },

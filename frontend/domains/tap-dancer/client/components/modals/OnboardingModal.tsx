@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { AnimatePresence, m } from 'framer-motion'
-import { StageButton as ActionButton } from '../StageButton'
+import { ActionButton } from '@/platform/ui/ActionButton'
 
 interface OnboardingModalProps {
   isOpen: boolean
@@ -39,12 +39,25 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="arena-dialog relative w-full max-w-md p-6 md:p-8 overflow-hidden"
+            className="relative w-full max-w-md bg-tron-black border border-tron-cyan/40 p-6 md:p-8 overflow-hidden rounded-sm"
+            style={{
+              boxShadow: '0 0 30px rgba(0,243,255,0.1), inset 0 0 20px rgba(0,243,255,0.05)',
+            }}
           >
+            {/* Background elements */}
+            <div className="absolute inset-0 tron-grid opacity-10 pointer-events-none" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-tron-cyan to-transparent opacity-80" />
+
+            {/* Corner accents */}
+            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-tron-cyan/60" />
+            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-tron-cyan/60" />
+            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-tron-cyan/60" />
+            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-tron-cyan/60" />
+
             {/* Header */}
             <div className="relative z-10 flex justify-between items-center mb-6">
-              <h2 className="font-mono text-xl text-[var(--arena-accent)] tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-                YOUR FIRST ROUND
+              <h2 className="font-[family-name:var(--font-orbitron)] text-xl text-tron-cyan tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
+                SYSTEM INITIALIZATION
               </h2>
             </div>
 
@@ -59,13 +72,13 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     exit={{ opacity: 0, x: -20 }}
                     className="flex flex-col items-center text-center gap-4"
                   >
-                    <div className="text-4xl mb-2">↗</div>
-                    <h3 className="font-mono text-lg text-white tracking-widest">
-                      READ THE MARKET
+                    <div className="text-4xl mb-2">🎵</div>
+                    <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
+                      THE RHYTHM OF THE GRID
                     </h3>
-                    <p className="text-[var(--arena-accent)]/70 text-sm leading-relaxed">
-                      Welcome to Tap Dancer. Test your trading instincts in live head-to-head rounds.
-                      Pick a direction, then tap to open a position.
+                    <p className="text-tron-cyan/70 text-sm leading-relaxed">
+                      Welcome to TapDancer. Test your trading instincts in real-time PvP battles.
+                      Feel the beat, make your move.
                     </p>
                   </m.div>
                 )}
@@ -79,15 +92,15 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     className="flex flex-col items-center text-center gap-4"
                   >
                     <div className="flex gap-4 text-4xl mb-2">
-                      <span className="text-[#d9f56e]">▲</span>
-                      <span className="text-[#ff68bc]">▼</span>
+                      <span className="text-green-400">▲</span>
+                      <span className="text-red-400">▼</span>
                     </div>
-                    <h3 className="font-mono text-lg text-white tracking-widest">
+                    <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
                       TAP TO TRADE
                     </h3>
-                    <p className="text-[var(--arena-accent)]/70 text-sm leading-relaxed">
-                      Tap <strong className="text-[#d9f56e] font-bold">LONG</strong> (profit when
-                      price rises) or <strong className="text-[#ff68bc] font-bold">SHORT</strong>{' '}
+                    <p className="text-tron-cyan/70 text-sm leading-relaxed">
+                      Tap <strong className="text-green-400 font-bold">UP</strong> (profit when
+                      price rises) or <strong className="text-red-400 font-bold">DOWN</strong>{' '}
                       (profit when price falls). Close positions before they liquidate!
                     </p>
                   </m.div>
@@ -101,13 +114,14 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     exit={{ opacity: 0, x: -20 }}
                     className="flex flex-col items-center text-center gap-4"
                   >
-                    <div className="text-4xl mb-2">01</div>
-                    <h3 className="font-mono text-lg text-white tracking-widest">
+                    <div className="text-4xl mb-2">🏆</div>
+                    <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
                       OUTPERFORM YOUR OPPONENT
                     </h3>
-                    <p className="text-[var(--arena-accent)]/70 text-sm leading-relaxed">
-                      Your goal: accumulate more profit than your rival. The chart tracks the market.
-                      Watch your open positions and close at the right moment.
+                    <p className="text-tron-cyan/70 text-sm leading-relaxed">
+                      Your goal: accumulate more profit than your rival. The graph displays your{' '}
+                      <strong className="text-tron-cyan">position</strong> PnL—time your entries and
+                      close at the right moment. The Grid favors the swift.
                     </p>
                   </m.div>
                 )}
@@ -122,8 +136,8 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     key={`step-${dot}`}
                     className={`h-1 rounded-full transition-all duration-300 ${
                       dot === step
-                        ? 'w-8 bg-[var(--arena-accent)] shadow-[0_0_8px_var(--color-tron-cyan)]'
-                        : 'w-2 bg-[var(--arena-accent)]/20'
+                        ? 'w-8 bg-tron-cyan shadow-[0_0_8px_var(--color-tron-cyan)]'
+                        : 'w-2 bg-tron-cyan/20'
                     }`}
                   />
                 ))}
@@ -133,22 +147,22 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                 {step > 1 ? (
                   <button
                     onClick={prevStep}
-                    className="flex-1 py-2 font-mono text-xs tracking-[0.2em] text-[var(--arena-accent)]/60 hover:text-[var(--arena-accent)] transition-colors"
+                    className="flex-1 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/60 hover:text-tron-cyan transition-colors"
                   >
                     PREVIOUS
                   </button>
                 ) : (
                   <button
                     onClick={onClose}
-                    className="flex-1 py-2 font-mono text-xs tracking-[0.2em] text-[var(--arena-accent)]/40 hover:text-[var(--arena-accent)]/80 transition-colors"
+                    className="flex-1 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/40 hover:text-tron-cyan/80 transition-colors"
                   >
-                    SKIP
+                    SKIP PROTOCOL
                   </button>
                 )}
 
                 <div className="flex-1">
                   <ActionButton onClick={nextStep} color="cyan">
-                    {step === 3 ? 'LET’S PLAY' : 'NEXT'}
+                    {step === 3 ? 'ENTER GRID' : 'NEXT'}
                   </ActionButton>
                 </div>
               </div>

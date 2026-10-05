@@ -28,9 +28,6 @@ export class CoinButton extends GameObjects.Container {
   private pressTween?: Tweens.Tween
   private rippleTween?: Tweens.Tween
 
-  private reducedMotion = typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
   private isPressed: boolean = false
   private isDisabled: boolean = false
 
@@ -98,7 +95,6 @@ export class CoinButton extends GameObjects.Container {
   }
 
   private playPressAnimation(): void {
-    if (this.reducedMotion) return
     if (this.pressTween) {
       this.pressTween.destroy()
     }
@@ -113,7 +109,6 @@ export class CoinButton extends GameObjects.Container {
   }
 
   private playRippleEffect(): void {
-    if (this.reducedMotion) return
     if (this.ripple) {
       this.ripple.destroy()
     }
@@ -171,7 +166,6 @@ export class CoinButton extends GameObjects.Container {
       this.ripple = undefined
     }
 
-    this.buttonImage?.removeAllListeners()
     this.buttonImage = null as any
     super.destroy()
   }

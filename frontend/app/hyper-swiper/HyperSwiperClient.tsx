@@ -18,10 +18,7 @@ function GameUI(): ReactNode {
   const { toasts, removeToast } = useTradingStore()
 
   return (
-    <div
-      data-game="hyper-swiper"
-      className="game-shell fixed inset-0 overflow-hidden overscroll-none"
-    >
+    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
       <ToastNotifications toasts={toasts} onRemove={removeToast} />
       <GameOverModal />
       <RoundEndFlash />
@@ -36,10 +33,7 @@ function MatchmakingUI(): ReactNode {
   const { toasts, removeToast } = useTradingStore()
 
   return (
-    <div
-      data-game="hyper-swiper"
-      className="game-shell fixed inset-0 overflow-hidden overscroll-none"
-    >
+    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
       <ToastNotifications toasts={toasts} onRemove={removeToast} />
       <GameOverModal />
       <RoundEndFlash />

@@ -32,7 +32,6 @@ export class CoinLifecycleSystem {
       createCallback: (token) => {
         const t = token as Token
         t.setVisible(false)
-        t.stopVisualEffects()
         t.setActive(false)
       },
     })
@@ -110,7 +109,6 @@ export class CoinLifecycleSystem {
 
         if (!token.active) return
 
-        token.stopVisualEffects()
         token.setActive(false)
         token.setVisible(false)
 
@@ -151,7 +149,6 @@ export class CoinLifecycleSystem {
         this.scene.physics.world.disableBody(token.body)
       }
 
-      token.stopVisualEffects()
       token.setActive(false)
       token.setVisible(false)
     }
@@ -175,7 +172,6 @@ export class CoinLifecycleSystem {
         useTradingStore.getState().expireCoin(coinId)
 
         this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
-        t.stopVisualEffects()
         t.setActive(false)
         t.setVisible(false)
         if (t.body) {
