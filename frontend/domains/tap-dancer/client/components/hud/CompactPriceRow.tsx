@@ -51,12 +51,12 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
     playerBalance === opponentBalance
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3">
+    <div className="flex items-center justify-between gap-2 px-3 py-3">
       {/* Left: Your Balance */}
       {isGameReady && playerBalance !== undefined && (
         <div
           className={cn(
-            'flex flex-col items-center px-3 py-1.5 rounded-lg transition-all duration-300',
+            'flex flex-col items-center px-3 py-1.5 rounded-sm transition-all duration-300',
             isWinning
               ? 'bg-tron-cyan/10 border border-tron-cyan/40'
               : 'bg-tron-black/50 border border-tron-cyan/20'
@@ -78,7 +78,7 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
           </span>
           <span
             className={cn(
-              'text-base font-black font-numeric',
+              'text-base font-black font-numeric tabular-nums',
               isWinning ? 'text-tron-cyan' : 'text-tron-cyan/70'
             )}
             style={{
@@ -94,31 +94,31 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
       {isGameReady && (
         <div
           className={cn(
-            'flex items-center justify-center gap-2 px-4 py-2 rounded-xl border-2',
-            isLowTime ? 'bg-red-500/10 border-red-400/60' : 'bg-tron-cyan/10 border-tron-cyan/50'
+            'flex items-center justify-center gap-2 px-3 py-2 rounded-sm border',
+            isLowTime
+              ? 'bg-tron-orange/10 border-tron-orange/60'
+              : 'bg-tron-cyan/10 border-tron-cyan/50'
           )}
           style={{
-            boxShadow: isLowTime
-              ? '0 0 20px rgba(248,113,113,0.4)'
-              : '0 0 20px rgba(0,243,255,0.3)',
+            boxShadow: isLowTime ? '0 0 20px rgba(255,107,0,0.4)' : '0 0 20px rgba(0,243,255,0.3)',
           }}
         >
           <Clock
-            className={cn('w-5 h-5', isLowTime ? 'text-red-400' : 'text-tron-cyan')}
+            className={cn('w-5 h-5', isLowTime ? 'text-tron-orange' : 'text-tron-cyan')}
             style={{
               filter: isLowTime
-                ? 'drop-shadow(0 0 6px rgba(248,113,113,0.8))'
+                ? 'drop-shadow(0 0 6px rgba(255,107,0,0.8))'
                 : 'drop-shadow(0 0 6px rgba(0,243,255,0.8))',
             }}
           />
           <span
             className={cn(
-              'text-xl font-black font-numeric tracking-wider',
-              isLowTime ? 'text-red-400' : 'text-tron-cyan'
+              'text-xl font-black font-numeric tabular-nums tracking-wider',
+              isLowTime ? 'text-tron-orange' : 'text-tron-cyan'
             )}
             style={{
               textShadow: isLowTime
-                ? '0 0 15px rgba(248,113,113,0.9)'
+                ? '0 0 15px rgba(255,107,0,0.9)'
                 : '0 0 15px rgba(0,243,255,0.9)',
             }}
           >
@@ -131,7 +131,7 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
       {isGameReady && playerBalance !== undefined && (
         <div
           className={cn(
-            'flex flex-col items-center px-3 py-1.5 rounded-lg transition-all duration-300',
+            'flex flex-col items-center px-3 py-1.5 rounded-sm transition-all duration-300',
             !isWinning && !isTied
               ? 'bg-tron-orange/10 border border-tron-orange/40'
               : 'bg-tron-black/50 border border-tron-cyan/20'
@@ -153,7 +153,7 @@ export const CompactPriceRow = React.memo(function CompactPriceRow({
           </span>
           <span
             className={cn(
-              'text-base font-black font-numeric',
+              'text-base font-black font-numeric tabular-nums',
               !isWinning && !isTied ? 'text-tron-orange' : 'text-tron-cyan/50'
             )}
             style={{

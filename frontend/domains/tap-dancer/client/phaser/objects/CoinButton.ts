@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene, GameObjects, Tweens } from 'phaser'
 import {
   BUTTON_CONFIG,
@@ -24,6 +25,7 @@ export class CoinButton extends GameObjects.Container {
   private size: number
 
   private buttonImage: GameObjects.Image
+  private recovery: GameObjects.Graphics
   private ripple?: GameObjects.Graphics
   private pressTween?: Tweens.Tween
   private rippleTween?: Tweens.Tween
@@ -46,6 +48,8 @@ export class CoinButton extends GameObjects.Container {
     this.buttonImage.setDisplaySize(displaySize, displaySize)
     this.buttonImage.setInteractive({ useHandCursor: true })
     this.add(this.buttonImage)
+    this.recovery = scene.add.graphics()
+    this.add(this.recovery)
 
     this.buttonImage.on('pointerdown', this.handlePointerDown, this)
     this.buttonImage.on('pointerup', this.handlePointerUp, this)
@@ -59,8 +63,10 @@ export class CoinButton extends GameObjects.Container {
 
     this.isPressed = true
     this.updateTexture()
-    this.playPressAnimation()
-    this.playRippleEffect()
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.playPressAnimation()
+      this.playRippleEffect()
+    }
   }
 
   private handlePointerUp(): void {
@@ -101,7 +107,7 @@ export class CoinButton extends GameObjects.Container {
 
     this.pressTween = this.buttonScene.tweens.add({
       targets: this,
-      scale: 0.88,
+      scale: 0.94,
       duration: 50,
       ease: 'Power2',
       yoyo: true,
@@ -140,8 +146,24 @@ export class CoinButton extends GameObjects.Container {
     if (!this.buttonImage) return
 
     this.isDisabled = disabled
+    if (disabled) this.isPressed = false
     this.buttonImage.setInteractive({ useHandCursor: !disabled })
     this.updateTexture()
+  }
+
+  setRecovery(progress: number): void {
+    this.recovery.clear()
+    if (progress <= 0) return
+    this.recovery.lineStyle(3, BUTTON_CONFIG[this.direction].color, 0.9)
+    this.recovery.beginPath()
+    this.recovery.arc(
+      0,
+      0,
+      this.size / 2 + 5,
+      -Math.PI / 2,
+      -Math.PI / 2 + Math.PI * 2 * (1 - progress)
+    )
+    this.recovery.strokePath()
   }
 
   getDisabled(): boolean {
@@ -166,6 +188,7 @@ export class CoinButton extends GameObjects.Container {
       this.ripple = undefined
     }
 
+    this.recovery.destroy()
     this.buttonImage = null as any
     super.destroy()
   }

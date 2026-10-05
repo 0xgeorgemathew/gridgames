@@ -7,6 +7,8 @@ import { VisualEffects } from './VisualEffects'
 import { BladeRenderer } from './BladeRenderer'
 import { AudioManager } from './AudioManager'
 import { CoinLifecycleSystem } from './CoinLifecycleSystem'
+import { getPositionOpeningCapacity } from '@/domains/match/position-opening'
+import { CLIENT_GAME_CONFIG as CFG } from '../../game.config'
 import { COIN_CONFIG } from './CoinRenderer'
 
 export class CollisionSystem {
@@ -63,24 +65,7 @@ export class CollisionSystem {
     const tokens = tokenPool.getChildren() as Token[]
     const targetCoin = tokens.find((t) => t.active && t.getData('id') === data.coinId)
 
-    if (targetCoin) {
-      const type = targetCoin.getData('type') as CoinType
-      const config = COIN_CONFIG[type]
-
-      const screenWidth = this.scene.cameras.main.width
-      this.audio.playSliceAt(targetCoin.x, screenWidth)
-
-      this.particles.emitSlice(targetCoin.x, targetCoin.y, config.color, 20)
-      this.visualEffects.createSplitEffect(
-        targetCoin.x,
-        targetCoin.y,
-        config.color,
-        config.radius,
-        type
-      )
-
-      this.coinLifecycle.removeCoin(data.coinId)
-    }
+    if (targetCoin) this.coinLifecycle.removeCoin(data.coinId)
   }
 
   private checkCollisions(): void {
@@ -94,7 +79,7 @@ export class CollisionSystem {
 
     for (const token of tokenPool.getChildren()) {
       const tokenObj = token as Token
-      if (!tokenObj.active) continue
+      if (!tokenObj.active || tokenObj.getData('claimPending')) continue
 
       const coinId = tokenObj.getData('id')
       if (slicedThisFrame.has(coinId)) continue
@@ -120,21 +105,59 @@ export class CollisionSystem {
     }
   }
 
+  handleLocalSliceConfirmed(data: { coinId: string; coinType: CoinType }): void {
+    const coin = (this.coinLifecycle.getTokenPool().getChildren() as Token[]).find(
+      (token) => token.active && token.getData('id') === data.coinId
+    )
+    if (!coin) return
+    const config = COIN_CONFIG[data.coinType]
+    if (!config) return
+    this.audio.playSliceAt(coin.x, this.scene.cameras.main.width)
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.particles.emitSlice(coin.x, coin.y, config.color, 10)
+      this.visualEffects.createSplitEffect(
+        coin.x,
+        coin.y,
+        config.color,
+        config.radius,
+        data.coinType
+      )
+    }
+    this.coinLifecycle.removeCoin(data.coinId)
+  }
+
+  handleLocalSliceRejected(data: { coinId: string }): void {
+    const coin = (this.coinLifecycle.getTokenPool().getChildren() as Token[]).find(
+      (token) => token.active && token.getData('id') === data.coinId
+    )
+    coin?.setData('claimPending', false)
+    coin?.setAlpha(1)
+  }
+
   private sliceCoin(coinId: string, coin: Token): void {
-    const type = coin.getData('type') as CoinType
-    const config = COIN_CONFIG[type]
     const store = useTradingStore.getState()
-
-    const screenWidth = this.scene.cameras.main.width
-    this.audio.playSliceAt(coin.x, screenWidth)
-
-    this.particles.emitSlice(coin.x, coin.y, config.color, 20)
-    this.visualEffects.createSplitEffect(coin.x, coin.y, config.color, config.radius, type)
-
-    this.scene.cameras.main.shake(100, 0.005)
-
-    store.sliceCoin(coinId, type)
-
-    this.coinLifecycle.removeCoin(coinId)
+    const player = store.players.find((entry) => entry.id === store.localPlayerId)
+    const opponent = store.players.find((entry) => entry.id !== store.localPlayerId)
+    if (!store.socket?.connected || !player || !opponent) return
+    const positions = Array.from(store.openPositions.values()).filter(
+      (position) => position.status === 'open'
+    )
+    if (
+      !getPositionOpeningCapacity({
+        playerBalance: player.dollars,
+        opponentBalance: opponent.dollars,
+        playerOpenPositions: positions.filter(
+          (position) => position.playerId === store.localPlayerId
+        ).length,
+        opponentOpenPositions: positions.filter(
+          (position) => position.playerId !== store.localPlayerId
+        ).length,
+        stakeAmount: CFG.STAKE_AMOUNT,
+      }).canOpen
+    )
+      return
+    coin.setData('claimPending', true)
+    coin.setAlpha(0.65)
+    store.sliceCoin(coinId, coin.getData('type') as CoinType)
   }
 }

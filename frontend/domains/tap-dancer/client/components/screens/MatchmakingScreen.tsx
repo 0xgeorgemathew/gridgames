@@ -65,14 +65,18 @@ function MatchmakingAuthPanel({
         {matchState === 'ready' && (
           <div key="ready" className="flex flex-col items-center gap-3">
             <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-              SYSTEM READY
+              {isConnected ? 'GRID CONNECTED' : 'CONNECTING TO GRID…'}
             </p>
 
             <div className="flex flex-col gap-2 w-full min-w-[200px]">
               <ActionButton onClick={onEnter} disabled={!isConnected || isMatching} color="cyan">
                 {isMatching ? 'ENTERING...' : 'AUTO-MATCH'}
               </ActionButton>
-              <ActionButton onClick={onOpenLobby} disabled={!isConnected} color="cyan">
+              <ActionButton
+                onClick={onOpenLobby}
+                disabled={!isConnected || isMatching}
+                color="cyan"
+              >
                 SELECT OPPONENT
               </ActionButton>
             </div>
@@ -87,7 +91,14 @@ function MatchmakingAuthPanel({
         {matchState === 'entering' && (
           <div key="entering" className="flex flex-col items-center gap-3">
             <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] animate-pulse drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-              SEARCHING GRID...
+              WAITING FOR PLAYER 2
+            </p>
+            <p
+              role="status"
+              className="text-sm font-mono text-white/75 text-center max-w-[280px] leading-relaxed"
+            >
+              Matching a real player in this game for {selectedGameDuration / 60000} minutes. The
+              round starts when both players connect.
             </p>
           </div>
         )}
@@ -102,12 +113,12 @@ function MatchmakingAuthPanel({
             </button>
 
             <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-              AVAILABLE TARGETS
+              PLAYERS IN THIS GAME
             </p>
 
             {lobbyPlayers.length === 0 ? (
               <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/50 text-xs tracking-[0.1em] mt-4 mb-4">
-                GRID EMPTY
+                NO PLAYERS WAITING — TRY AUTO-MATCH
               </p>
             ) : (
               <div className="flex flex-col gap-2 w-full">
@@ -227,7 +238,14 @@ export function MatchmakingScreen() {
     return 'login'
   }, [isInMiniApp, miniAppConnected, miniAppUser, authenticated, user?.wallet])
 
-  const matchState = userState || authState
+  const matchState: MatchState =
+    authState === 'login'
+      ? 'login'
+      : isMatching
+        ? 'entering'
+        : userState === 'lobby'
+          ? 'lobby'
+          : 'ready'
 
   useEffect(() => {
     const shouldRedirectMiniApp =
@@ -263,8 +281,6 @@ export function MatchmakingScreen() {
   const handleEnter = useCallback(() => {
     if (!isConnected || isMatching || !walletAddress) return
 
-    setUserState('entering')
-
     findMatch(displayName || 'Grid Runner', walletAddress)
   }, [displayName, findMatch, isConnected, isMatching, walletAddress])
 
@@ -272,7 +288,6 @@ export function MatchmakingScreen() {
     (opponentSocketId: string) => {
       if (!isConnected || isMatching || !walletAddress) return
 
-      setUserState('entering')
       selectOpponent(opponentSocketId)
     },
     [isConnected, isMatching, walletAddress, selectOpponent]

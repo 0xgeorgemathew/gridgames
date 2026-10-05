@@ -160,3 +160,8 @@ export const MATCH_EVENTS = {
 } as const
 
 export type MatchEventName = (typeof MATCH_EVENTS)[keyof typeof MATCH_EVENTS]
+
+/** Additive successful Tap position acknowledgement; duration, never server epoch. */
+export interface TapRecoveryPayload {
+  recoveryMs?: number
+}

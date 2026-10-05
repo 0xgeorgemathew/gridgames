@@ -155,10 +155,13 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
     data: { coinId: string; coinType: string; priceAtSlice: number },
     getLatestPrice: () => number
   ): Promise<void> {
-    room.removeCoin(data.coinId)
-    room.removeActiveCoin(data.coinId)
-
-    if (!validateCoinType(data.coinType)) {
+    const coin = data && typeof data.coinId === 'string' ? room.getLiveCoin(data.coinId) : undefined
+    if (!room.matchStateMachine.canAcceptActions() || !coin || data.coinType !== coin.type) {
+      io.to(playerId).emit('error', {
+        code: 'ACTION_REJECTED' as SocketErrorCode,
+        message: 'Disc is no longer available for this claim',
+        details: { coinId: data?.coinId, reason: 'coin_claim' },
+      })
       return
     }
 
@@ -174,6 +177,8 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
         code: 'ACTION_REJECTED' as SocketErrorCode,
         message,
         details: {
+          coinId: data.coinId,
+          reason: 'capacity',
           maxOpenPositions: openingGuard.maxOpenPositions,
           playerOpenPositions: openingGuard.playerOpenPositions,
           remainingOpenSlots: openingGuard.remainingOpenSlots,
@@ -193,7 +198,7 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
     const leverage = room.getLeverageForPlayer(playerId)
     const serverPrice = getLatestPrice()
 
-    const coinType: 'long' | 'short' = data.coinType
+    const coinType: 'long' | 'short' = coin.type
 
     const position: OpenPosition = {
       id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
@@ -209,6 +214,8 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
 
     // Zero-sum: Do NOT deduct balance on open
     room.addOpenPosition(position)
+    room.removeCoin(coin.id)
+    room.removeActiveCoin(coin.id)
 
     io.to(room.id).emit('position_opened', {
       positionId: position.id,
@@ -225,7 +232,7 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
     io.to(room.id).emit('coin_sliced', {
       playerId,
       playerName: player.name,
-      coinType: data.coinType,
+      coinType: coin.type,
       coinId: data.coinId,
     })
   }
@@ -496,6 +503,7 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
             socket.emit('error', {
               code: 'ACTION_REJECTED' as SocketErrorCode,
               message: 'Slice actions are only valid for Hyper Swiper matches',
+              details: { coinId: data?.coinId, reason: 'coin_claim' },
             })
             return
           }
@@ -506,20 +514,14 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
           socket.emit('error', {
             code: 'SLICE_FAILED' as SocketErrorCode,
             message: 'Failed to slice coin',
+            details: { coinId: data?.coinId, reason: 'coin_claim' },
           })
         }
       }
     )
 
-    socket.on('coin_expired', ({ coinId }: { coinId: string }) => {
-      const roomId = manager.getPlayerRoomId(socket.id)
-      if (!roomId) return
-
-      const room = manager.getRoom(roomId)
-      if (room && !room.isShutdown && !room.getIsClosing()) {
-        room.expireCoin(coinId)
-      }
-    })
+    // Client offscreen/expiry reports are advisory only. The game cadence owns TTL.
+    socket.on('coin_expired', () => {})
 
     socket.on('close_position', ({ positionId }: { positionId: string }) => {
       try {
@@ -780,10 +782,16 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
           return
         }
 
-        if (room.isShutdown || room.getIsClosing()) return
+        if (room.isShutdown || room.getIsClosing() || !room.matchStateMachine.canAcceptActions())
+          return
 
         if (room.gameSlug !== 'tap-dancer') {
           socket.emit('error', { message: 'Open position is only valid for Tap Dancer matches' })
+          return
+        }
+
+        if (!data || !validateCoinType(data.direction)) {
+          socket.emit('error', { code: 'ACTION_REJECTED', message: 'Choose a valid direction' })
           return
         }
 
@@ -802,6 +810,17 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
         if (!openingGuard.canOpen) {
           socket.emit('error', {
             message: getPositionOpeningLimitMessage(openingGuard),
+          })
+          return
+        }
+
+        const now = Date.now()
+        const retryAfterMs = (room.tapRecoveryUntil.get(socket.id) ?? 0) - now
+        if (retryAfterMs > 0) {
+          socket.emit('error', {
+            code: 'ACTION_REJECTED',
+            message: 'Position controls are recovering',
+            details: { reason: 'tap_recovery', retryAfterMs },
           })
           return
         }
@@ -825,6 +844,7 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
         }
 
         room.addOpenPosition(position)
+        room.tapRecoveryUntil.set(socket.id, now + CFG.TAP_RECOVERY_MS)
 
         // Broadcast position opened
         io.to(room.id).emit('position_opened', {
@@ -835,6 +855,7 @@ export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSoc
           leverage: position.leverage,
           collateral: position.collateral,
           openPrice: position.priceAtOrder,
+          recoveryMs: CFG.TAP_RECOVERY_MS,
         })
 
         // Zero-sum: No balance_updated event on open - balance only changes on transfer

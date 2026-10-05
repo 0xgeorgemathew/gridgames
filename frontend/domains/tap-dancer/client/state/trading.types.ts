@@ -78,6 +78,9 @@ export interface PositionClosingState {
 
 // Game state slice - Perp-style positions (no coins in TapDancer)
 interface GameState {
+  /** Local performance.now() deadline; never a server epoch timestamp. */
+  tapRecoveryUntil: number
+  tapRecoveryMs: number
   openPositions: Map<string, Position>
   gameSettlement: GameSettlementEvent | null
   toasts: Toast[]

@@ -3,7 +3,6 @@ import type { CoinType, CoinSpawnEvent } from '@/domains/hyper-swiper/shared/tra
 import { Token } from '@/domains/hyper-swiper/client/phaser/objects/Token'
 import { CoinRenderer, COIN_CONFIG } from './CoinRenderer'
 import { SpatialGrid } from './SpatialGrid'
-import { useTradingStore } from '@/domains/hyper-swiper/client/state/slices/index'
 
 export class CoinLifecycleSystem {
   private scene: Scene
@@ -42,7 +41,8 @@ export class CoinLifecycleSystem {
   }
 
   shutdown(): void {
-    this.tokenPool?.clear(true, true)
+    // Phaser may destroy registered groups before the scene DESTROY callback.
+    if (this.tokenPool?.children) this.tokenPool.clear(true, true)
     this.spatialGrid?.clear()
   }
 
@@ -90,6 +90,7 @@ export class CoinLifecycleSystem {
       data.velocityY
     )
 
+    token.setData('lifetimeMs', data.lifetimeMs ?? 5000)
     token.setData('gridX', token.x)
     token.setData('gridY', token.y)
 
@@ -109,8 +110,7 @@ export class CoinLifecycleSystem {
 
         if (!token.active) return
 
-        token.setActive(false)
-        token.setVisible(false)
+        token.onSlice()
 
         if (token.body) {
           this.scene.physics.world.disableBody(token.body)
@@ -149,8 +149,7 @@ export class CoinLifecycleSystem {
         this.scene.physics.world.disableBody(token.body)
       }
 
-      token.setActive(false)
-      token.setVisible(false)
+      token.onSlice()
     }
   }
 
@@ -168,12 +167,9 @@ export class CoinLifecycleSystem {
       const gridY = (t.getData('gridY') as number) ?? t.y
 
       if (t.y > sceneHeight + 200) {
-        // Notify server that coin expired (fell below screen)
-        useTradingStore.getState().expireCoin(coinId)
-
+        // Only retire offscreen art. The server owns coin validity and expiry.
         this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
-        t.setActive(false)
-        t.setVisible(false)
+        t.onSlice()
         if (t.body) {
           this.scene.physics.world.disableBody(t.body)
         }

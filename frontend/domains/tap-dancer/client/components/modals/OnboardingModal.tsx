@@ -78,7 +78,8 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
                       Welcome to TapDancer. Test your trading instincts in real-time PvP battles.
-                      Feel the beat, make your move.
+                      Both players start with $10 of simulated game balance. Choose the same round
+                      duration to match.
                     </p>
                   </m.div>
                 )}
@@ -92,16 +93,17 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     className="flex flex-col items-center text-center gap-4"
                   >
                     <div className="flex gap-4 text-4xl mb-2">
-                      <span className="text-green-400">▲</span>
-                      <span className="text-red-400">▼</span>
+                      <span className="text-tron-cyan">▲</span>
+                      <span className="text-tron-orange">▼</span>
                     </div>
                     <h3 className="font-[family-name:var(--font-orbitron)] text-lg text-white tracking-widest">
                       TAP TO TRADE
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Tap <strong className="text-green-400 font-bold">UP</strong> (profit when
-                      price rises) or <strong className="text-red-400 font-bold">DOWN</strong>{' '}
-                      (profit when price falls). Close positions before they liquidate!
+                      Tap <strong className="text-tron-cyan font-bold">UP</strong> (profit when
+                      price rises) or <strong className="text-tron-orange font-bold">DOWN</strong>{' '}
+                      (profit when price falls). After a successful open, both controls recover for
+                      600 ms; wait for the light ring to fill.
                     </p>
                   </m.div>
                 )}
@@ -119,9 +121,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                       OUTPERFORM YOUR OPPONENT
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Your goal: accumulate more profit than your rival. The graph displays your{' '}
-                      <strong className="text-tron-cyan">position</strong> PnL—time your entries and
-                      close at the right moment. The Grid favors the swift.
+                      Close longs above entry and shorts below entry to transfer up to $1 from your
+                      opponent. FULL means no available slots. Unclosed positions expire at round
+                      end with no score change. Finish with the higher simulated balance.
                     </p>
                   </m.div>
                 )}

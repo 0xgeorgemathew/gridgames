@@ -3,8 +3,6 @@
 import { AnimatePresence, m } from 'framer-motion'
 import { X } from 'lucide-react'
 
-import { CLIENT_GAME_CONFIG as CFG } from '../../game.config'
-
 interface HowToPlayModalProps {
   isOpen: boolean
   onClose: () => void
@@ -37,55 +35,43 @@ export function HowToPlayModal({ isOpen, onClose }: HowToPlayModalProps) {
                 <h2 className="text-xl font-bold text-tron-cyan">How to Play</h2>
                 <button
                   onClick={onClose}
+                  aria-label="Close instructions"
                   className="p-1 hover:bg-tron-cyan/10 rounded transition-colors"
                 >
                   <X className="w-5 h-5 text-tron-cyan" />
                 </button>
               </div>
 
-              {/* Content */}
-              <div className="space-y-4 text-sm text-tron-white/80">
+              <div className="space-y-4 text-sm text-white/80 leading-relaxed">
                 <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">🎯 Objective</h3>
+                  <h3 className="font-bold text-tron-cyan mb-1">SHARED ENERGY DISCS</h3>
                   <p>
-                    Predict if BTC price will go UP or DOWN in 5 seconds. Correct predictions damage
-                    your opponent. Reach $0 opponent value to win!
+                    Swipe cyan ↑ discs to go long, or orange ↓ discs to go short. Both players see
+                    the same discs: the first valid slice opens the position. Discs expire after 5
+                    seconds.
                   </p>
                 </div>
-
                 <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">⚡ Slice Coins</h3>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>
-                      <span className="text-green-400">▲ CALL</span> - Predict price UP
-                    </li>
-                    <li>
-                      <span className="text-red-400">▼ PUT</span> - Predict price DOWN
-                    </li>
-                    <li>
-                      <span className="text-yellow-400">⚡ GAS</span> - Penalty, avoid!
-                    </li>
-                    <li>
-                      <span className="text-purple-400">★ WHALE</span> - Bonus (80% win chance)
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">💰 Scoring</h3>
+                  <h3 className="font-bold text-tron-cyan mb-1">CLOSE ON A FAVORABLE MOVE</h3>
                   <p>
-                    Start with ${CFG.STARTING_BALANCE}. Each position costs $
-                    {CFG.POSITION_COLLATERAL}. Positions stay open until game end with{' '}
-                    {CFG.FIXED_LEVERAGE}X leverage. PnL is settled at game end based on price
-                    movement.
+                    A long can close above its entry price; a short can close below it. Tap the lit
+                    close control when the position becomes favorable.
                   </p>
                 </div>
-
                 <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">📍 Position Indicator</h3>
+                  <h3 className="font-bold text-tron-cyan mb-1">SIMULATED SCORE</h3>
                   <p>
-                    Watch the bottom indicator for your prediction entry, direction, and outcome (✓
-                    win, ✗ lose).
+                    Each player starts with $10 in game balance. Opening deducts nothing. A correct
+                    close transfers up to $1 from your opponent. Open positions expire at round end
+                    with no score change.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-bold text-tron-cyan mb-1">POSITION CAPACITY</h3>
+                  <p>
+                    Your balances and both players’ open positions determine available slots. At
+                    FULL, close a favorable position or wait for a slot. Finish with the higher
+                    balance, or reduce your opponent to zero.
                   </p>
                 </div>
               </div>

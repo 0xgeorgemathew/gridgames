@@ -84,14 +84,18 @@ function MatchmakingAuthPanel({
               className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em]"
               style={{ textShadow: '0 0 15px rgba(0, 243, 255, 0.6)' }}
             >
-              SYSTEM READY
+              {isConnected ? 'GRID CONNECTED' : 'CONNECTING TO GRID…'}
             </p>
 
             <div className="flex flex-col gap-2 w-full min-w-[200px]">
               <ActionButton onClick={onEnter} disabled={!isConnected || isMatching} color="cyan">
                 {isMatching ? 'ENTERING...' : 'AUTO-MATCH'}
               </ActionButton>
-              <ActionButton onClick={onOpenLobby} disabled={!isConnected} color="cyan">
+              <ActionButton
+                onClick={onOpenLobby}
+                disabled={!isConnected || isMatching}
+                color="cyan"
+              >
                 SELECT OPPONENT
               </ActionButton>
             </div>
@@ -117,7 +121,7 @@ function MatchmakingAuthPanel({
               }}
               transition={{ duration: 1.2, repeat: Infinity }}
             >
-              SEARCHING GRID...
+              WAITING FOR PLAYER 2
             </m.p>
             {/* Loading dots animation */}
             <div className="flex gap-2">
@@ -160,7 +164,7 @@ function MatchmakingAuthPanel({
               className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em]"
               style={{ textShadow: '0 0 15px rgba(0, 243, 255, 0.5)' }}
             >
-              AVAILABLE TARGETS
+              PLAYERS IN THIS GAME
             </p>
 
             {lobbyPlayers.length === 0 ? (
@@ -169,7 +173,7 @@ function MatchmakingAuthPanel({
                   className="font-[family-name:var(--font-orbitron)] text-tron-cyan/50 text-xs tracking-[0.1em]"
                   style={{ textShadow: '0 0 8px rgba(0, 243, 255, 0.2)' }}
                 >
-                  GRID EMPTY
+                  NO PLAYERS WAITING — TRY AUTO-MATCH
                 </p>
                 <div className="w-16 h-[1px] bg-tron-cyan/20" />
                 <p className="text-[10px] text-white/30 tracking-widest">NO PLAYERS DETECTED</p>
@@ -313,7 +317,14 @@ export function MatchmakingScreen() {
     return 'login'
   }, [isInMiniApp, miniAppConnected, miniAppUser, authenticated, user?.wallet])
 
-  const matchState = userState || authState
+  const matchState: MatchState =
+    authState === 'login'
+      ? 'login'
+      : isMatching
+        ? 'entering'
+        : userState === 'lobby'
+          ? 'lobby'
+          : 'ready'
 
   useEffect(() => {
     const shouldRedirectMiniApp =
@@ -359,8 +370,6 @@ export function MatchmakingScreen() {
   const handleEnter = useCallback(() => {
     if (!isConnected || isMatching || !walletAddress) return
 
-    setUserState('entering')
-
     if (
       typeof window !== 'undefined' &&
       (window as { phaserEvents?: { emit: (event: string) => void } }).phaserEvents
@@ -377,7 +386,6 @@ export function MatchmakingScreen() {
     (opponentSocketId: string) => {
       if (!isConnected || isMatching || !walletAddress) return
 
-      setUserState('entering')
       selectOpponent(opponentSocketId)
     },
     [isConnected, isMatching, walletAddress, selectOpponent]

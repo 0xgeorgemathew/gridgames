@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene, GameObjects, Physics, Tweens } from 'phaser'
 import type { CoinType } from '@/domains/hyper-swiper/shared/trading.types'
 
@@ -70,6 +71,9 @@ export class Token extends GameObjects.Container {
     this.config = config
 
     // Reset container state
+    this.cleanupTweens()
+    this.setAlpha(1)
+    this.setAngle(0)
     this.setVisible(true)
     this.setActive(true)
     this.setDepth(10)
@@ -90,6 +94,7 @@ export class Token extends GameObjects.Container {
 
     // Store metadata
     this.setData('id', id)
+    this.setData('claimPending', false)
     this.setData('type', type)
 
     // Determine rotation behavior based on coin type
@@ -116,7 +121,7 @@ export class Token extends GameObjects.Container {
     this.velocityX = velocityX
     this.velocityY = velocityY
     this.gravity = 25
-    this.angularVelocity = rotationSpeed * 120
+    this.angularVelocity = 0 // Direction marks must stay readable while the disc travels.
 
     // Ensure physics body is enabled for collision detection only
     if (!this.body) {
@@ -163,6 +168,19 @@ export class Token extends GameObjects.Container {
     this.y += this.velocityY * deltaSeconds
 
     this.angle += this.angularVelocity * deltaSeconds
+    const life = this.getData('lifetimeMs') as number | undefined
+    if (life && life > 0) {
+      const age = this.scene.time.now - this.getData('spawnTime')
+      const fade = Math.max(0.25, 1 - Math.max(0, age / life - 0.8) * 3.75)
+      this.setAlpha((this.getData('claimPending') ? 0.65 : 1) * fade)
+    }
+    // A short downward exhaust, drawn in the pooled graphics rather than allocating particles.
+    if (this.glowGraphics) {
+      this.glowGraphics.clear()
+      this.glowGraphics.lineStyle(4, this.config.color, 0.12)
+      this.glowGraphics.lineBetween(-12, 44, -12, 74)
+      this.glowGraphics.lineBetween(12, 44, 12, 74)
+    }
 
     if (this.body) {
       this.body.position.x = this.x - this.body.width / 2
@@ -220,77 +238,19 @@ export class Token extends GameObjects.Container {
    * Start a gentle idle breathing scale pulse.
    * ±3% scale oscillation for a living, premium feel.
    */
-  private startBreathing(targetScale: number): void {
-    if (this.breatheTween) {
-      this.breatheTween.destroy()
-      this.breatheTween = undefined
-    }
-
-    this.breatheTween = this.scene.tweens.add({
-      targets: this,
-      scale: targetScale * 1.03,
-      duration: 1200,
-      ease: 'Sine.easeInOut',
-      yoyo: true,
-      repeat: -1,
-    })
-  }
-
   private playSpawnAnimation(targetScale: number): void {
     this.cleanupTweens()
-
-    const sceneHeight = this.scene.cameras.main.height
-    const isBottomToss = this.y > sceneHeight
-
-    if (isBottomToss) {
-      // Fruit Ninja-style throw emphasis
-      this.spawnScaleTween = this.scene.tweens.add({
-        targets: this,
-        scale: targetScale,
-        duration: 100,
-        ease: 'Back.easeOut',
-        onComplete: () => {
-          const tolerance = 0.01
-          if (Math.abs(this.scale - targetScale) > tolerance) {
-            this.setScale(targetScale)
-          }
-          // Start idle breathing after spawn completes
-          this.startBreathing(targetScale)
-        },
-      })
-    } else {
-      // Legacy falling animation: elastic pop-in
-      this.spawnScaleTween = this.scene.tweens.add({
-        targets: this,
-        scale: targetScale * 1.2,
-        duration: 150,
-        ease: 'Back.easeOut',
-        onComplete: () => {
-          this.yoyoScaleTween = this.scene.tweens.add({
-            targets: this,
-            scale: targetScale,
-            duration: 100,
-            ease: 'Power2',
-            onComplete: () => {
-              const tolerance = 0.01
-              if (Math.abs(this.scale - targetScale) > tolerance) {
-                this.setScale(targetScale)
-              }
-              // Start idle breathing after spawn completes
-              this.startBreathing(targetScale)
-            },
-          })
-        },
-      })
+    const reducedMotion =
+      typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reducedMotion) {
+      this.setScale(targetScale)
+      return
     }
-
-    // Initial rotation burst (±90 degrees)
-    const rotationBurst = Phaser.Math.FloatBetween(-Math.PI / 2, Math.PI / 2)
-    this.spawnRotationTween = this.scene.tweens.add({
+    this.spawnScaleTween = this.scene.tweens.add({
       targets: this,
-      angle: rotationBurst * (180 / Math.PI),
-      duration: 200,
-      ease: 'Power2.easeOut',
+      scale: targetScale,
+      duration: 140,
+      ease: 'Cubic.out',
     })
   }
 

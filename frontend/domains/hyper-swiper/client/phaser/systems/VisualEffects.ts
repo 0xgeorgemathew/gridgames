@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene, GameObjects } from 'phaser'
 import type { CoinType } from '@/domains/hyper-swiper/shared/trading.types'
 

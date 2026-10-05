@@ -225,3 +225,5 @@ export interface LiquidationEvent {
   healthRatio: number
   pnlAtLiquidation: number
 }
+
+export type { TapRecoveryPayload } from '@/domains/match/events'

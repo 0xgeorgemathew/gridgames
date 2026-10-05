@@ -1,6 +1,6 @@
 'use client'
 
-import { m } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 
 const BUTTON_TRANSITION = { duration: 2, repeat: Infinity, ease: 'easeInOut' as const }
 
@@ -31,6 +31,7 @@ export function ActionButton({
   disabled = false,
   size = 'md',
 }: ActionButtonProps) {
+  const reducedMotion = useReducedMotion()
   const config = COLOR_CONFIG[color]
   const isInteractive = !isLoading && !disabled
 
@@ -41,12 +42,13 @@ export function ActionButton({
     <m.button
       onClick={onClick}
       disabled={disabled || isLoading}
-      className="relative group"
-      whileHover={isInteractive ? { scale: 1.02 } : undefined}
-      whileTap={isInteractive ? { scale: 0.98 } : undefined}
+      aria-busy={isLoading}
+      className="relative group min-h-11 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tron-cyan disabled:opacity-40 disabled:cursor-not-allowed"
+      whileHover={isInteractive && !reducedMotion ? { scale: 1.02 } : undefined}
+      whileTap={isInteractive && !reducedMotion ? { scale: 0.98 } : undefined}
     >
       <div
-        className={`relative ${paddingClass} bg-black/40 backdrop-blur-md border ${config.border} rounded transition-colors group-hover:bg-white/5`}
+        className={`relative ${paddingClass} bg-black/40 backdrop-blur-md border ${config.border} rounded-sm transition-colors group-hover:bg-white/5 group-active:bg-tron-cyan/15`}
       >
         <span
           className={`font-[family-name:var(--font-orbitron)] ${textSize} tracking-[0.3em] font-medium block ${config.text}`}

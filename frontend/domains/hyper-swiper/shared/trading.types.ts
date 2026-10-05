@@ -19,6 +19,8 @@ export type CoinType = 'long' | 'short'
  * Emitted when a new coin appears in the game
  */
 export type CoinSpawnEvent = {
+  /** Server claim lifetime, in milliseconds. */
+  lifetimeMs?: number
   coinId: string
   coinType: CoinType
   xNormalized: number // 0.0 to 1.0 (relative screen position)

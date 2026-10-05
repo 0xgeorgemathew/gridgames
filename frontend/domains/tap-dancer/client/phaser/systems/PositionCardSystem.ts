@@ -1,4 +1,5 @@
 import { Scene } from 'phaser'
+import { TAP_HUD_CLEARANCE } from '../hud-layout'
 import { SharedPositionCardSystem } from '@/domains/match/client/phaser/positions/PositionCardSystem'
 import type {
   PositionStoreAdapter,
@@ -19,6 +20,6 @@ export class PositionCardSystem extends SharedPositionCardSystem {
       },
     }
 
-    super(scene, store)
+    super(scene, store, TAP_HUD_CLEARANCE)
   }
 }

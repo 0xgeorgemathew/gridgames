@@ -1,3 +1,4 @@
+import type { TapRecoveryPayload } from '@/domains/match/events'
 // =============================================================================
 // TAP DANCER SHARED TYPES
 // Game-specific types built on shared match domain
@@ -145,7 +146,7 @@ export interface Position {
 }
 
 /** @deprecated Not used in zero-sum matches */
-export interface PositionOpenedEvent {
+export interface PositionOpenedEvent extends TapRecoveryPayload {
   positionId: string
   playerId: string
   playerName: string

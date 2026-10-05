@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene } from 'phaser'
 import type { CoinSpawnEvent, CoinType } from '@/domains/hyper-swiper/shared/trading.types'
 import { GridBackgroundSystem } from './GridBackgroundSystem'
@@ -20,6 +21,10 @@ export class TradingSceneServices {
   private collision!: CollisionSystem
   private positionCardSystem!: PositionCardSystem
 
+  private eventEmitter?: Phaser.Events.EventEmitter
+  private removeCoinHandler = (coinId: string) => {
+    if (!this.isShutdown) this.coinLifecycle?.removeCoin(coinId)
+  }
   private closePositionHandler?: ({ positionId }: { positionId: string }) => void
 
   constructor(scene: Scene) {
@@ -63,9 +68,17 @@ export class TradingSceneServices {
     )
 
     // Set up event handlers
-    eventEmitter.on('coin_spawn', this.handleCoinSpawn.bind(this))
-    eventEmitter.on('opponent_slice', this.handleOpponentSlice.bind(this))
-    eventEmitter.on('clear_coins', this.cleanupCoins.bind(this))
+    this.eventEmitter = eventEmitter
+    eventEmitter.on('coin_spawn', this.handleCoinSpawn, this)
+    eventEmitter.on('opponent_slice', this.handleOpponentSlice, this)
+    eventEmitter.on('clear_coins', this.cleanupCoins, this)
+    eventEmitter.on('remove_coin', this.removeCoinHandler)
+    eventEmitter.on(
+      'local_slice_confirmed',
+      this.collision.handleLocalSliceConfirmed,
+      this.collision
+    )
+    eventEmitter.on('local_slice_rejected', this.collision.handleLocalSliceRejected, this.collision)
 
     // Bridge Phaser close_position event to store action
     this.closePositionHandler = ({ positionId }) => {
@@ -93,6 +106,22 @@ export class TradingSceneServices {
 
   shutdown(): void {
     this.isShutdown = true
+
+    this.eventEmitter?.off('coin_spawn', this.handleCoinSpawn, this)
+    this.eventEmitter?.off('opponent_slice', this.handleOpponentSlice, this)
+    this.eventEmitter?.off('clear_coins', this.cleanupCoins, this)
+    this.eventEmitter?.off('remove_coin', this.removeCoinHandler)
+    this.eventEmitter?.off(
+      'local_slice_confirmed',
+      this.collision.handleLocalSliceConfirmed,
+      this.collision
+    )
+    this.eventEmitter?.off(
+      'local_slice_rejected',
+      this.collision.handleLocalSliceRejected,
+      this.collision
+    )
+    this.eventEmitter = undefined
 
     // Remove close_position event listener
     if (this.closePositionHandler) {

@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene } from 'phaser'
 import { PositionCardRenderer, CARD_DIMENSIONS } from './PositionCardRenderer'
 import { PositionCard } from './PositionCard'
@@ -45,7 +46,8 @@ export class SharedPositionCardSystem {
 
   constructor(
     private scene: Scene,
-    private store: PositionStoreAdapter
+    private store: PositionStoreAdapter,
+    private bottomInset: number = 0
   ) {}
 
   create(_eventEmitter: Phaser.Events.EventEmitter): void {
@@ -217,7 +219,7 @@ export class SharedPositionCardSystem {
     const cardHeight = CARD_DIMENSIONS.height
     const totalHeight = (index + 1) * cardHeight + index * cardGap
 
-    const baseY = height - bottomOffset
+    const baseY = height - bottomOffset - this.bottomInset
     return baseY - totalHeight + cardHeight / 2
   }
 

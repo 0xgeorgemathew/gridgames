@@ -83,12 +83,16 @@ export function startGameLoop(
       velocityX: coin.velocityX,
       velocityY: coin.velocityY,
       sequenceIndex: coin.sequenceIndex,
+      lifetimeMs: CFG.COIN_TTL_MS,
     })
   }
 
   if (spawnsCoins) {
     const scheduleNextSpawn = () => {
       if (!manager.hasRoom(room.id) || room.players.size < 2 || room.isShutdown) return
+
+      // Expire even at the active-disc cap; clients cannot retire server claims.
+      for (const coinId of room.expireOldCoins()) io.to(room.id).emit('coin_expired', { coinId })
 
       if (room.canSpawnCoin()) {
         const forceType = room.getRequiredCoinType()

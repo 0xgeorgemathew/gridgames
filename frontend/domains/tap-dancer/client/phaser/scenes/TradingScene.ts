@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene } from 'phaser'
 import {
   useTradingStore,
@@ -8,6 +9,7 @@ import { TradingSceneServices } from '@/domains/tap-dancer/client/phaser/systems
 export class TradingScene extends Scene {
   private services: TradingSceneServices
   private eventEmitter: Phaser.Events.EventEmitter
+  private cleanupScene?: () => void
 
   constructor() {
     super({ key: 'TradingScene' })
@@ -16,10 +18,26 @@ export class TradingScene extends Scene {
   }
 
   preload(): void {
+    this.services = new TradingSceneServices(this)
     this.services.preload()
   }
 
   create(): void {
+    this.eventEmitter = new Phaser.Events.EventEmitter()
+    const emitter = this.eventEmitter
+    const services = this.services
+    let cleaned = false
+    const cleanup = () => {
+      if (cleaned) return
+      cleaned = true
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, cleanup)
+      this.events.off(Phaser.Scenes.Events.DESTROY, cleanup)
+      this.shutdownResources(emitter, services)
+      if (this.cleanupScene === cleanup) this.cleanupScene = undefined
+    }
+    this.cleanupScene = cleanup
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup)
+    this.events.once(Phaser.Scenes.Events.DESTROY, cleanup)
     // Assign window.phaserEvents BEFORE services.create so event listeners can register
     ;(window as { phaserEvents?: PhaserEventBridge }).phaserEvents = this
       .eventEmitter as PhaserEventBridge
@@ -64,17 +82,24 @@ export class TradingScene extends Scene {
   }
 
   shutdown(): void {
+    this.cleanupScene?.()
+  }
+
+  private shutdownResources(
+    emitter: Phaser.Events.EventEmitter,
+    services: TradingSceneServices
+  ): void {
     this.scale.off('resize')
-
-    const setReady = (window as unknown as { setSceneReady?: (ready: boolean) => void })
-      .setSceneReady
-    setReady?.(false)
-    delete (window as unknown as { setSceneReady?: (ready: boolean) => void }).setSceneReady
-    delete (window as { phaserEvents?: PhaserEventBridge }).phaserEvents
-
-    this.services.shutdown()
-    this.eventEmitter.removeAllListeners()
-    this.eventEmitter.destroy()
+    if (window.phaserEvents === emitter) {
+      const setReady = (window as unknown as { setSceneReady?: (ready: boolean) => void })
+        .setSceneReady
+      setReady?.(false)
+      delete (window as unknown as { setSceneReady?: (ready: boolean) => void }).setSceneReady
+      delete (window as { phaserEvents?: PhaserEventBridge }).phaserEvents
+    }
+    services.shutdown()
+    emitter.removeAllListeners()
+    emitter.destroy()
   }
 
   private isCameraAvailable(): boolean {

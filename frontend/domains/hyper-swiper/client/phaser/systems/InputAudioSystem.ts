@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene } from 'phaser'
 import { BladeRenderer } from './BladeRenderer'
 import { AudioManager } from './AudioManager'

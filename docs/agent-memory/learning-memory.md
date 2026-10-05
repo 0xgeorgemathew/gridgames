@@ -31,3 +31,18 @@ written upfront as policy.
   do not create a repeating JavaScript timer. Terminal room cleanup closes the feed.
 - Railway production has zero active deployments. Removing the Worker route does
   not provide a live rollback. Check previous Worker version bindings instead.
+
+## Authoritative live gameplay controls
+
+- Hyper Swiper disc IDs are shared server claims. Validate the active record,
+  direction, five-second lifetime, player and capacity before consuming a disc.
+  A rejected capacity check leaves it available. The existing spawn cadence owns
+  expiry in both maps; a client cannot delete another player's live opportunity.
+- Tap recovery starts only after a successful local-player position acknowledgement.
+  Server deadlines use epoch milliseconds. Client deadlines use performance.now()
+  plus the returned duration; do not compare those clock domains.
+- Game balances are simulated. Opening deducts nothing; a favorable close transfers
+  up to one game dollar. Remaining positions expire without transfer at round end.
+- Rollback commands plan by default. Source rollback is a forward Git revert;
+  Worker rollback changes production only and never restores SQLite records.
+  Keep DO classes and bindings compatible. See docs/cloudflare-migration.md.

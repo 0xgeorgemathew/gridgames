@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene, GameObjects, Tweens } from 'phaser'
 import {
   CARD_COLORS,
@@ -163,7 +164,7 @@ export class PositionCard extends GameObjects.Container {
 
     const expandedDims = getCardDimensions()
     const compactDims = getCompactCardDimensions()
-    const compactButtonSize = Math.max(20, compactDims.height - compactDims.padding * 2)
+    const compactButtonSize = 28
     this.compactX =
       (scene.cameras.main?.width ?? 390) - compactDims.width / 2 - compactDims.glowPadding - 8
 
@@ -247,9 +248,9 @@ export class PositionCard extends GameObjects.Container {
     this.add(this.entryPriceText)
 
     const badgeColor = this.positionData.isUp
-      ? { text: '#4ade80', glow: '#4ade80' }
-      : { text: '#f87171', glow: '#f87171' }
-    this.directionBadge = scene.add.text(0, 0, this.positionData.isUp ? 'UP' : 'DOWN', {
+      ? { text: '#00f3ff', glow: '#00f3ff' }
+      : { text: '#ff6b00', glow: '#ff6b00' }
+    this.directionBadge = scene.add.text(0, 0, this.positionData.isUp ? 'LONG' : 'SHORT', {
       fontFamily: 'monospace',
       fontSize: `${badgeFontSize}px`,
       fontStyle: 'bold',
@@ -280,7 +281,7 @@ export class PositionCard extends GameObjects.Container {
     this.closeButton.setVisible(false)
     this.add(this.closeButton)
 
-    this.closeZone = scene.add.zone(this.layoutPositions.compactButtonX, 0, buttonSize, buttonSize)
+    this.closeZone = scene.add.zone(this.layoutPositions.compactButtonX, 0, 44, 44)
     this.closeZone.on('pointerdown', this.handleCloseTap, this)
     this.closeZone.on('pointerover', this.handlePointerOver, this)
     this.closeZone.on('pointerout', this.handlePointerOut, this)
@@ -318,7 +319,7 @@ export class PositionCard extends GameObjects.Container {
     if (isPredictionCorrect) {
       return {
         canClose: true,
-        statusLabel: 'Can close',
+        statusLabel: 'CLOSE READY',
         ctaLabel: 'CLOSE',
         visualState: 'profit',
       }
@@ -326,7 +327,7 @@ export class PositionCard extends GameObjects.Container {
     const isAtEntry = currentPrice === this.positionData.openPrice
     return {
       canClose: false,
-      statusLabel: isAtEntry ? 'Waiting' : this.positionData.isUp ? 'Need up' : 'Need down',
+      statusLabel: isAtEntry ? 'AT ENTRY' : this.positionData.isUp ? 'NEEDS ↑' : 'NEEDS ↓',
       ctaLabel: 'LOCKED',
       visualState: isAtEntry ? 'near_zero' : 'loss',
     }
@@ -359,7 +360,7 @@ export class PositionCard extends GameObjects.Container {
 
   private applyCloseButtonState(canClose: boolean): void {
     const compactDims = getCompactCardDimensions()
-    const buttonSize = Math.max(20, compactDims.height - compactDims.padding * 2)
+    const buttonSize = 28
     const nextTexture = canClose ? 'close_icon' : 'locked_icon'
 
     if (this.closeButton.texture.key !== nextTexture) {
@@ -371,7 +372,7 @@ export class PositionCard extends GameObjects.Container {
       this.closeButton.displayHeight !== buttonSize
     ) {
       this.closeButton.setDisplaySize(buttonSize, buttonSize)
-      this.closeZone.setSize(buttonSize, buttonSize)
+      this.closeZone.setSize(44, 44)
     }
 
     if (this.isCloseButtonClosable === canClose) {
@@ -405,7 +406,7 @@ export class PositionCard extends GameObjects.Container {
 
   private startCloseButtonCue(): void {
     if (this.isClosing || this.currentLayoutMode !== 'compact' || !this.closeButton.visible) return
-    if (this.closeCueTween) return
+    if (this.closeCueTween || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
     this.closeButton.setAlpha(1)
     this.closeCueTween = this.cardScene.tweens.add({
@@ -425,12 +426,15 @@ export class PositionCard extends GameObjects.Container {
   }
 
   private applyCompactContent(): void {
-    this.statusText.setText(this.latestCloseUiState.statusLabel)
-    this.statusText.setColor(this.latestCloseUiState.canClose ? '#4ade80' : '#94a3b8')
+    this.statusText.setText([
+      this.latestCloseUiState.statusLabel,
+      `$${formatPrice(this.positionData.openPrice)}`,
+    ])
+    this.statusText.setColor(this.latestCloseUiState.canClose ? '#00f3ff' : '#cbd5e1')
     this.statusText.setShadow(
       0,
       0,
-      this.latestCloseUiState.canClose ? '#4ade80' : '#64748b',
+      this.latestCloseUiState.canClose ? '#00f3ff' : '#64748b',
       6,
       true,
       true
@@ -485,7 +489,8 @@ export class PositionCard extends GameObjects.Container {
     }
 
     this.applyCompactContent()
-    this.statusText.setVisible(false)
+    this.statusText.setVisible(true)
+    this.statusText.setAlpha(1)
     this.closeButton.setVisible(true)
     this.stopCloseButtonCue()
 
@@ -578,7 +583,7 @@ export class PositionCard extends GameObjects.Container {
     this.updateExpandedLayout()
 
     const compactDims = getCompactCardDimensions()
-    const buttonSize = Math.max(20, compactDims.height - compactDims.padding * 2)
+    const buttonSize = 28
     const compactLeft = -compactDims.width / 2
     const compactRight = compactDims.width / 2
 
@@ -599,7 +604,7 @@ export class PositionCard extends GameObjects.Container {
     this.closeButton.setPosition(this.layoutPositions.compactButtonX, 0)
     this.closeButton.setDisplaySize(buttonSize, buttonSize)
     this.closeZone.setPosition(this.layoutPositions.compactButtonX, 0)
-    this.closeZone.setSize(buttonSize, buttonSize)
+    this.closeZone.setSize(44, 44)
 
     const nextX =
       this.currentLayoutMode === 'compact' || this.isClosing ? this.compactX : this.expandedX
@@ -673,8 +678,8 @@ export class PositionCard extends GameObjects.Container {
       this.statusText.setVisible(true)
       this.statusText.setText('Liquidated')
       this.statusText.setAlpha(1)
-      this.statusText.setColor('#f87171')
-      this.statusText.setShadow(0, 0, '#f87171', 8, true, true)
+      this.statusText.setColor('#ff6b00')
+      this.statusText.setShadow(0, 0, '#ff6b00', 8, true, true)
     } else {
       this.statusText.setVisible(false)
       this.statusText.setAlpha(0)
@@ -731,6 +736,16 @@ export class PositionCard extends GameObjects.Container {
     this.pulseTween?.destroy()
     this.closeCueTween?.destroy()
     this.compactTimer?.remove(false)
+    this.cardScene.tweens.killTweensOf([
+      this,
+      this.entryPriceText,
+      this.directionBadge,
+      this.directionIcon,
+      this.expandedBackground,
+      this.compactBackground,
+      this.closeButton,
+      this.statusText,
+    ])
     super.destroy()
   }
 }

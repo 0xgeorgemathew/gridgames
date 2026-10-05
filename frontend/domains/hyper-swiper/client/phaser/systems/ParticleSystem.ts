@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene, GameObjects } from 'phaser'
 
 interface TrailParticle {
@@ -43,7 +44,7 @@ export class ParticleSystem {
   private shardParticles: ShardParticle[] = []
   private flashRings: FlashRing[] = []
   private readonly MAX_TRAIL = 50
-  private readonly MAX_SHARDS = 150
+  private readonly MAX_SHARDS = 72
   private readonly MAX_FLASH_RINGS = 8
   private trailGraphics: GameObjects.Graphics
   private shardGraphics: GameObjects.Graphics
@@ -94,7 +95,7 @@ export class ParticleSystem {
     }
 
     // Emit geometric shards
-    const shardCount = Math.min(count, 18)
+    const shardCount = Math.min(count, 10)
 
     for (let i = 0; i < shardCount; i++) {
       if (this.shardParticles.length >= this.MAX_SHARDS) break

@@ -1,4 +1,6 @@
+import * as Phaser from 'phaser'
 import { Scene } from 'phaser'
+import { TAP_HUD_CLEARANCE } from '../hud-layout'
 import { ButtonRenderer, type ButtonType } from './ButtonRenderer'
 import { CoinButton } from '../objects/CoinButton'
 import { useTradingStore } from '@/domains/tap-dancer/client/state/slices/index'
@@ -22,9 +24,9 @@ interface GridRipple {
 
 const RIPPLE_CONFIG = {
   initialRadius: 44,
-  maxRadiusFactor: 2.5,
-  duration: 2666,
-  ringCount: 2,
+  maxRadiusFactor: 1.1,
+  duration: 450,
+  ringCount: 1,
   ringDelay: 1333,
   lineWidth: 2,
   initialAlpha: 0.25,
@@ -44,10 +46,10 @@ const BUTTON_SIZES_BY_HEIGHT: Record<number, ButtonSizes> = {
 const BASE_SIZES: ButtonSizes = { buttonSize: 88, gap: 48, bottomOffset: 96 }
 
 function getButtonSizes(): ButtonSizes {
-  if (typeof window === 'undefined') return BASE_SIZES
-  const height = window.screen.height
-  if (height < 667 || height > 932) return BASE_SIZES
-  return BUTTON_SIZES_BY_HEIGHT[height] ?? BASE_SIZES
+  const height = typeof window === 'undefined' ? 0 : window.screen.height
+  const sizes =
+    height < 667 || height > 932 ? BASE_SIZES : (BUTTON_SIZES_BY_HEIGHT[height] ?? BASE_SIZES)
+  return { ...sizes, bottomOffset: sizes.bottomOffset + TAP_HUD_CLEARANCE }
 }
 
 /**
@@ -110,10 +112,21 @@ export class ButtonSystem {
   }
 
   private subscribeToStore(): void {
-    this.unsubscribeStore = useTradingStore.subscribe((state) => {
+    this.unsubscribeStore = useTradingStore.subscribe((state, previous) => {
       if (this.isShutdown) return
 
-      const canOpen = this.getCanOpen(state)
+      if (state.isPlaying && state.localPlayerId === previous.localPlayerId) {
+        for (const [id, position] of state.openPositions) {
+          if (
+            !previous.openPositions.has(id) &&
+            position.playerId === state.localPlayerId &&
+            position.status === 'open'
+          ) {
+            this.triggerGridRipple(position.isUp ? 'long' : 'short')
+          }
+        }
+      }
+      const canOpen = this.getCanOpen(state) && state.tapRecoveryUntil <= performance.now()
       if (canOpen !== this.lastCanOpen) {
         this.lastCanOpen = canOpen ?? true
         this.upButton?.setDisabled(!canOpen)
@@ -158,15 +171,15 @@ export class ButtonSystem {
   private handleButtonTap(direction: ButtonType): void {
     if (this.isShutdown) return
 
-    this.triggerGridRipple(direction)
     window.phaserEvents?.emit('button_tap', { direction })
   }
 
   private triggerGridRipple(direction: ButtonType): void {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const button = direction === 'long' ? this.upButton : this.downButton
     if (!button) return
 
-    const color = direction === 'long' ? 0x00ffaa : 0xff4466
+    const color = direction === 'long' ? 0x00f3ff : 0xff6b00
 
     for (let i = 0; i < RIPPLE_CONFIG.ringCount; i++) {
       this.gridRipples.push({
@@ -181,6 +194,18 @@ export class ButtonSystem {
   }
 
   update(_delta: number): void {
+    const state = useTradingStore.getState()
+    const remaining = Math.max(0, state.tapRecoveryUntil - performance.now())
+    const recovering = remaining > 0
+    const canOpen = this.getCanOpen(state) && !recovering
+    if (canOpen !== this.lastCanOpen) {
+      this.lastCanOpen = canOpen
+      this.upButton?.setDisabled(!canOpen)
+      this.downButton?.setDisabled(!canOpen)
+    }
+    const progress = Math.min(1, remaining / state.tapRecoveryMs)
+    this.upButton?.setRecovery(progress)
+    this.downButton?.setRecovery(progress)
     this.updateGridRipples()
   }
 

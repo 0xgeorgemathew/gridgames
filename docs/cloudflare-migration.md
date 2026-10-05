@@ -6,16 +6,17 @@ multiplayer Durable Object. The worker is `grid-games` in the George Mathew acco
 library are unchanged. No advisory HTTP service existed in the app, so this
 migration does not create one or change its OpenAI provider.
 
-## Release on 2026-10-05
+## Current rollback baseline (2026-10-05)
 
-The release includes the Cloudflare room migration and both game visual designs.
-The GitHub `main` push starts the existing Cloudflare production build. The build
-command stays `npm run build`. The deploy command is now
-`npx wrangler deploy --config frontend/dist/server/wrangler.json`.
+Both games use their restored Tron interface. The per-room Cloudflare runtime is
+unchanged. Source baseline: `30925b596ee4d5babf66314ba4bc8a0b6ec04f2e`.
+Known-good Worker version: `e6feed7b-5594-45ca-a194-8b05eb5d7503`.
+
+A GitHub `main` push starts the existing Cloudflare production build. Its build
+command is `cd frontend && bun install --frozen-lockfile && bun run build`.
+Its deploy command is `npx wrangler deploy --config frontend/dist/server/wrangler.json`.
 Public frontend variables are set in the Cloudflare build environment. Private
-local files are excluded. Tests, types, lint, browser checks and visual review were
-not run for this design release, at the user's request. The deployment record below
-is the earlier runtime release, not a new check of the redesigned screens.
+local files remain excluded. Do not start a second deployment while its job runs.
 
 ## Earlier deployment record
 
@@ -161,6 +162,46 @@ Its RSC build requires aligned React/React DOM/react-server-dom-webpack versions
 and Node conditions, so the Vite alias selects its browser entry for the wallet
 client graph; both Worker SSR responses and browser hydration must be checked.
 Phaser ESM namespace imports preserve its client-only canvas loading.
+
+## Safe rollback commands
+
+Run from the repository root. These commands make a plan by default:
+
+```sh
+bun run rollback:plan
+bun run rollback:source <reviewed-release-commit>
+bun run rollback:worker e6feed7b-5594-45ca-a194-8b05eb5d7503
+```
+
+For source rollback, inspect the listed diff. Use a self-contained release commit.
+Do not revert the combined migration/redesign commit `06ee095`: that would remove
+the Cloudflare runtime. If the tree is clean, a forward revert can then be made:
+
+```sh
+bun run rollback:source <reviewed-release-commit> --execute
+# Review the new commit, then use a normal git push origin main.
+```
+
+The source command refuses dirty trees and merge commits. It never resets history,
+force-pushes or drops uncommitted changes. On a conflict, inspect `git status` and
+resolve it or use `git revert --abort`. The normal pre-commit hook remains enabled.
+
+Worker rollback is separate from source rollback. First install dependencies and
+build the compiled config in `frontend/`; a fresh clone has no `dist/server/wrangler.json`.
+Check target version bindings and DO migrations. Then explicitly execute:
+
+```sh
+bun run rollback:worker e6feed7b-5594-45ca-a194-8b05eb5d7503 --execute
+```
+
+This immediately changes production. It does not change Git or restore SQLite data.
+A later main push can publish newer source again. This baseline uses the current
+Lobby/GameRoom classes. Do not cross a DO class or storage lifecycle migration.
+Use a forward fix if compatibility is unclear. Never remove a DO namespace or the
+apex route to undo a release. The retained Railway service is not a live fallback.
+
+References: [Wrangler rollback](https://developers.cloudflare.com/workers/wrangler/commands/workers/#rollback),
+[rollback bindings](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/#bindings).
 
 ## Domain cutover and rollback
 

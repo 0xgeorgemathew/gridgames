@@ -1,1 +1,1 @@
-cd frontend && bun run type && bun run lint
+cd frontend && bun run types && bun run lint

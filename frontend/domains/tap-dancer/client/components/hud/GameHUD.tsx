@@ -7,6 +7,8 @@ import { cn } from '@/platform/utils/classNames.utils'
 import { CountUp } from '@/platform/ui/CountUp'
 import { Settings, Volume2, VolumeX, LogOut } from 'lucide-react'
 
+import { MatchStatusStrip } from '@/platform/ui/MatchStatusStrip'
+import { CLIENT_GAME_CONFIG as CFG } from '../../game.config'
 import { CompactPriceRow } from './CompactPriceRow'
 import { PriceLoadingState } from './PriceLoadingState'
 import { containerVariants, CRYPTO_SYMBOLS, getPriceColor } from './types'
@@ -14,6 +16,7 @@ import { containerVariants, CRYPTO_SYMBOLS, getPriceColor } from './types'
 export const GameHUD = React.memo(function GameHUD() {
   const {
     players,
+    openPositions,
     localPlayerId,
     priceData,
     isPriceConnected,
@@ -99,8 +102,10 @@ export const GameHUD = React.memo(function GameHUD() {
               {/* Floating Gear Button */}
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-tron-black/80 border border-tron-cyan/30 rounded-full hover:bg-tron-cyan/10 active:bg-tron-cyan/20 transition-colors z-20"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-tron-black/80 border border-tron-cyan/30 rounded-full focus-visible:outline-2 focus-visible:outline-tron-cyan hover:bg-tron-cyan/10 active:bg-tron-cyan/20 transition-colors z-20"
                 title="Settings"
+                aria-label="Game settings"
+                aria-expanded={showMenu}
               >
                 <Settings className="w-4 h-4 text-tron-cyan/70" />
               </button>
@@ -224,6 +229,26 @@ export const GameHUD = React.memo(function GameHUD() {
             <div className="absolute top-[2px] right-0 w-4 h-[1px] bg-tron-cyan/50" />
 
             <div className="relative z-10">
+              {isGameReady && localPlayer && opponent && (
+                <MatchStatusStrip
+                  playerBalance={localPlayer.dollars}
+                  opponentBalance={opponent.dollars}
+                  playerOpenPositions={
+                    Array.from(openPositions.values()).filter(
+                      (position) =>
+                        position.playerId === localPlayerId && position.status === 'open'
+                    ).length
+                  }
+                  opponentOpenPositions={
+                    Array.from(openPositions.values()).filter(
+                      (position) =>
+                        position.playerId !== localPlayerId && position.status === 'open'
+                    ).length
+                  }
+                  stakeAmount={CFG.STAKE_AMOUNT}
+                  controlHint="600ms RECOVERY"
+                />
+              )}
               {/* Compact Price Row - Always visible when playing */}
               {isPlaying && (
                 <CompactPriceRow

@@ -1,10 +1,11 @@
+import * as Phaser from 'phaser'
 import { Scene, GameObjects, Geom } from 'phaser'
 
 const BLADE_CONFIG = {
   color: 0x00f3ff,
   // Ribbon dimensions - the "height" of the vertical light wall
-  mobileRibbonWidth: 16,
-  desktopRibbonWidth: 12,
+  mobileRibbonWidth: 10,
+  desktopRibbonWidth: 8,
   // Edge core line intensity
   mobileEdgeWidth: 2,
   desktopEdgeWidth: 1.5,
@@ -25,8 +26,8 @@ export class BladeRenderer {
   private flickerTime = 0
 
   // Visual trail length (long for dramatic effect)
-  private readonly MOBILE_VISUAL_TRAIL = 80
-  private readonly DESKTOP_VISUAL_TRAIL = 60
+  private readonly MOBILE_VISUAL_TRAIL = 24
+  private readonly DESKTOP_VISUAL_TRAIL = 20
   // Collision trail length (short, only check recent movement)
   private readonly COLLISION_TRAIL_LENGTH = 6
 

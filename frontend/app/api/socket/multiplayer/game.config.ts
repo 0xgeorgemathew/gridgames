@@ -31,6 +31,8 @@ export const SERVER_GAME_CONFIG = {
   /** @deprecated Not used in zero-sum matches */
   LIQUIDATION_THRESHOLD: 0.8,
 
+  TAP_RECOVERY_MS: 600,
+
   // Hyper Swiper coin spawning (game-specific)
   COIN_TTL_MS: 5000,
   MAX_ACTIVE_COINS: 4,

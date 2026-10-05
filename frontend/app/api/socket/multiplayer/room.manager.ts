@@ -28,6 +28,9 @@ export class GameRoom {
   /** @deprecated Not used in zero-sum matches */
   private playerLeverage = new Map<string, number>()
 
+  /** Server epoch deadlines per player; committed only after a successful Tap open. */
+  readonly tapRecoveryUntil = new Map<string, number>()
+
   private isClosing = false
   isShutdown = false
 
@@ -178,6 +181,7 @@ export class GameRoom {
   }
 
   cleanup(): void {
+    this.tapRecoveryUntil.clear()
     this.intervals.forEach(clearInterval)
     this.timeouts.forEach(clearTimeout)
     this.intervals.clear()
@@ -289,6 +293,11 @@ export class GameRoom {
     })
   }
 
+  getLiveCoin(id: string, now = Date.now()): ActiveCoinEntry | undefined {
+    const coin = this.activeCoins.get(id)
+    return coin && this.coins.has(id) && now - coin.spawnedAt < CFG.COIN_TTL_MS ? coin : undefined
+  }
+
   removeActiveCoin(id: string): void {
     this.activeCoins.delete(id)
   }
@@ -317,9 +326,10 @@ export class GameRoom {
     const now = Date.now()
     const expiredIds: string[] = []
     for (const [id, entry] of this.activeCoins) {
-      if (now - entry.spawnedAt > CFG.COIN_TTL_MS) {
+      if (now - entry.spawnedAt >= CFG.COIN_TTL_MS) {
         expiredIds.push(id)
         this.activeCoins.delete(id)
+        this.coins.delete(id)
       }
     }
     return expiredIds

@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { AUTO } from 'phaser'
 
 // Trading scene dimensions (fixed for consistent gameplay)

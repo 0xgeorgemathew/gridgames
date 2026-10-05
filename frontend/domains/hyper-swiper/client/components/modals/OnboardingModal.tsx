@@ -72,7 +72,8 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
                       Welcome to Hyper Swiper. Test your trading intuition against opponents in
-                      real-time, high-stakes matches.
+                      real-time matches using simulated game balances. Two real players, one shared
+                      grid.
                     </p>
                   </m.div>
                 )}
@@ -91,10 +92,13 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
                       SWIPE{' '}
-                      <strong className="text-green-400 font-bold">GREEN COINS TO LONG</strong> or{' '}
-                      <strong className="text-red-400 font-bold">RED COINS TO SHORT</strong>. The
-                      graph displays the <strong className="text-tron-cyan">price</strong>{' '}
-                      movement—time your trades based on price action.
+                      <strong className="text-tron-cyan font-bold">CYAN ↑ DISCS TO LONG</strong> or{' '}
+                      <strong className="text-tron-orange font-bold">
+                        ORANGE ↓ DISCS TO SHORT
+                      </strong>
+                      . The graph displays the <strong className="text-tron-cyan">price</strong>{' '}
+                      movement. The first valid slice claims each shared disc; unclaimed discs
+                      expire after 5 seconds.
                     </p>
                   </m.div>
                 )}
@@ -112,8 +116,9 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                       SWIPE & GO HYPER
                     </h3>
                     <p className="text-tron-cyan/70 text-sm leading-relaxed">
-                      Connect your wallet, find a match in the lobby, and prepare for combat on the
-                      Grid.
+                      Close longs above entry and shorts below entry to transfer up to $1 of
+                      simulated balance. FULL means no open slots. Unclosed positions expire at
+                      round end without changing your score.
                     </p>
                   </m.div>
                 )}

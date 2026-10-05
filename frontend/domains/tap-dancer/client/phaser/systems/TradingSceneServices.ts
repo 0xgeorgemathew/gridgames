@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene } from 'phaser'
 import { ButtonSystem } from './ButtonSystem'
 import { GridBackgroundSystem } from './GridBackgroundSystem'

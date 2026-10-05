@@ -10,7 +10,10 @@
     "format": "cd frontend && bun run format",
     "types": "cd frontend && bun run types",
     "prepare": "husky",
-    "deploy": "cd frontend && bun run deploy"
+    "deploy": "cd frontend && bun run deploy",
+    "rollback:plan": "bun scripts/rollback.ts plan",
+    "rollback:source": "bun scripts/rollback.ts source",
+    "rollback:worker": "bun scripts/rollback.ts worker"
   },
   "devDependencies": {
     "husky": "^9.1.7"

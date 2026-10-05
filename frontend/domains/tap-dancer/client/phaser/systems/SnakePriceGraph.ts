@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import type { GameObjects, Scene } from 'phaser'
 
 // Elegant, physics-based smoothing configuration

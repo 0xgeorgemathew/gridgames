@@ -210,6 +210,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     })
 
     nextSocket.on('coin_spawn', (coin: CoinSpawnEvent) => get().spawnCoin(coin))
+    nextSocket.on('coin_expired', ({ coinId }: { coinId: string }) => {
+      if (typeof coinId === 'string') window.phaserEvents?.emit('remove_coin', coinId)
+    })
     nextSocket.on('coin_sliced', (slice: SliceEvent) => get().handleSlice(slice))
     // Perp-style position events
     nextSocket.on('position_opened', (position: PositionOpenedEvent) => {
@@ -272,6 +275,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('already_in_pool', () => {})
 
     nextSocket.on('error', (error: SocketErrorEvent) => {
+      const claim = error.details as { coinId?: string; reason?: string } | undefined
+      if (typeof claim?.coinId === 'string')
+        window.phaserEvents?.emit('local_slice_rejected', { coinId: claim.coinId })
       console.error('[Socket] Server error:', error.code, error.message)
 
       const isGameplayError = error.code === 'INSUFFICIENT_BALANCE'
@@ -372,6 +378,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     })
 
     if (!openingCapacity.canOpen) {
+      window.phaserEvents?.emit('local_slice_rejected', { coinId })
       get().addToast({
         message: getPositionOpeningLimitMessage(openingCapacity),
         type: 'warning',
@@ -442,8 +449,15 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   handleSlice: (slice) => {
     const { localPlayerId } = get()
-    if (slice.playerId === localPlayerId) return
-    window.phaserEvents?.emit('opponent_slice', slice)
+    if (slice.playerId === localPlayerId) {
+      window.phaserEvents?.emit('local_slice_confirmed', {
+        coinId: slice.coinId,
+        coinType: slice.coinType,
+      })
+    } else {
+      window.phaserEvents?.emit('opponent_slice', slice)
+    }
+    window.phaserEvents?.emit('remove_coin', slice.coinId)
   },
 
   // Perp-style position opened - no settlement timer

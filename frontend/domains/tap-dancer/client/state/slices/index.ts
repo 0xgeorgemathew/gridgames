@@ -60,6 +60,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   gameTimerInterval: null,
 
   // Game state
+  tapRecoveryUntil: 0,
+  tapRecoveryMs: 600,
   openPositions: new Map<string, Position>(),
   gameSettlement: null,
   toasts: [],
@@ -208,6 +210,16 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     // Position events (no coin events in TapDancer)
     nextSocket.on('position_opened', (position: PositionOpenedEvent) => {
+      if (
+        position.playerId === get().localPlayerId &&
+        Number.isFinite(position.recoveryMs) &&
+        position.recoveryMs! > 0
+      ) {
+        set({
+          tapRecoveryUntil: performance.now() + position.recoveryMs!,
+          tapRecoveryMs: position.recoveryMs!,
+        })
+      }
       get().handlePositionOpened(position)
     })
     // Zero-sum: Handle new position_closed event with transfer data
@@ -265,11 +277,22 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     nextSocket.on('joined_waiting_pool', () => {})
     nextSocket.on('already_in_pool', () => {})
 
-    nextSocket.on('error', (error: { message: string }) => {
-      console.error('[Socket] Server error:', error.message)
-      get().addToast({ message: error.message, type: 'error', duration: 5000 })
-      set({ isMatching: false })
-    })
+    nextSocket.on(
+      'error',
+      (error: { message: string; details?: { reason?: string; retryAfterMs?: number } }) => {
+        if (
+          error.details?.reason === 'tap_recovery' &&
+          Number.isFinite(error.details.retryAfterMs) &&
+          error.details.retryAfterMs! > 0
+        ) {
+          set({ tapRecoveryUntil: performance.now() + error.details.retryAfterMs! })
+          return
+        }
+        console.error('[Socket] Server error:', error.message)
+        get().addToast({ message: error.message, type: 'error', duration: 5000 })
+        set({ isMatching: false })
+      }
+    )
 
     set({ socket: nextSocket, socketCleanupFunctions: newCleanupFunctions })
   },
@@ -580,7 +603,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       duration: 0,
     })
 
-    set({ isGameOver: true, gameOverData: data })
+    set({ isGameOver: true, gameOverData: data, tapRecoveryUntil: 0 })
   },
 
   connectPriceFeed: (symbol: CryptoSymbol) => {
@@ -599,6 +622,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
     set({
       roomId: null,
+      tapRecoveryUntil: 0,
+      tapRecoveryMs: 600,
       players: [],
       openPositions: new Map(),
       gameSettlement: null,

@@ -1,3 +1,4 @@
+import * as Phaser from 'phaser'
 import { Scene } from 'phaser'
 
 export type CardVisualState = 'near_zero' | 'profit' | 'loss' | 'closing' | 'liquidated'
@@ -153,7 +154,7 @@ export function getCardDimensions(): CardDimensionsConfig {
   }
   const height = window.screen.height
   const dims = height < 667 || height > 932 ? BASE_DIMS : (CARD_DIMS_BY_HEIGHT[height] ?? BASE_DIMS)
-  return { ...dims, borderRadius: dims.height / 2 }
+  return { ...dims, borderRadius: 6 }
 }
 
 interface CompactCardDimensionsConfig {
@@ -280,7 +281,7 @@ export function getCompactCardDimensions(): CompactCardDimensionsConfig {
     height < 667 || height > 932
       ? BASE_COMPACT_DIMS
       : (COMPACT_DIMS_BY_HEIGHT[height] ?? BASE_COMPACT_DIMS)
-  return { ...dims, borderRadius: dims.height / 2 }
+  return { ...dims, width: 176, height: Math.max(44, dims.height), borderRadius: 6 }
 }
 
 export const CARD_DIMENSIONS = {
@@ -361,23 +362,23 @@ export const CARD_COLORS = {
     borderAlpha: 0.5,
     glowColor: 0x00f3ff,
     glowAlpha: 0.2,
-    background: 0x0a0a14,
+    background: 0x0a0a0a,
     backgroundAlpha: 0.85,
   },
   profit: {
-    borderColor: 0x4ade80, // Green-400
+    borderColor: 0x00f3ff, // Green-400
     borderAlpha: 0.8,
-    glowColor: 0x4ade80,
+    glowColor: 0x00f3ff,
     glowAlpha: 0.5,
-    background: 0x0a0a14,
+    background: 0x0a0a0a,
     backgroundAlpha: 0.85,
   },
   loss: {
-    borderColor: 0xf87171, // Red-400
+    borderColor: 0xff6b00, // Red-400
     borderAlpha: 0.8,
-    glowColor: 0xf87171,
+    glowColor: 0xff6b00,
     glowAlpha: 0.5,
-    background: 0x0a0a14,
+    background: 0x0a0a0a,
     backgroundAlpha: 0.85,
   },
   closing: {
@@ -385,15 +386,15 @@ export const CARD_COLORS = {
     borderAlpha: 0.8,
     glowColor: 0x00f3ff,
     glowAlpha: 0.6,
-    background: 0x0a0a14,
+    background: 0x0a0a0a,
     backgroundAlpha: 0.85,
   },
   liquidated: {
-    borderColor: 0xf87171, // Red-400
+    borderColor: 0xff6b00, // Red-400
     borderAlpha: 1.0,
-    glowColor: 0xf87171,
+    glowColor: 0xff6b00,
     glowAlpha: 0.7,
-    background: 0x0a0a14,
+    background: 0x0a0a0a,
     backgroundAlpha: 0.85,
   },
 } as const
@@ -540,12 +541,12 @@ export class PositionCardRenderer {
 
     if (!closeCtx) return
 
-    closeCtx.fillStyle = '#166534'
+    closeCtx.fillStyle = '#06383d'
     closeCtx.beginPath()
     closeCtx.arc(center, center, radius, 0, Math.PI * 2)
     closeCtx.fill()
 
-    closeCtx.strokeStyle = '#dcfce7'
+    closeCtx.strokeStyle = '#d5fdff'
     closeCtx.lineWidth = 2.5 * scale
     closeCtx.lineCap = 'round'
     const crossInset = scaledSize * 0.31
@@ -811,13 +812,13 @@ export class PositionCardRenderer {
     // UP indicator (green, up triangle)
     const upContainer = this.scene.add.container(0, 0)
     const upBg = this.scene.add.graphics()
-    upBg.fillStyle(0x4ade80, 0.25) // Green with low opacity
+    upBg.fillStyle(0x00f3ff, 0.25) // Green with low opacity
     upBg.fillCircle(scaledSize / 2, scaledSize / 2, scaledSize / 2)
     upContainer.add(upBg)
 
     const upTriangle = this.scene.add.graphics()
-    upTriangle.fillStyle(0x4ade80, 1) // Green
-    upTriangle.lineStyle(2 * scale, 0x4ade80, 1)
+    upTriangle.fillStyle(0x00f3ff, 1) // Green
+    upTriangle.lineStyle(2 * scale, 0x00f3ff, 1)
     this.drawTriangleUp(upTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
     upContainer.add(upTriangle)
 
@@ -835,13 +836,13 @@ export class PositionCardRenderer {
     // DOWN indicator (red, down triangle)
     const downContainer = this.scene.add.container(0, 0)
     const downBg = this.scene.add.graphics()
-    downBg.fillStyle(0xf87171, 0.25) // Red with low opacity
+    downBg.fillStyle(0xff6b00, 0.25) // Red with low opacity
     downBg.fillCircle(scaledSize / 2, scaledSize / 2, scaledSize / 2)
     downContainer.add(downBg)
 
     const downTriangle = this.scene.add.graphics()
-    downTriangle.fillStyle(0xf87171, 1) // Red
-    downTriangle.lineStyle(2 * scale, 0xf87171, 1)
+    downTriangle.fillStyle(0xff6b00, 1) // Red
+    downTriangle.lineStyle(2 * scale, 0xff6b00, 1)
     this.drawTriangleDown(downTriangle, scaledSize / 2, scaledSize / 2, scaledSize * 0.4)
     downContainer.add(downTriangle)
 
