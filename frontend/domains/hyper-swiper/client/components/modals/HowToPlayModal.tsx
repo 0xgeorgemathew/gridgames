@@ -1,8 +1,6 @@
 'use client'
 
-import { AnimatePresence, m } from 'framer-motion'
 import { X } from 'lucide-react'
-
 import { CLIENT_GAME_CONFIG as CFG } from '../../game.config'
 
 interface HowToPlayModalProps {
@@ -11,88 +9,67 @@ interface HowToPlayModalProps {
 }
 
 export function HowToPlayModal({ isOpen, onClose }: HowToPlayModalProps) {
+  if (!isOpen) return null
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <m.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black z-50"
-          />
-
-          {/* Modal */}
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <m.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="glass-panel-vibrant rounded-2xl p-6 max-w-md w-full"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-tron-cyan">How to Play</h2>
-                <button
-                  onClick={onClose}
-                  className="p-1 hover:bg-tron-cyan/10 rounded transition-colors"
-                >
-                  <X className="w-5 h-5 text-tron-cyan" />
-                </button>
-              </div>
-
-              {/* Content */}
-              <div className="space-y-4 text-sm text-tron-white/80">
-                <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">🎯 Objective</h3>
-                  <p>
-                    Predict if BTC price will go UP or DOWN in 5 seconds. Correct predictions damage
-                    your opponent. Reach $0 opponent value to win!
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">⚡ Slice Coins</h3>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>
-                      <span className="text-green-400">▲ CALL</span> - Predict price UP
-                    </li>
-                    <li>
-                      <span className="text-red-400">▼ PUT</span> - Predict price DOWN
-                    </li>
-                    <li>
-                      <span className="text-yellow-400">⚡ GAS</span> - Penalty, avoid!
-                    </li>
-                    <li>
-                      <span className="text-purple-400">★ WHALE</span> - Bonus (80% win chance)
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">💰 Scoring</h3>
-                  <p>
-                    Start with ${CFG.STARTING_BALANCE}. Each position costs $
-                    {CFG.POSITION_COLLATERAL}. Positions stay open until game end with{' '}
-                    {CFG.FIXED_LEVERAGE}X leverage. PnL is settled at game end based on price
-                    movement.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-tron-cyan mb-1">📍 Position Indicator</h3>
-                  <p>
-                    Watch the bottom indicator for your prediction entry, direction, and outcome (✓
-                    win, ✗ lose).
-                  </p>
-                </div>
-              </div>
-            </m.div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-[#080b1b]/90"
+      onClick={onClose}
+    >
+      <section
+        className="arena-dialog p-6 w-full max-w-md max-h-[85dvh] overflow-y-auto"
+        style={{ touchAction: 'pan-y' }}
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hyper-help-title"
+      >
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <p className="arena-label mb-3">Field guide / Hyper Swiper</p>
+            <h2 className="arena-display text-4xl" id="hyper-help-title">
+              CUT YOUR
+              <br />
+              POSITION.
+            </h2>
           </div>
-        </>
-      )}
-    </AnimatePresence>
+          <button className="arena-icon-button shrink-0" onClick={onClose} aria-label="Close guide">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="space-y-5 text-sm leading-relaxed">
+          <p className="arena-meta">
+            Read the live BTC graph. Swipe through a coin to open its position. The coin type
+            selects LONG or SHORT.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="arena-panel p-4">
+              <b style={{ color: 'var(--arena-long)' }}>↗ LONG</b>
+              <p className="arena-meta mt-2">Mint coins. A position for a rising price.</p>
+            </div>
+            <div className="arena-panel p-4">
+              <b style={{ color: 'var(--arena-short)' }}>↘ SHORT</b>
+              <p className="arena-meta mt-2">Coral coins. A position for a falling price.</p>
+            </div>
+          </div>
+          <div>
+            <h3 className="font-bold mb-1">Your trading balance</h3>
+            <p className="arena-meta">
+              Positions use {CFG.FIXED_LEVERAGE}× leverage. Track your open positions, your balance,
+              and your rival’s balance during the round.
+            </p>
+          </div>
+          <div>
+            <h3 className="font-bold mb-1">Position controls</h3>
+            <p className="arena-meta">
+              The position cards show your entries, direction, and P&amp;L. Use their close control
+              to close a position.
+            </p>
+          </div>
+        </div>
+        <button className="arena-button arena-button--primary w-full mt-6" onClick={onClose}>
+          GOT IT ↗
+        </button>
+      </section>
+    </div>
   )
 }

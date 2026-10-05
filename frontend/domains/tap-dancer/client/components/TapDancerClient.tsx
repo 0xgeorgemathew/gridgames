@@ -17,10 +17,10 @@ function GameUI(): ReactNode {
   const { toasts, removeToast } = useTradingStore()
 
   return (
-    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
+    <div className="game-shell fixed inset-0 overflow-hidden overscroll-none touch-none" data-game="tap-dancer">
       <ToastNotifications toasts={toasts} onRemove={removeToast} />
       <GameOverModal />
-      <GameCanvasBackground />
+      <GameCanvasBackground gameSlug="tap-dancer" />
       <GameHUD />
       <GameCanvas gameSlug="tap-dancer" scene="TapDancerScene" />
     </div>
@@ -31,9 +31,10 @@ function MatchmakingUI(): ReactNode {
   const { toasts, removeToast } = useTradingStore()
 
   return (
-    <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
+    <div className="game-shell fixed inset-0 overflow-x-hidden overflow-y-auto overscroll-contain touch-pan-y" data-game="tap-dancer">
       <ToastNotifications toasts={toasts} onRemove={removeToast} />
       <GameOverModal />
+      <GameCanvasBackground gameSlug="tap-dancer" />
       <MatchmakingScreen />
     </div>
   )

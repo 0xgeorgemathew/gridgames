@@ -2,7 +2,11 @@ import { DEFAULT_BTC_PRICE } from '@/platform/utils/price.utils'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import type { PriceBroadcastData } from './events.types'
 
-class PriceFeedManager {
+export type PriceSocketConnector = (url: string) => Promise<WebSocket>
+
+export class PriceFeedManager {
+  private generation = 0
+  constructor(private connectSocket: PriceSocketConnector) {}
   private ws: WebSocket | null = null
   private latestPrice: number = DEFAULT_BTC_PRICE
   private firstPrice: number = DEFAULT_BTC_PRICE
@@ -14,7 +18,7 @@ class PriceFeedManager {
   private broadcastCallback: ((data: PriceBroadcastData) => void) | null = null
   private lastBroadcastTime = 0
 
-  connect(symbol: string = 'btcusdt'): void {
+  async connect(symbol: string = 'btcusdt'): Promise<void> {
     if (this.isShutdown) return
 
     this.symbol = symbol
@@ -29,12 +33,38 @@ class PriceFeedManager {
     }
 
     const url = `wss://stream.binance.com:9443/ws/${symbol}@aggTrade`
-    this.ws = new WebSocket(url)
+    const generation = ++this.generation
+    try {
+      const ws = await this.connectSocket(url)
+      if (this.isShutdown || generation !== this.generation) {
+        ws.close()
+        return
+      }
+      this.ws = ws
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: 'price_feed_connect_failed',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        })
+      )
+      if (!this.isShutdown && generation === this.generation)
+        this.reconnectTimeout = setTimeout(() => {
+          void this.connect(this.symbol)
+        }, CFG.PRICE_RECONNECT_DELAY_MS)
+      return
+    }
 
     this.ws.onmessage = (event) => {
       if (this.isShutdown) return
-      const raw = JSON.parse(event.data.toString())
-      const price = parseFloat(raw.p)
+      let raw: { p?: string }
+      try {
+        raw = JSON.parse(event.data.toString())
+      } catch {
+        return
+      }
+      const price = parseFloat(raw.p || '')
+      if (!Number.isFinite(price) || price <= 0) return
       const now = Date.now()
 
       if (
@@ -82,6 +112,7 @@ class PriceFeedManager {
 
   disconnect(): void {
     this.isShutdown = true
+    this.generation++
 
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout)
@@ -113,6 +144,7 @@ class PriceFeedManager {
   }
 
   reset(): void {
+    this.disconnect()
     this.isShutdown = false
     this.ws = null
     this.reconnectTimeout = null
@@ -131,5 +163,3 @@ class PriceFeedManager {
     this.broadcastCallback = callback
   }
 }
-
-export const priceFeed = new PriceFeedManager()

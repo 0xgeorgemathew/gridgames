@@ -70,7 +70,7 @@ export class SnakePriceGraph {
   private particleGraphics: GameObjects.Graphics | null = null
   private flashOverlay: GameObjects.Graphics | null = null
   private flashAlpha = 0
-  private flashColor = 0xff0000
+  private flashColor = 0xff7e88
 
   private readonly MAX_SHARDS = 300
   private readonly MAX_FLASH_RINGS = 8
@@ -108,14 +108,14 @@ export class SnakePriceGraph {
     if (this.isAnimating) return
     this.isAnimating = true
     this.graphExploded = true
-    this.flashColor = 0xff0000
+    this.flashColor = 0xff7e88
     this.flashAlpha = 0.6
 
     if (this.scene) {
       this.scene.cameras.main.shake(150, 0.008)
     }
 
-    this.explodeEntireGraph(0xff0000)
+    this.explodeEntireGraph(0xff7e88)
   }
 
   triggerCloseAnimation(finalPct: number): void {
@@ -123,21 +123,21 @@ export class SnakePriceGraph {
     this.isAnimating = true
 
     if (finalPct >= CONFIG.PROFIT_THRESHOLD) {
-      this.flashColor = 0x00ff88
+      this.flashColor = 0xa3ffdb
       this.flashAlpha = 0.5
       if (this.scene) {
         this.scene.cameras.main.shake(100, 0.004)
       }
-      this.explodeEntireGraph(0x00ff88)
+      this.explodeEntireGraph(0xa3ffdb)
     } else if (finalPct <= CONFIG.LOSS_THRESHOLD) {
-      this.flashColor = 0xff0000
+      this.flashColor = 0xff7e88
       this.flashAlpha = 0.5
       if (this.scene) {
         this.scene.cameras.main.shake(100, 0.004)
       }
-      this.explodeEntireGraph(0xff0000)
+      this.explodeEntireGraph(0xff7e88)
     } else {
-      this.flashColor = finalPct >= 0 ? 0x00ff88 : 0xff0000
+      this.flashColor = finalPct >= 0 ? 0xa3ffdb : 0xff7e88
       this.flashAlpha = 0.25
       this.explodeEntireGraph(this.flashColor)
     }
@@ -263,7 +263,7 @@ export class SnakePriceGraph {
       this.graphics.strokePath()
     }
 
-    const coreColor = currentPct >= 0 ? 0x00f3ff : 0xff6600
+    const coreColor = currentPct >= 0 ? 0xa3ffdb : 0xff7e88
 
     this.graphics.fillStyle(coreColor, 0.15)
     this.graphics.beginPath()

@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTradingStore } from '@/domains/tap-dancer/client/state/trading.store'
 import { AnimatePresence, m } from 'framer-motion'
-import { GridScanBackground } from '@/platform/ui/GridScanBackground'
+import styles from '../stage.module.css'
 import { usePrivy } from '@privy-io/react-auth'
-import { ActionButton } from '@/platform/ui/ActionButton'
+import { StageButton as ActionButton } from '../StageButton'
 import { PlayerName } from '@/platform/ui/PlayerName'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
@@ -52,11 +52,11 @@ function MatchmakingAuthPanel({
   const formatDuration = (ms: number) => `${ms / 60000}MIN`
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center w-full">
       <div className="min-h-[200px] w-full max-w-md">
         {matchState === 'login' && (
           <div key="login" className="flex flex-col items-center gap-4">
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em] animate-pulse">
+            <p className="font-mono text-[var(--arena-accent)]/80 text-sm tracking-[0.2em] ">
               {isInMiniApp ? 'CONNECTING TO GRID...' : 'VERIFYING CREDENTIALS...'}
             </p>
           </div>
@@ -64,13 +64,13 @@ function MatchmakingAuthPanel({
 
         {matchState === 'ready' && (
           <div key="ready" className="flex flex-col items-center gap-3">
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-              SYSTEM READY
+            <p className="font-mono text-[var(--arena-accent)] text-xs tracking-[0.2em]">
+              READY TO PLAY
             </p>
 
             <div className="flex flex-col gap-2 w-full min-w-[200px]">
               <ActionButton onClick={onEnter} disabled={!isConnected || isMatching} color="cyan">
-                {isMatching ? 'ENTERING...' : 'AUTO-MATCH'}
+                {isMatching ? 'ENTERING...' : 'FIND A MATCH'}
               </ActionButton>
               <ActionButton onClick={onOpenLobby} disabled={!isConnected} color="cyan">
                 SELECT OPPONENT
@@ -86,8 +86,8 @@ function MatchmakingAuthPanel({
 
         {matchState === 'entering' && (
           <div key="entering" className="flex flex-col items-center gap-3">
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] animate-pulse drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-              SEARCHING GRID...
+            <p className="font-mono text-[var(--arena-accent)] text-xs tracking-[0.2em] ">
+              FINDING YOUR RIVAL...
             </p>
           </div>
         )}
@@ -96,18 +96,18 @@ function MatchmakingAuthPanel({
           <div key="lobby" className="flex flex-col items-center gap-4 w-full max-w-md">
             <button
               onClick={onBackFromLobby}
-              className="font-[family-name:var(--font-orbitron)] text-tron-cyan/60 hover:text-tron-cyan transition-colors text-xs tracking-[0.2em] mb-2"
+              className="font-mono text-[var(--arena-accent)]/60 hover:text-[var(--arena-accent)] transition-colors text-xs tracking-[0.2em] mb-2"
             >
               ← BACK
             </button>
 
-            <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-[10px] tracking-[0.3em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
-              AVAILABLE TARGETS
+            <p className="font-mono text-[var(--arena-accent)]/80 text-[10px] tracking-[0.3em]">
+              CHOOSE YOUR OPPONENT
             </p>
 
             {lobbyPlayers.length === 0 ? (
-              <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/50 text-xs tracking-[0.1em] mt-4 mb-4">
-                GRID EMPTY
+              <p className="font-mono text-[var(--arena-accent)]/50 text-xs tracking-[0.1em] mt-4 mb-4">
+                No players waiting. Try auto-match.
               </p>
             ) : (
               <div className="flex flex-col gap-2 w-full">
@@ -123,21 +123,21 @@ function MatchmakingAuthPanel({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         className={cn(
-                          'relative px-4 py-3 bg-tron-black/80 border rounded-sm overflow-hidden min-w-[200px] hologram group transition-all duration-300',
+                          'relative px-4 py-3 bg-[var(--arena-panel)]/80 border rounded-sm overflow-hidden min-w-[200px]  group transition-all duration-300',
                           hasMatchingSettings
-                            ? 'border-tron-cyan/50 hover:border-tron-cyan hover:bg-tron-cyan/10 shadow-[0_0_10px_rgba(0,243,255,0.1)] hover:shadow-[0_0_20px_rgba(0,243,255,0.3)]'
-                            : 'border-tron-cyan/20 hover:border-tron-cyan/40 opacity-70'
+                            ? 'border-[var(--arena-line)]/50 hover:border-[var(--arena-line)] hover:bg-white/5'
+                            : 'border-[var(--arena-line)]/20 hover:border-[var(--arena-line)]/40 opacity-70'
                         )}
                       >
                         <div className="relative z-10 flex flex-col items-center gap-1">
                           <PlayerName
                             username={player.name}
-                            className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.1em] text-tron-cyan group-hover:text-white transition-colors"
+                            className="font-mono text-sm tracking-[0.1em] text-[var(--arena-accent)] group-hover:text-white transition-colors"
                           />
                           <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] font-mono">
                             <span
                               className={
-                                hasMatchingSettings ? 'text-tron-cyan' : 'text-tron-cyan/50'
+                                hasMatchingSettings ? 'text-[var(--arena-accent)]' : 'text-[var(--arena-accent)]/50'
                               }
                             >
                               {formatDuration(player.gameDuration)}
@@ -280,18 +280,9 @@ export function MatchmakingScreen() {
 
   if (!ready || miniAppAuthenticating) {
     return (
-      <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
-        <GridScanBackground
-          scanDirection={0}
-          scanRange={[2.0, 2.0]}
-          scanOpacity={0.0}
-          scanDuration={4.0}
-          scanGlow={0.0}
-        />
+      <div className="min-h-[100dvh] relative flex items-center justify-center overflow-hidden">
         <m.p
-          className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+          className="relative z-20 font-mono text-[var(--arena-accent)] tracking-[0.3em] font-medium"
         >
           {miniAppAuthenticating ? 'AUTHENTICATING...' : 'INITIALIZING...'}
         </m.p>
@@ -300,7 +291,7 @@ export function MatchmakingScreen() {
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center overflow-hidden bg-black">
+    <div className="min-h-[100dvh] relative flex items-center justify-center overflow-x-hidden">
       {/* Onboarding Modal */}
       <OnboardingModal isOpen={showOnboarding} onClose={handleCloseOnboarding} />
 
@@ -311,25 +302,17 @@ export function MatchmakingScreen() {
         className="absolute inset-0 z-50 bg-black pointer-events-none"
       />
 
-      <GridScanBackground
-        scanDirection={matchState === 'entering' ? 1 : 0}
-        scanRange={matchState === 'entering' ? [0.0, 2.0] : [2.0, 2.0]}
-        scanOpacity={matchState === 'entering' ? 0.8 : 0.0}
-        scanDuration={matchState === 'entering' ? 0.8 : 4.0}
-        scanGlow={matchState === 'entering' ? 1.0 : 0.0}
-      />
-
-      <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
+      <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pointer-events-none">
         <button
           onClick={() => router.push('/')}
-          className="pointer-events-auto px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan hover:shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md hologram"
+          className="pointer-events-auto px-4 py-2 font-mono text-xs tracking-[0.2em] text-[var(--arena-accent)]/80 hover:text-[var(--arena-accent)] transition-all border border-[var(--arena-line)]/40 hover:border-[var(--arena-line)] hover:bg-white/5 rounded-sm bg-[var(--arena-panel)]/80 backdrop-blur-md "
         >
           ← BACK
         </button>
 
         <AnimatePresence>
           {displayName && matchState !== 'login' && (
-            <div className="pointer-events-auto glass-panel-vibrant px-3 py-2 border border-tron-cyan/30 rounded-sm shadow-[0_0_15px_rgba(0,243,255,0.1)] bg-tron-black/80 backdrop-blur-md">
+            <div className="pointer-events-auto arena-panel px-3 py-2 border border-[var(--arena-line)]/30 rounded-sm bg-[var(--arena-panel)]/80 backdrop-blur-md">
               <UserProfileBadge
                 displayName={displayName}
                 pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
@@ -340,15 +323,14 @@ export function MatchmakingScreen() {
         </AnimatePresence>
       </div>
 
-      <div className="relative z-20 flex flex-col items-center gap-4 px-4 mt-16 w-full max-w-[400px]">
-        <div className="text-center relative">
-          <h1 className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg font-bold tracking-[0.3em] text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] mb-1">
-            ENTER THE GRID
-          </h1>
-          <div className="relative inline-block mb-4">
-            <h2 className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan drop-shadow-[0_0_20px_var(--color-tron-cyan)]">
-              TAPDANCER
-            </h2>
+      <div className={styles.lobby}>
+        <div className={styles.lobbyTitle}>
+          <span className="arena-label">Head-to-head market arcade</span>
+          <h1 className={styles.title}>TAP<br /><span>DANCER</span></h1>
+          <p>Read the market. Pick a side.<br />Make every move count.</p>
+          <div className={styles.padPreview} aria-hidden="true">
+            <div><span>↑</span><strong>LONG</strong></div>
+            <div><span>↓</span><strong>SHORT</strong></div>
           </div>
         </div>
 

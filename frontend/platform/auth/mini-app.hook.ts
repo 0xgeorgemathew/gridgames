@@ -58,7 +58,8 @@ export function useBaseMiniAppAuth() {
         throw new Error(`Backend verification failed: ${response.status} ${response.statusText}`)
       }
 
-      const data = await response.json()
+      const data = (await response.json()) as { fid?: unknown }
+      if (typeof data.fid !== 'number') throw new Error('Invalid authentication response')
       console.log('[QuickAuth] Backend verified token for FID:', data.fid)
 
       setAuthToken(token)

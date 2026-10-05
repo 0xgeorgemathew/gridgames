@@ -1,7 +1,8 @@
+import * as Phaser from 'phaser'
 import { Scene, GameObjects, Geom } from 'phaser'
 
 const BLADE_CONFIG = {
-  color: 0x00f3ff,
+  color: 0xaa95ff,
   // Ribbon dimensions - the "height" of the vertical light wall
   mobileRibbonWidth: 16,
   desktopRibbonWidth: 12,
@@ -22,7 +23,6 @@ export class BladeRenderer {
   private bladeVelocity = { x: 0, y: 0 }
   private lastBladePoint: Geom.Point | null = null
   private reusableBladePoint = new Geom.Point(0, 0)
-  private flickerTime = 0
 
   // Visual trail length (long for dramatic effect)
   private readonly MOBILE_VISUAL_TRAIL = 80
@@ -142,7 +142,6 @@ export class BladeRenderer {
     if (this.bladePath.length < 2) return
 
     // Update flicker time for digital energy effect
-    this.flickerTime += 0.1
 
     const head = this.bladePath[this.bladePath.length - 1]
     const prev = this.bladePath[this.bladePath.length - 2]
@@ -187,8 +186,7 @@ export class BladeRenderer {
     const btmEdgeLeft: { x: number; y: number }[] = []
     const btmEdgeRight: { x: number; y: number }[] = []
 
-    const flickerOffset = this.flickerTime % (Math.PI * 2)
-    const flicker = 0.85 + Math.sin(flickerOffset) * 0.15
+    const flicker = 1
 
     for (let i = 0; i < this.bladePath.length; i++) {
       const p = this.bladePath[i]

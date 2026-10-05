@@ -1,4 +1,4 @@
-import { Server as SocketIOServer } from 'socket.io'
+import type { RealtimeServer as SocketIOServer } from '@/platform/multiplayer/server'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import type { RoomManager } from './room-registry.server'
 import { GameRoom } from './room.manager'
@@ -154,11 +154,12 @@ export async function createMatch(
   gameSlug: string,
   gameDuration: number,
   ensurePriceFeedConnectedFn: (io: SocketIOServer, manager: RoomManager) => void,
-  startGameWhenClientsReadyFn: (io: SocketIOServer, manager: RoomManager, room: GameRoom) => void
+  startGameWhenClientsReadyFn: (io: SocketIOServer, manager: RoomManager, room: GameRoom) => void,
+  assignedRoomId?: string
 ): Promise<void> {
   ensurePriceFeedConnectedFn(io, manager)
 
-  const roomId = `room-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+  const roomId = assignedRoomId ?? `room-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
   const room = manager.createRoom(roomId, gameSlug, gameDuration)
 
   room.addPlayer(playerId1, name1, sceneWidth1, sceneHeight1, leverage1)

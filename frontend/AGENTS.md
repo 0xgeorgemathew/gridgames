@@ -19,13 +19,13 @@ bun run format
 - Never run `bun run dev`; always assume the dev server is already running
 - `bun run types` is the default validation step
 - Use `bun run format` when your edits need formatting
-- There is no dedicated test script in `package.json`
+- `bun run test` runs native transport and terminal lifecycle checks
 
 ## Mental Model
 
-- Stack: Bun, Next.js App Router, React 19, Phaser, Zustand, Socket.IO
+- Stack: Bun, Next.js App Router, React 19, Phaser, Zustand, vinext/Vite, native WebSockets, Cloudflare Workers/Durable Objects
 - Product: two multiplayer games, `hyper-swiper` and `tap-dancer`, sharing match infrastructure
-- Runtime flow: Next.js route -> React/Zustand client -> Phaser scene/systems -> Socket.IO multiplayer server
+- Runtime flow: Next.js route -> React/Zustand client -> Phaser scene/systems -> native WebSocket multiplayer Durable Object
 - The multiplayer server is authoritative for matchmaking, room state, prices, and settlement
 
 ## Placement Rules
@@ -53,3 +53,14 @@ bun run format
 - When adding or wiring a game, check:
   - `platform/game-engine/core/types.ts`
   - `platform/game-engine/register-core-games.ts`
+
+## Cloudflare Runtime
+
+- Worker entry: `worker/index.ts`; lobby DO: `worker/lobby.ts`; room DO: `worker/game-room.ts`
+- Transport adapters: `platform/multiplayer/`; same event names as game contracts
+- Build: `bun run build`; focused tests: `bun run test`; binding types: `bun run cf:types`
+- Deploy built config `dist/server/wrangler.json`; source config is `wrangler.jsonc`
+- Deployment/limits/roadmap: `../docs/cloudflare-migration.md`
+- Lobby sockets can hibernate. Active rooms use standard sockets and game timers.
+- Intentional handoff preserves identity; transport failure creates a fresh session.
+- Match resumption is out of scope. A restarted active room is interrupted.

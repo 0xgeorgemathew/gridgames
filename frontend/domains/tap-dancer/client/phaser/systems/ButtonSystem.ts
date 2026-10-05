@@ -22,10 +22,10 @@ interface GridRipple {
 
 const RIPPLE_CONFIG = {
   initialRadius: 44,
-  maxRadiusFactor: 2.5,
-  duration: 2666,
-  ringCount: 2,
-  ringDelay: 1333,
+  maxRadiusFactor: 1.7,
+  duration: 650,
+  ringCount: 1,
+  ringDelay: 0,
   lineWidth: 2,
   initialAlpha: 0.25,
 } as const
@@ -163,11 +163,13 @@ export class ButtonSystem {
   }
 
   private triggerGridRipple(direction: ButtonType): void {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const button = direction === 'long' ? this.upButton : this.downButton
     if (!button) return
 
-    const color = direction === 'long' ? 0x00ffaa : 0xff4466
+    const color = direction === 'long' ? 0xd9f56e : 0xff68bc
 
+    this.gridRipples = this.gridRipples.slice(-7)
     for (let i = 0; i < RIPPLE_CONFIG.ringCount; i++) {
       this.gridRipples.push({
         x: button.x,

@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "grid-games",
+  "account_id": "a22fe9411b81705409eb7cdf9be367e3",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "routes": [{ "pattern": "gridgames.space/*", "zone_name": "gridgames.space" }],
+  "assets": { "binding": "ASSETS", "not_found_handling": "none" },
+  "durable_objects": {
+    "bindings": [
+      { "name": "LOBBY", "class_name": "Lobby" },
+      { "name": "GAME_ROOMS", "class_name": "GameRoom" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Multiplayer"] },
+    { "tag": "v2", "new_sqlite_classes": ["Lobby", "GameRoom"] },
+  ],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://grid-games.mathew.workers.dev,https://gridgames.space",
+    "NEXT_PUBLIC_URL": "https://gridgames.space",
+  },
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "logs": { "enabled": true, "invocation_logs": true },
+    "traces": { "enabled": true },
+  },
+}

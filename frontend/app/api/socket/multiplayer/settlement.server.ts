@@ -8,7 +8,7 @@
  * - Tie fallback: player1 wins
  */
 
-import { Server as SocketIOServer } from 'socket.io'
+import type { RealtimeServer as SocketIOServer } from '@/platform/multiplayer/server'
 import { GameRoom } from './room.manager'
 import type {
   GameSettlementData,

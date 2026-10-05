@@ -53,15 +53,16 @@ export const GameSettingsSelector = React.memo(function GameSettingsSelector({
             key={option.value}
             onClick={() => !disabled && onDurationChange(option.value)}
             disabled={disabled}
+            aria-pressed={isSelected}
             whileHover={disabled ? {} : { scale: 1.05 }}
             whileTap={disabled ? {} : { scale: 0.95 }}
             className={cn(
-              'relative px-2 py-1 rounded-sm font-[family-name:var(--font-orbitron)] font-medium text-[10px] tracking-[0.15em]',
+              'arena-button relative px-4 py-3 font-mono font-medium text-xs tracking-[0.08em]',
               'border transition-all duration-200',
               'flex items-center justify-center',
               isSelected
-                ? 'text-tron-cyan bg-tron-cyan/20 border-tron-cyan/60 shadow-[0_0_8px_rgba(0,243,255,0.3)]'
-                : 'text-tron-cyan/50 bg-tron-black/40 border-tron-cyan/20 hover:border-tron-cyan/40 hover:text-tron-cyan/70',
+                ? '!text-[#111217] !bg-[#ffc76a] !border-[#ffc76a]'
+                : 'text-[#b4afa5] bg-[#1d1d23] border-[#46434a] hover:text-[#f7f0df]',
               disabled && 'opacity-50 cursor-not-allowed'
             )}
             title={`${option.description} - ${option.label}`}

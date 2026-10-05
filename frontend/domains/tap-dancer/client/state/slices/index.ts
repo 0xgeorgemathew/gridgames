@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand'
-import { io } from 'socket.io-client'
+import { io } from '@/platform/multiplayer/client'
 import { CLIENT_GAME_CONFIG as CFG } from '../../game.config'
 import type { TradingState, CryptoSymbol } from '../trading.types'
 import {
@@ -102,10 +102,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       socket.disconnect()
     }
 
-    const socketUrl = process.env.NEXT_PUBLIC_URL || ''
-    const nextSocket = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-    })
+    const nextSocket = io()
 
     const newCleanupFunctions: Array<() => void> = []
 
@@ -164,10 +161,36 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     )
 
     nextSocket.on('disconnect', () => {
-      set({ isConnected: false })
+      const interrupted = get().isPlaying
+      get().resetGame()
+      set({ isConnected: false, localPlayerId: null })
+      if (interrupted)
+        get().addToast({
+          message: 'Match interrupted. Reconnect to start a new match.',
+          type: 'warning',
+          duration: 5000,
+        })
       const { socketCleanupFunctions } = get()
       socketCleanupFunctions.forEach((fn) => fn())
       set({ socketCleanupFunctions: [] })
+    })
+
+    nextSocket.on('match_aborted', (data: { matchId?: string; reason?: string }) => {
+      const state = get()
+      const expectedRoom = nextSocket.roomId || state.roomId
+      if (
+        !expectedRoom ||
+        data.matchId !== expectedRoom ||
+        (state.isGameOver && !state.isMatching) ||
+        (!state.isMatching && !state.isPlaying)
+      )
+        return
+      get().resetGame()
+      get().addToast({
+        message: 'Match stopped. Start a new match.',
+        type: 'warning',
+        duration: 5000,
+      })
     })
 
     nextSocket.on('waiting_for_match', () => set({ isMatching: true }))

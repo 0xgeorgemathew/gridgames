@@ -14,7 +14,7 @@ Both are head-to-head matches where players start with fixed balances, and the s
 ## Runtime Flow
 
 ```
-Next.js route → Game Client (Zustand + Socket.IO) → Phaser Scene → Game Systems
+Next.js route → Game Client (Zustand + native WebSocket) → Phaser Scene → Game Systems
                                     ↓
               Server: app/api/socket/multiplayer/ (room registry, game loop, settlement)
 ```
@@ -77,3 +77,9 @@ Change carefully - check both sides:
 - Commands: `bun run types`, `bun run format`
 - Use `@/` imports
 - TypeScript strict is off → add explicit null checks
+
+## Deployment Runtime
+
+Vinext/Vite builds the Workers frontend. `worker/index.ts` delegates `/api/socket`
+to the hibernating `Lobby` Durable Object and room paths to per-match `GameRoom` objects; `platform/multiplayer/` owns the event transport.
+See `../docs/cloudflare-migration.md` for deployment and restart limitations.

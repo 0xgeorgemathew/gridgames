@@ -1,4 +1,4 @@
-import { Server as SocketIOServer } from 'socket.io'
+import type { RealtimeServer as SocketIOServer } from '@/platform/multiplayer/server'
 import { GameRoom } from './room.manager'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import type { WaitingPlayer } from './events.types'

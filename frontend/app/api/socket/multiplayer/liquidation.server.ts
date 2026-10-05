@@ -9,7 +9,7 @@
  * - result-artifact.server.ts for result artifacts
  */
 
-import { Server as SocketIOServer } from 'socket.io'
+import type { RealtimeServer as SocketIOServer } from '@/platform/multiplayer/server'
 import { SERVER_GAME_CONFIG as CFG } from './game.config'
 import { GameRoom } from './room.manager'
 import type { OpenPosition, LiquidationEvent } from './events.types'

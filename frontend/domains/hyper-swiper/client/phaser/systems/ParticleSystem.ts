@@ -153,7 +153,7 @@ export class ParticleSystem {
       this.trailGraphics.fillStyle(0xffffff, alpha)
       this.trailGraphics.fillCircle(p.x, p.y, size * 0.5)
 
-      this.trailGraphics.fillStyle(0x00f3ff, alpha * 0.6)
+      this.trailGraphics.fillStyle(0xaa95ff, alpha * 0.6)
       this.trailGraphics.fillCircle(p.x, p.y, size)
     }
   }
@@ -241,7 +241,7 @@ export class ParticleSystem {
 
       // Inner white ring (brighter, thinner)
       this.flashGraphics.lineStyle(1.5 * (1 - t) + 0.5, 0xffffff, alpha)
-      this.flashGraphics.strokeCircle(ring.x, ring.y, ring.radius * 0.7)
+      this.flashGraphics.strokeEllipse(ring.x, ring.y, ring.radius * 1.6, ring.radius * 0.8)
 
       // Soft glow fill at center (fades quickly)
       if (t < 0.4) {

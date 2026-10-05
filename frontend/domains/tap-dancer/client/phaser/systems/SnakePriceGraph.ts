@@ -95,7 +95,7 @@ export class SnakePriceGraph {
   // Current head position (for animation emission)
   private currentHeadX = 0
   private currentHeadY = 0
-  private currentCoreColor = 0x00f3ff
+  private currentCoreColor = 0xffc76a
 
   // Current curve points for explosion emission
   private currentCurvePoints: { x: number; y: number }[] = []
@@ -108,7 +108,10 @@ export class SnakePriceGraph {
 
   // Flash overlay state
   private flashAlpha = 0
-  private flashColor = 0xff0000
+  private flashColor = 0xff68bc
+
+  private readonly reducedMotion = typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   private readonly MAX_SHARDS = 300
   private readonly MAX_FLASH_RINGS = 8
@@ -161,7 +164,7 @@ export class SnakePriceGraph {
     this.graphExploded = true
 
     // 1. Flash the graph red
-    this.flashColor = 0xff0000
+    this.flashColor = 0xff68bc
     this.flashAlpha = 0.6
 
     // 2. Camera shake (strong)
@@ -170,7 +173,7 @@ export class SnakePriceGraph {
     }
 
     // 3. Explode the entire graph (de-rez effect)
-    this.explodeEntireGraph(0xff0000)
+    this.explodeEntireGraph(0xff68bc)
   }
 
   /**
@@ -185,23 +188,23 @@ export class SnakePriceGraph {
     // Determine animation style based on profit/loss
     if (finalPct >= CONFIG.PROFIT_THRESHOLD) {
       // Profit - green celebration
-      this.flashColor = 0x00ff88
+      this.flashColor = 0xd9f56e
       this.flashAlpha = 0.5
       if (this.scene) {
         this.scene.cameras.main.shake(100, 0.004)
       }
-      this.explodeEntireGraph(0x00ff88)
+      this.explodeEntireGraph(0xd9f56e)
     } else if (finalPct <= CONFIG.LOSS_THRESHOLD) {
       // Loss - red animation
-      this.flashColor = 0xff0000
+      this.flashColor = 0xff68bc
       this.flashAlpha = 0.5
       if (this.scene) {
         this.scene.cameras.main.shake(100, 0.004)
       }
-      this.explodeEntireGraph(0xff0000)
+      this.explodeEntireGraph(0xff68bc)
     } else {
       // Neutral - dimmer flash based on direction
-      this.flashColor = finalPct >= 0 ? 0x00ff88 : 0xff0000
+      this.flashColor = finalPct >= 0 ? 0xd9f56e : 0xff68bc
       this.flashAlpha = 0.25
       this.explodeEntireGraph(this.flashColor)
     }
@@ -294,7 +297,7 @@ export class SnakePriceGraph {
     const centerY = graphHeight / 2
 
     // Padding to keep chevron and trail within visible graph area
-    const topPadding = 30
+    const topPadding = 90
     const bottomPadding = 80
     const minY = topPadding
     const maxY = graphHeight - bottomPadding
@@ -343,7 +346,7 @@ export class SnakePriceGraph {
     // UX Visual Anchor: Zero Line (Start Price Baseline)
     const zeroY = centerY - (0 - this.currentCenterPct) * this.currentZoom
     if (zeroY > -100 && zeroY < graphHeight + 100) {
-      this.graphics.lineStyle(1.5, 0xffffff, 0.25)
+      this.graphics.lineStyle(1.5, 0xf7f0df, 0.25)
       this.graphics.beginPath()
       this.graphics.moveTo(0, zeroY)
       this.graphics.lineTo(width, zeroY)
@@ -352,14 +355,14 @@ export class SnakePriceGraph {
 
     // Colors: Tron Legacy Cyan vs Tron Legacy Orange
     const isAboveStart = currentPct >= 0
-    // Profit: Tron Cyan (0x00f3ff) | Loss: Tron Orange (0xff6600)
-    const coreColor = isAboveStart ? 0x00f3ff : 0xff6600
+    // Profit: Tron Cyan (0xffc76a) | Loss: Tron Orange (0xff68bc)
+    const coreColor = isAboveStart ? 0xffc76a : 0xff68bc
     this.currentCoreColor = coreColor
 
     // --- TRON LIGHT CYCLE RIBBON (WALL OF LIGHT) --- //
 
     // Layer 1: Ambient Ribbon Wall (Fills downward to create a 3D strip)
-    this.graphics.fillStyle(coreColor, 0.15)
+    this.graphics.fillStyle(coreColor, 0.07)
     this.graphics.beginPath()
     // Forward edge (top of ribbon)
     curvePoints.forEach((pt, i) => {
@@ -374,7 +377,7 @@ export class SnakePriceGraph {
     this.graphics.fillPath()
 
     // Layer 2: Inner denser ribbon (gives depth to the blade)
-    this.graphics.fillStyle(coreColor, 0.25)
+    this.graphics.fillStyle(coreColor, 0.14)
     this.graphics.beginPath()
     curvePoints.forEach((pt, i) => {
       if (i === 0) this.graphics.moveTo(pt.x, pt.y)
@@ -387,7 +390,7 @@ export class SnakePriceGraph {
     this.graphics.fillPath()
 
     // Layer 3: Top Edge Glow (Thick translucent line)
-    this.graphics.lineStyle(6, coreColor, 0.4)
+    this.graphics.lineStyle(5, coreColor, 0.28)
     this.graphics.beginPath()
     curvePoints.forEach((pt, i) => {
       if (i === 0) this.graphics.moveTo(pt.x, pt.y)
@@ -396,7 +399,7 @@ export class SnakePriceGraph {
     this.graphics.strokePath()
 
     // Layer 4: The Blade (Crisp, over-bright core)
-    this.graphics.lineStyle(2, 0xffffff, 0.9)
+    this.graphics.lineStyle(2, 0xf7f0df, 0.9)
     this.graphics.beginPath()
     curvePoints.forEach((pt, i) => {
       if (i === 0) this.graphics.moveTo(pt.x, pt.y)
@@ -415,15 +418,15 @@ export class SnakePriceGraph {
 
     // Pulse Ring 1
     const phase1 = (now % duration) / duration
-    const radius1 = 12 + phase1 * 50.55
-    const alpha1 = 0.25 * Math.max(0, 1 - phase1)
+    const radius1 = 10 + phase1 * 22
+    const alpha1 = this.reducedMotion ? 0 : 0.25 * Math.max(0, 1 - phase1)
     this.graphics.lineStyle(2, coreColor, alpha1)
     this.graphics.strokeCircle(headX, currentY, radius1)
 
     // Pulse Ring 2 (Offset by half the duration for continuous emission)
     const phase2 = ((now + duration / 2) % duration) / duration
-    const radius2 = 12 + phase2 * 50.55
-    const alpha2 = 0.25 * Math.max(0, 1 - phase2)
+    const radius2 = 10 + phase2 * 22
+    const alpha2 = this.reducedMotion ? 0 : 0.25 * Math.max(0, 1 - phase2)
     this.graphics.lineStyle(2, coreColor, alpha2)
     this.graphics.strokeCircle(headX, currentY, radius2)
 
@@ -435,7 +438,7 @@ export class SnakePriceGraph {
     }
 
     // Sleek white swallowtail/chevron pointing forward and tilting
-    this.graphics.fillStyle(0xffffff, 1.0)
+    this.graphics.fillStyle(0xf7f0df, 1.0)
     this.graphics.beginPath()
 
     const cosA = Math.cos(tipAngle)
@@ -653,7 +656,7 @@ export class SnakePriceGraph {
     this.particleGraphics.closePath()
     this.particleGraphics.fillPath()
 
-    this.particleGraphics.fillStyle(0xffffff, alpha * 0.9)
+    this.particleGraphics.fillStyle(0xf7f0df, alpha * 0.9)
     this.particleGraphics.beginPath()
     for (let i = 0; i < 3; i++) {
       const angle = rotation + (i * Math.PI * 2) / 3
@@ -688,7 +691,7 @@ export class SnakePriceGraph {
     this.particleGraphics.closePath()
     this.particleGraphics.fillPath()
 
-    this.particleGraphics.fillStyle(0xffffff, alpha * 0.8)
+    this.particleGraphics.fillStyle(0xf7f0df, alpha * 0.8)
     const coreSize = size * 0.4
     this.particleGraphics.beginPath()
     this.particleGraphics.moveTo(x + cos * coreSize, y + sin * coreSize)
@@ -705,7 +708,7 @@ export class SnakePriceGraph {
     this.particleGraphics.fillStyle(color, alpha * 0.8)
     this.particleGraphics.fillRect(x - size, y - size, size * 2, size * 2)
 
-    this.particleGraphics.fillStyle(0xffffff, alpha)
+    this.particleGraphics.fillStyle(0xf7f0df, alpha)
     this.particleGraphics.fillRect(x - size * 0.3, y - size * 0.3, size * 0.6, size * 0.6)
   }
 

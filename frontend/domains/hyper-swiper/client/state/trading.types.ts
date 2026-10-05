@@ -1,4 +1,4 @@
-import type { Socket } from 'socket.io-client'
+import type { RealtimeSocket as Socket } from '@/platform/multiplayer/client'
 import type {
   Player,
   CoinSpawnEvent,

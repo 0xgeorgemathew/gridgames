@@ -1,7 +1,7 @@
-import { Server as SocketIOServer } from 'socket.io'
-import { Socket } from 'socket.io'
+import type { RealtimeServer as SocketIOServer } from '@/platform/multiplayer/server'
+import type { ServerSocket as Socket } from '@/platform/multiplayer/server'
 
-import { priceFeed } from './price-feed.server'
+import { PriceFeedManager, type PriceSocketConnector } from './price-feed.server'
 import { GameRoom } from './room.manager'
 import { RoomManager } from './room-registry.server'
 import { validatePlayerName, validateCoinType } from './validation.utils'
@@ -28,210 +28,208 @@ import { ensureCoreGamesRegistered } from '@/platform/game-engine/register-core-
 import { gameRegistry } from '@/platform/game-engine/core/registry'
 import type { WaitingPlayer } from './events.types'
 
-let priceFeedConnected = false
+export function setupGameEvents(io: SocketIOServer, connectPriceSocket: PriceSocketConnector) {
+  const priceFeed = new PriceFeedManager(connectPriceSocket)
+  let priceFeedConnected = false
 
-let roomManagerRef: RoomManager | null = null
+  let roomManagerRef: RoomManager | null = null
 
-function toLobbyPlayer(player: WaitingPlayer) {
-  return {
-    socketId: player.socketId,
-    name: player.name,
-    joinedAt: player.joinedAt,
-    leverage: player.leverage,
-    gameDuration: player.gameDuration,
-    gameSlug: player.gameSlug,
-  }
-}
-
-function emitLobbyUpdated(io: SocketIOServer, manager: RoomManager): void {
-  const players = Array.from(manager.getWaitingPlayers().values()).map(toLobbyPlayer)
-  io.emit('lobby_updated', { players })
-}
-
-function ensurePriceFeedConnected(io: SocketIOServer, manager?: RoomManager): void {
-  if (manager) {
-    roomManagerRef = manager
-  }
-
-  if (priceFeedConnected && priceFeed.isConnected()) return
-
-  if (!priceFeed.isConnected()) {
-    priceFeed.reset()
-    priceFeedConnected = false
-  }
-
-  priceFeed.setBroadcastCallback((data) => {
-    io.emit('btc_price', data)
-
-    // Zero-sum: Liquidation disabled - positions can only be closed when prediction is correct
-    // if (roomManagerRef) {
-    //   checkLiquidations(io, roomManagerRef, data.price)
-    // }
-  })
-
-  priceFeed.connect('btcusdt')
-  priceFeedConnected = true
-}
-
-function disconnectPriceFeedIfIdle(manager: RoomManager): void {
-  if (manager.getRoomCount() === 0 && priceFeedConnected) {
-    priceFeed.disconnect()
-    priceFeedConnected = false
-    roomManagerRef = null
-  }
-}
-
-function endGame(
-  io: SocketIOServer,
-  manager: RoomManager,
-  room: GameRoom,
-  reason: 'time_limit' | 'knockout' | 'forfeit'
-): void {
-  if (room.getIsClosing()) return
-  room.setClosing()
-
-  // Zero-sum settlement: Use actual player balances, not PnL-based settlement
-  const settlementData = settleAllPositions(io, room, () => priceFeed.getLatestPrice())
-
-  io.to(room.id).emit('game_over', {
-    winnerId: settlementData.winner.playerId,
-    winnerName: settlementData.winner.playerName,
-    reason,
-    playerResults: settlementData.playerResults,
-  })
-
-  setTimeout(() => manager.deleteRoom(room.id), CFG.ROOM_DELETION_DELAY_MS)
-  setTimeout(() => disconnectPriceFeedIfIdle(manager), CFG.ROOM_DELETION_DELAY_MS + 100)
-}
-
-function getOpenPositionCounts(
-  room: GameRoom,
-  playerId: string
-): {
-  playerOpenPositions: number
-  opponentOpenPositions: number
-} {
-  let playerOpenPositions = 0
-  let opponentOpenPositions = 0
-
-  for (const position of room.openPositions.values()) {
-    if (position.playerId === playerId) {
-      playerOpenPositions += 1
-    } else {
-      opponentOpenPositions += 1
+  function toLobbyPlayer(player: WaitingPlayer) {
+    return {
+      socketId: player.socketId,
+      name: player.name,
+      joinedAt: player.joinedAt,
+      leverage: player.leverage,
+      gameDuration: player.gameDuration,
+      gameSlug: player.gameSlug,
     }
   }
 
-  return { playerOpenPositions, opponentOpenPositions }
-}
-
-function getPositionOpeningGuard(room: GameRoom, playerId: string) {
-  const player = room.players.get(playerId)
-  const opponentId = room.getPlayerIds().find((id) => id !== playerId)
-  const opponent = opponentId ? room.players.get(opponentId) : undefined
-
-  if (!player || !opponent) {
-    return null
+  function emitLobbyUpdated(io: SocketIOServer, manager: RoomManager): void {
+    const players = Array.from(manager.getWaitingPlayers().values()).map(toLobbyPlayer)
+    io.emit('lobby_updated', { players })
   }
 
-  const { playerOpenPositions, opponentOpenPositions } = getOpenPositionCounts(room, playerId)
-
-  return getPositionOpeningCapacity({
-    playerBalance: player.dollars,
-    opponentBalance: opponent.dollars,
-    playerOpenPositions,
-    opponentOpenPositions,
-    stakeAmount: STAKE_AMOUNT,
-  })
-}
-
-async function handleSlice(
-  io: SocketIOServer,
-  _manager: RoomManager,
-  room: GameRoom,
-  playerId: string,
-  data: { coinId: string; coinType: string; priceAtSlice: number },
-  getLatestPrice: () => number
-): Promise<void> {
-  room.removeCoin(data.coinId)
-  room.removeActiveCoin(data.coinId)
-
-  if (!validateCoinType(data.coinType)) {
-    return
-  }
-
-  const player = room.players.get(playerId)
-  if (!player) return
-
-  const openingGuard = getPositionOpeningGuard(room, playerId)
-  if (!openingGuard) return
-
-  if (!openingGuard.canOpen) {
-    const message = getPositionOpeningLimitMessage(openingGuard)
-    const payload = {
-      code: 'ACTION_REJECTED' as SocketErrorCode,
-      message,
-      details: {
-        maxOpenPositions: openingGuard.maxOpenPositions,
-        playerOpenPositions: openingGuard.playerOpenPositions,
-        remainingOpenSlots: openingGuard.remainingOpenSlots,
-        limitingReason: openingGuard.limitingReason,
-      },
+  function ensurePriceFeedConnected(io: SocketIOServer, manager?: RoomManager): void {
+    if (manager) {
+      roomManagerRef = manager
     }
 
-    io.to(playerId).emit('error', payload)
-    return
+    if (priceFeedConnected && priceFeed.isConnected()) return
+
+    if (!priceFeed.isConnected()) {
+      priceFeed.reset()
+      priceFeedConnected = false
+    }
+
+    priceFeed.setBroadcastCallback((data) => {
+      io.emit('btc_price', data)
+
+      // Zero-sum: Liquidation disabled - positions can only be closed when prediction is correct
+      // if (roomManagerRef) {
+      //   checkLiquidations(io, roomManagerRef, data.price)
+      // }
+    })
+
+    priceFeed.connect('btcusdt')
+    priceFeedConnected = true
   }
 
-  // Zero-sum: No balance deduction on position open
-  // Balance only changes when money is actually won or lost on close
-
-  const playerIds = room.getPlayerIds()
-  const isPlayer1 = playerId === playerIds[0]
-  const leverage = room.getLeverageForPlayer(playerId)
-  const serverPrice = getLatestPrice()
-
-  const coinType: 'long' | 'short' = data.coinType
-
-  const position: OpenPosition = {
-    id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-    playerId,
-    playerName: player.name,
-    coinType,
-    priceAtOrder: serverPrice,
-    leverage,
-    collateral: CFG.POSITION_COLLATERAL,
-    openedAt: Date.now(),
-    isPlayer1,
+  function disconnectPriceFeedIfIdle(manager: RoomManager): void {
+    if (manager.getRoomCount() === 0 && priceFeedConnected) {
+      priceFeed.disconnect()
+      priceFeedConnected = false
+      roomManagerRef = null
+    }
   }
 
-  // Zero-sum: Do NOT deduct balance on open
-  room.addOpenPosition(position)
+  function endGame(
+    io: SocketIOServer,
+    manager: RoomManager,
+    room: GameRoom,
+    reason: 'time_limit' | 'knockout' | 'forfeit'
+  ): void {
+    if (room.isShutdown || room.getIsClosing()) return
+    room.setClosing()
 
-  io.to(room.id).emit('position_opened', {
-    positionId: position.id,
-    playerId: position.playerId,
-    playerName: position.playerName,
-    isUp: position.coinType === 'long',
-    leverage: position.leverage,
-    collateral: position.collateral,
-    openPrice: position.priceAtOrder,
-  })
+    // Zero-sum settlement: Use actual player balances, not PnL-based settlement
+    const settlementData = settleAllPositions(io, room, () => priceFeed.getLatestPrice())
 
-  // Zero-sum: No balance_updated event on open - balance only changes on transfer
+    io.to(room.id).emit('game_over', {
+      winnerId: settlementData.winner.playerId,
+      winnerName: settlementData.winner.playerName,
+      reason,
+      playerResults: settlementData.playerResults,
+    })
 
-  io.to(room.id).emit('coin_sliced', {
-    playerId,
-    playerName: player.name,
-    coinType: data.coinType,
-    coinId: data.coinId,
-  })
-}
+    manager.deleteRoom(room.id)
+    disconnectPriceFeedIfIdle(manager)
+  }
 
-export function setupGameEvents(io: SocketIOServer): {
-  cleanup: () => void
-  emergencyShutdown: () => void
-} {
+  function getOpenPositionCounts(
+    room: GameRoom,
+    playerId: string
+  ): {
+    playerOpenPositions: number
+    opponentOpenPositions: number
+  } {
+    let playerOpenPositions = 0
+    let opponentOpenPositions = 0
+
+    for (const position of room.openPositions.values()) {
+      if (position.playerId === playerId) {
+        playerOpenPositions += 1
+      } else {
+        opponentOpenPositions += 1
+      }
+    }
+
+    return { playerOpenPositions, opponentOpenPositions }
+  }
+
+  function getPositionOpeningGuard(room: GameRoom, playerId: string) {
+    const player = room.players.get(playerId)
+    const opponentId = room.getPlayerIds().find((id) => id !== playerId)
+    const opponent = opponentId ? room.players.get(opponentId) : undefined
+
+    if (!player || !opponent) {
+      return null
+    }
+
+    const { playerOpenPositions, opponentOpenPositions } = getOpenPositionCounts(room, playerId)
+
+    return getPositionOpeningCapacity({
+      playerBalance: player.dollars,
+      opponentBalance: opponent.dollars,
+      playerOpenPositions,
+      opponentOpenPositions,
+      stakeAmount: STAKE_AMOUNT,
+    })
+  }
+
+  async function handleSlice(
+    io: SocketIOServer,
+    _manager: RoomManager,
+    room: GameRoom,
+    playerId: string,
+    data: { coinId: string; coinType: string; priceAtSlice: number },
+    getLatestPrice: () => number
+  ): Promise<void> {
+    room.removeCoin(data.coinId)
+    room.removeActiveCoin(data.coinId)
+
+    if (!validateCoinType(data.coinType)) {
+      return
+    }
+
+    const player = room.players.get(playerId)
+    if (!player) return
+
+    const openingGuard = getPositionOpeningGuard(room, playerId)
+    if (!openingGuard) return
+
+    if (!openingGuard.canOpen) {
+      const message = getPositionOpeningLimitMessage(openingGuard)
+      const payload = {
+        code: 'ACTION_REJECTED' as SocketErrorCode,
+        message,
+        details: {
+          maxOpenPositions: openingGuard.maxOpenPositions,
+          playerOpenPositions: openingGuard.playerOpenPositions,
+          remainingOpenSlots: openingGuard.remainingOpenSlots,
+          limitingReason: openingGuard.limitingReason,
+        },
+      }
+
+      io.to(playerId).emit('error', payload)
+      return
+    }
+
+    // Zero-sum: No balance deduction on position open
+    // Balance only changes when money is actually won or lost on close
+
+    const playerIds = room.getPlayerIds()
+    const isPlayer1 = playerId === playerIds[0]
+    const leverage = room.getLeverageForPlayer(playerId)
+    const serverPrice = getLatestPrice()
+
+    const coinType: 'long' | 'short' = data.coinType
+
+    const position: OpenPosition = {
+      id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      playerId,
+      playerName: player.name,
+      coinType,
+      priceAtOrder: serverPrice,
+      leverage,
+      collateral: CFG.POSITION_COLLATERAL,
+      openedAt: Date.now(),
+      isPlayer1,
+    }
+
+    // Zero-sum: Do NOT deduct balance on open
+    room.addOpenPosition(position)
+
+    io.to(room.id).emit('position_opened', {
+      positionId: position.id,
+      playerId: position.playerId,
+      playerName: position.playerName,
+      isUp: position.coinType === 'long',
+      leverage: position.leverage,
+      collateral: position.collateral,
+      openPrice: position.priceAtOrder,
+    })
+
+    // Zero-sum: No balance_updated event on open - balance only changes on transfer
+
+    io.to(room.id).emit('coin_sliced', {
+      playerId,
+      playerName: player.name,
+      coinType: data.coinType,
+      coinId: data.coinId,
+    })
+  }
+
   ensureCoreGamesRegistered()
 
   // Log shared socket event names at startup (Phase 1 feedback loop)
@@ -239,21 +237,8 @@ export function setupGameEvents(io: SocketIOServer): {
 
   const manager = new RoomManager()
 
-  const cleanupInterval = setInterval(() => {
-    manager.cleanupStaleWaitingPlayers()
-
-    if (io.of('/').sockets.size === 0) {
-      for (const room of manager.getAllRooms()) {
-        manager.deleteRoom(room.id)
-      }
-    }
-
-    disconnectPriceFeedIfIdle(manager)
-  }, CFG.CLEANUP_INTERVAL_MS)
-  cleanupInterval.unref?.()
-
   const cleanup = () => {
-    clearInterval(cleanupInterval)
+    for (const room of manager.getAllRooms()) manager.deleteRoom(room.id)
     if (priceFeedConnected) {
       priceFeed.disconnect()
       priceFeedConnected = false
@@ -459,7 +444,7 @@ export function setupGameEvents(io: SocketIOServer): {
       if (!roomId) return
 
       const room = manager.getRoom(roomId)
-      if (!room) return
+      if (!room || room.isShutdown || room.getIsClosing()) return
 
       // Update match player ready state
       room.setPlayerReadyState(socket.id, 'ready')
@@ -484,7 +469,7 @@ export function setupGameEvents(io: SocketIOServer): {
       if (!roomId) return
 
       const room = manager.getRoom(roomId)
-      if (!room || room.getIsClosing()) return
+      if (!room || room.isShutdown || room.getIsClosing()) return
 
       endGame(io, manager, room, 'forfeit')
     })
@@ -504,6 +489,8 @@ export function setupGameEvents(io: SocketIOServer): {
             manager.removePlayerFromRoom(socket.id)
             return
           }
+
+          if (room.isShutdown || room.getIsClosing()) return
 
           if (room.gameSlug !== 'hyper-swiper') {
             socket.emit('error', {
@@ -529,7 +516,7 @@ export function setupGameEvents(io: SocketIOServer): {
       if (!roomId) return
 
       const room = manager.getRoom(roomId)
-      if (room) {
+      if (room && !room.isShutdown && !room.getIsClosing()) {
         room.expireCoin(coinId)
       }
     })
@@ -540,7 +527,7 @@ export function setupGameEvents(io: SocketIOServer): {
         if (!roomId) return
 
         const room = manager.getRoom(roomId)
-        if (!room) return
+        if (!room || room.isShutdown || room.getIsClosing()) return
 
         const position = room.openPositions.get(positionId)
         if (!position) {
@@ -763,7 +750,7 @@ export function setupGameEvents(io: SocketIOServer): {
       if (!roomId) return
 
       const room = manager.getRoom(roomId)
-      if (!room) return
+      if (!room || room.isShutdown || room.getIsClosing()) return
 
       room.setPlayerLeverage(socket.id, CFG.FIXED_LEVERAGE)
 
@@ -792,6 +779,8 @@ export function setupGameEvents(io: SocketIOServer): {
           socket.emit('error', { message: 'Room not found' })
           return
         }
+
+        if (room.isShutdown || room.getIsClosing()) return
 
         if (room.gameSlug !== 'tap-dancer') {
           socket.emit('error', { message: 'Open position is only valid for Tap Dancer matches' })
@@ -872,7 +861,7 @@ export function setupGameEvents(io: SocketIOServer): {
         }
 
         const room = manager.getRoom(roomId)
-        if (!room || !room.canAcceptMatchActions()) {
+        if (!room || room.isShutdown || room.getIsClosing() || !room.canAcceptMatchActions()) {
           socket.emit('error', {
             code: 'ACTION_REJECTED' as SocketErrorCode,
             message: 'Match not accepting actions',
@@ -916,7 +905,14 @@ export function setupGameEvents(io: SocketIOServer): {
       const roomId = manager.getPlayerRoomId(socket.id)
       if (roomId) {
         const room = manager.getRoom(roomId)
-        if (room?.hasPlayer(socket.id)) {
+        if (
+          room?.hasPlayer(socket.id) &&
+          !room.getIsClosing() &&
+          room.getMatchStatus() !== 'aborted'
+        ) {
+          room.isShutdown = true
+          room.setClosing()
+          room.cleanup()
           // Emit legacy event (backward compatibility)
           io.to(roomId).emit('opponent_disconnected')
 
@@ -935,14 +931,42 @@ export function setupGameEvents(io: SocketIOServer): {
 
           console.log(`[Match] ${roomId} aborted due to player disconnect: ${socket.id}`)
 
-          if (room.openPositions.size === 0) {
-            setTimeout(() => manager.deleteRoom(roomId), 5000)
-            setTimeout(() => disconnectPriceFeedIfIdle(manager), 5100)
-          }
+          manager.deleteRoom(roomId)
+          disconnectPriceFeedIfIdle(manager)
         }
       }
     })
   })
 
-  return { cleanup, emergencyShutdown }
+  let assignedMatch = false
+  const startMatch = (config: import('@/worker/session').RoomProvision) => {
+    if (assignedMatch) throw new Error('One match per room runtime')
+    assignedMatch = true
+    const [a, b] = config.players
+    return createMatch(
+      io,
+      manager,
+      a.id,
+      b.id,
+      a.name,
+      b.name,
+      a.walletAddress,
+      b.walletAddress,
+      a.sceneWidth,
+      a.sceneHeight,
+      b.sceneWidth,
+      b.sceneHeight,
+      CFG.FIXED_LEVERAGE,
+      CFG.FIXED_LEVERAGE,
+      config.gameSlug,
+      config.gameDuration,
+      ensurePriceFeedConnected,
+      (server, registry, room) =>
+        startGameWhenClientsReady(server, registry, room, (server, registry, room) =>
+          startGameLoop(server, registry, room, endGame)
+        ),
+      config.roomId
+    )
+  }
+  return { cleanup, emergencyShutdown, startMatch }
 }
