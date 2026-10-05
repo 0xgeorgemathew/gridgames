@@ -1,4 +1,5 @@
-import Phaser, { GameObjects, Scene } from 'phaser'
+import * as Phaser from 'phaser'
+import { GameObjects, Scene } from 'phaser'
 
 const GRID_CONFIG = {
   color: 0x00f3ff,
