@@ -79,3 +79,18 @@ written upfront as policy.
 - Scale both stock toss duration and launch interval together when changing speed,
   and use the same shared duration for client motion and authoritative expiry.
   Cutoff clips motion; it must not compress a late toss into a faster trajectory.
+
+
+- Contact feedback must follow event ownership: local pending attempts may animate
+  immediately, but credit/failure needs a unique current-room acknowledgement for
+  an initiated claim. Restored ledgers and duplicate acknowledgements are silent.
+  Budget rejection must preserve the still-catchable opportunity.
+- Howler's pool size is a reuse pool, not an audible voice cap. Bound active sound
+  IDs explicitly, discard unavailable cues rather than queuing historical sounds,
+  and test actual WebAudio start offsets plus mute/visibility/unmount behavior.
+- Streaming audio can enter a play-lock race when visibility changes after unmute.
+  Test the browser lifecycle before replacing a proven music backend; one controller
+  can own native music and Howler effects without sharing global mute/unload state.
+- Completed-match UI must retain its original player identity. A transport reconnect
+  may create a new session ID while the old terminal result remains visible; looking
+  up that result by the new ID can lose the bag and display NaN values.

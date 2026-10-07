@@ -4,7 +4,7 @@
 
 The current `Pivot` branch uses TanStack Start/Router and the official Cloudflare Vite plugin. Next/Vinext/RSC dependencies and obsolete Railway build scripts are removed. Existing React/Zustand clients, Phaser engines, swipe handling, Tron styling, Privy and Farcaster integrations remain. The standalone advisory agent and Solidity contracts are unchanged; no advisory HTTP service existed, so none is invented.
 
-The verified deployed version is `99855924-8eaa-42e0-b902-1ac44f90ad1d` (app source `38541e248ffd922c6ab0e8583a3249a71aea0459`). The isolated preview is https://pivot.gridgames.space, Worker `grid-games-pivot`, account `a22fe9411b81705409eb7cdf9be367e3` (George Mathew). Source config routes only that custom hostname. Its Lobby, GameRoom and QuoteGate bindings are local to that separate Worker: no production namespace IDs, D1, R2, Queues, data migration or live funds. Main production remains `grid-games` at `gridgames.space`. No main/remote branch push is part of this work.
+The verified deployed version is `79cca9b0-84b0-4d3e-b265-2ce797f38ac3` (app source `78327ffd8e65a6afa96b8aa020a20a9cd1f60646`). The current contact effects and audio verification are recorded at the end of this document; earlier visual iterations below are historical. The isolated preview is https://pivot.gridgames.space, Worker `grid-games-pivot`, account `a22fe9411b81705409eb7cdf9be367e3` (George Mathew). Source config routes only that custom hostname. Its Lobby, GameRoom and QuoteGate bindings are local to that separate Worker: no production namespace IDs, D1, R2, Queues, data migration or live funds. Main production remains `grid-games` at `gridgames.space`. No main/remote branch push is part of this work.
 
 `src/routes/` owns page and HTTP routing, including the hidden `/.well-known/farcaster.json` route. `worker/index.ts` intercepts native WebSocket endpoints and delegates other requests to TanStack Start. Browser-only lazy loaders prevent Phaser/WebGL hydration on the server. Fonts are bundled as local static assets. TypeScript is strict.
 
@@ -416,7 +416,7 @@ is film imagery used for visual review only; it is not included in the game.
 This is an original lightweight2D interpretation for coin feedback, not copied
 film animation.
 
-### Verified refinement deployment
+### Earlier verified refinement deployment
 
 App source `38541e248ffd922c6ab0e8583a3249a71aea0459` is deployed as
 `99855924-8eaa-42e0-b902-1ac44f90ad1d` at 100% traffic on `grid-games-pivot`.
@@ -458,3 +458,83 @@ lobby 5-second counters remained0 GL draws / 0 RAF callbacks / 0 canvases after 
 raster. Fresh OTP/Farcaster publication and native Task Manager CPU measurements
 were not repeated; do not treat those as passes. Evidence is saved in the task's
 `evidence/refinement/` directory.
+
+
+### Current arcade contact feedback and verification
+
+The film de-resolution was superseded at the user's request. App commit
+`bdb89916457093f251bee910af25bcd69cb5485f` replaces its renderer with a contained
+180ms neon contact snap, a 220ms credited check and bag pulse, a 160ms amber
+failed-quote cross, and a non-destructive budget rejection pulse. Pending contact
+means an accepted local attempt, never a completed quote or acquired asset.
+Failed quotes release the $1 reservation without spending or crediting. Misses,
+duplicates, restored acknowledgements and stale-room events stay silent. Original
+circular untinted logos, all twenty stocks, the 75% toss speed, three shared
+choices, lower-left simulated balance and lower-right fixed catch-cost pill remain.
+See [contact specification](stock-ninja-contact.md).
+
+Howler 2.2.4 plays one preloaded original six-cue WAV sprite with distinct pending,
+credit, failure and rejection sounds. Three pending timbres vary without implying
+combos. The controller limits actual concurrent voices to three and coalesces
+rapid contacts. Locked, loading, muted, hidden and inactive cues are discarded,
+not replayed later. The original music retains its proven native HTMLAudioElement
+backend under the same lifecycle controller: a trial of Howler streaming music
+exposed an unmute/visibility play-lock race and was removed. Mute persists; hidden
+and terminal states pause music, and unmount unloads owned sound resources.
+
+Native QA exposed an older completed result losing its player lookup after a
+transport reconnect assigned a new session ID. Commit
+`78327ffd8e65a6afa96b8aa020a20a9cd1f60646` remembers the original player ID for that
+match; new matches still capture their own ID. This is a client display correction,
+not a change to server scoring or disconnect rules.
+
+The final isolated Worker serves 100% version
+`79cca9b0-84b0-4d3e-b265-2ce797f38ac3`. Published
+`StockArcadeClient-BPTV-pxl.js`, twenty SVGs and original music match the build.
+The original contact WAV is 48,554 bytes with SHA-256
+`4376722df9fd916e3fc0839d8975fe2933c7c4f179dc7823f37c7a3eae0d0ca9`.
+No production, remote Git, live-fund or namespace changes were made.
+
+Strict types, lint, production build and Worker dry-run pass. The final suite has
+53 tests / 16,595 assertions, including stable completed-match ownership, unique
+local claims, silent replay/unknown acknowledgements, voice limits, stale-cue
+suppression, mute/visibility/unmount and authoritative timing/budget coverage.
+Actual component fixtures at 1200/390/320px verify measured HUD bounds, readable
+original logos, all twenty loaded assets, touch bag scrolling and original music.
+Contact frame captures verify pending/credited/failed/rejected states, reduced
+motion and three-contact cleanup. Instrumented WebAudio nodes verify distinct
+sprite offsets and durations; slow/failed sound loads do not block the game,
+and unmount leaves zero owned Howls/effects with music paused.
+
+Final built local Workers serve page routes and assets without hydration errors,
+including the intentional canvas-only `/Test` route. Local room checks preserve
+shared three-drop batches, all twenty assets, deduplication and disconnect
+cancellation. Missing local quote credentials correctly produce no spend/credit;
+successful quote behavior is verified on the authorized preview instead.
+
+On the exact final version, live stock protocol checks acquired all twenty assets
+across both bags, ten catches / $10 per player, identical shared opportunities
+and at most three visible choices across 527 samples. Both results use block
+82601020: values 9.979436 and 9.987479 USDG, with a **19.966915 USDG simulated**
+prize after the winner is fixed. One timed-out quote released its reservation;
+a later opportunity filled the bag. Disconnect cancellation passes. The complete
+retained Hyper/Tap live suite passed on the preceding contact deployment with
+unchanged server logic: prices, positions, settlement, independent rooms,
+reconnect identity, intentional handoff, rematch, tickets and partial-handoff timeout.
+
+Authenticated native Chrome on that preceding contact deployment verified desktop
+ten catches / $10 with further debit refused, and unmuted mobile eight / $8.
+Both agree at block 82594606 on a **17.9690 USDG simulated** prize. The exact final
+version then confirmed six native catches / $6, Settings and Instructions Close,
+Exit cancellation on both clients without payout, Play Again reset and Back to the
+real home route. The existing mobile mute preference was restored. Full native
+cap completion was not repeated after the small ownership display correction.
+Normal UI sessions were reused without copying credentials or authentication state.
+
+The final public stock lobby measured zero GL draws, RAF callbacks and canvases
+over five seconds after its cached raster. Fresh OTP/Farcaster publication,
+iOS Safari, native hardware sound capture and per-tab Task Manager CPU were not
+verified. Component audio-node evidence does not claim a native microphone recording.
+Evidence is retained under the task workspace's `evidence/contact/` directory.
+The two fresh owned QA windows were closed and both owned preview/fixture processes
+were stopped; externally used or unrelated windows were preserved.
