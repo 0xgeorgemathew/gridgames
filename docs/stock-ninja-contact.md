@@ -50,3 +50,47 @@ shared three-disc shuffle, 75% toss speed, server catch windows, $1/$10 accounti
 real quotes with simulated fills/payouts, native transport and older games remain.
 
 Reference: [official Howler API, sprites, pooling and mobile unlock](https://github.com/goldfire/howler.js#documentation).
+
+## Verified preview: 2026-10-07
+
+- Source commit `0b1a670`; isolated Worker `grid-games-pivot`; deployed version
+  `9cc40b7a-d4dd-49e3-a274-504efc962016` at `https://pivot.gridgames.space`.
+  Cloudflare reports 100% deployment with tag `0b1a670`. Live JS, CSS and WAV bytes
+  match the build. No main/production deployment or remote Git push.
+- Strict types, full lint, 53 tests / 16,595 assertions, build, whitespace check and
+  generated-config deployment dry run pass. Unit coverage includes local pending
+  budget guards, duplicates, released reservations, old rounds/acknowledgements,
+  sound loading/locking/mute/visibility/disposal and three-voice limits.
+- Real preview protocol test completed all twenty assets across two $10 bags,
+  with common-cutoff block `82651433`, simulated payout `19.956991 USDG`, identical
+  shared shuffled drop contracts and three-disc batches. Two timeout failures
+  released reservations without credit/spend; subsequent opportunities completed
+  both budgets. Duplicate claims stayed deduplicated. Disconnect cancelled.
+- Retained Hyper Swiper/TapDancer start/price/position/settlement checks pass, plus
+  disconnect/reconnect identity, parallel-room and terminal isolation, stable
+  return identity, rematch rooms, wrong/replayed ticket rejection and handoff timeout.
+- Native Chrome inspected the actual split component at 1200×760 and 390×844:
+  original logo/rim visibly separate; no floating result tick/cross or travelling
+  debris. These controlled phase views use synthetic state and no auth adapter.
+- Actual WebAudio starts in the isolated component fixture used offsets
+  `0`, `0.75`, `1.05`, `1.30` seconds for contact/credit/failure/rejection, with
+  durations `0.19`, `0.23`, `0.18`, `0.13`. No autoplay. Ten rapid requests added
+  only one contact sound. Mute stopped music/effects. Simulated visibility events
+  paused music, discarded hidden cues and resumed without replay; idle stayed
+  silent; unmount left zero owned Howls and contact nodes.
+- Two existing authenticated Chrome profiles loaded the final preview, played and
+  rematched without copied auth data or new login. Pending dollars and actual bag
+  credit remained separate. A pending-at-cutoff round cancelled with no payout.
+  The fresh rematch reset to $10 / empty bags; one player acquired ten catches,
+  spent $10, returned to $0 pending and saw further contacts rejected with coins
+  retained. It completed at block `82653730` with finite `9.9655`/`0.0000` displayed
+  bag values. Result music stopped. Settings Close, instructions close and Back
+  navigation worked. The exercised tabs end idle; unrelated tabs/logins preserved.
+- No genuinely stuck task-owned process was found. The temporary component server
+  was closed normally after QA; no unrelated process was terminated.
+
+Limits: tools could inspect actual playback and the original PCM file (no clipped
+samples), but could not provide audible monitoring. Subjective listening is **not
+verified**. Desktop mobile-size layout is **not iOS Safari or physical mobile audio**.
+Visibility-event fixture checks are simulated browser lifecycle coverage, not a
+phone backgrounding test. The app dev server was never started.

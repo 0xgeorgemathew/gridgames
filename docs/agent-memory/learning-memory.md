@@ -80,7 +80,6 @@ written upfront as policy.
   and use the same shared duration for client motion and authoritative expiry.
   Cutoff clips motion; it must not compress a late toss into a faster trajectory.
 
-
 - Contact feedback must follow event ownership: local pending attempts may animate
   immediately, but credit/failure needs a unique current-room acknowledgement for
   an initiated claim. Restored ledgers and duplicate acknowledgements are silent.
@@ -94,3 +93,8 @@ written upfront as policy.
 - Completed-match UI must retain its original player identity. A transport reconnect
   may create a new session ID while the old terminal result remains visible; looking
   up that result by the new ID can lose the bag and display NaN values.
+
+- Stock contact animation must visibly alter the original logo and rim. An intact
+  fade plus an abstract mark can satisfy event assertions yet fail game feel.
+  Keep a readable local slice phase distinct from authoritative HUD quote outcomes;
+  inspect actual rendered phases as well as ownership/accounting tests.
