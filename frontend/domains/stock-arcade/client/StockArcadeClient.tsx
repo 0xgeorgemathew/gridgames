@@ -36,7 +36,7 @@ export function StockArcadeClient() {
   const [waiting, setWaiting] = useState(false)
   const [now, setNow] = useState(Date.now())
   const [pending, setPending] = useState<Record<string, PendingVisual>>({})
-  const [notice, setNotice] = useState('Swipe a stock disc to collect a $1 simulated quote.')
+  const [notice, setNotice] = useState('Swipe a stock disc for a live $1 quote. Fills are simulated.')
   const [reducedMotion, setReducedMotion] = useState(false)
   const [trail, setTrail] = useState<Array<{ x: number; y: number; time: number }>>([])
   const pointer = useRef<{ x: number; y: number } | null>(null)
