@@ -117,6 +117,7 @@ export function GameSelectionScreen() {
         scanRange={isEntering ? [0.0, 2.0] : [2.0, 2.0]}
         scanOpacity={isEntering ? 0.8 : 0.0}
         scanDuration={isEntering ? 0.8 : 4.0}
+        scanDelay={isEntering ? 0 : 2}
         scanGlow={isEntering ? 1.0 : 0.0}
       />
 

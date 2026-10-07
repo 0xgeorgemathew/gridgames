@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './grid-background.css'
 import * as THREE from 'three'
+import { createGridScanClock } from './grid-scan-clock'
 import {
   EffectComposer,
   RenderPass,
@@ -31,7 +32,6 @@ uniform vec3 uLinesColor;
 uniform vec3 uScanColor;
 uniform float uGridScale;
 uniform float uLineStyle;
-uniform float uLineJitter;
 uniform float uScanOpacity;
 uniform float uScanDirection;
 uniform float uNoise;
@@ -103,14 +103,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     vec3 hit = ro + rd * minT;
     float dist = length(hit - ro);
 
-  float jitterAmt = clamp(uLineJitter, 0.0, 1.0);
-  if (jitterAmt > 0.0) {
-    vec2 j = vec2(
-      sin(gridUV.y * 2.7 + iTime * 1.8),
-      cos(gridUV.x * 2.3 - iTime * 1.6)
-    ) * (0.15 * jitterAmt);
-    gridUV += j;
-  }
+  // The tunnel geometry stays rigid while the scan light travels through it.
   float fx = fract(gridUV.x);
   float fy = fract(gridUV.y);
   float ax = min(fx, 1.0 - fx);
@@ -151,13 +144,6 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
   float primaryMask = max(lineX, lineY);
 
   vec2 gridUV2 = (hitIsY > 0.5 ? hit.xz : hit.zy) / gridScale;
-  if (jitterAmt > 0.0) {
-    vec2 j2 = vec2(
-      cos(gridUV2.y * 2.1 - iTime * 1.4),
-      sin(gridUV2.x * 2.5 + iTime * 1.7)
-    ) * (0.15 * jitterAmt);
-    gridUV2 += j2;
-  }
   float fx2 = fract(gridUV2.x);
   float fy2 = fract(gridUV2.y);
   float ax2 = min(fx2, 1.0 - fx2);
@@ -366,7 +352,6 @@ function useGridScanEffect(
       uScanColor: { value: srgbColor(initial.scanColor) },
       uGridScale: { value: initial.gridScale },
       uLineStyle: { value: 0 },
-      uLineJitter: { value: 0.1 },
       uScanOpacity: { value: initial.scanOpacity },
       uNoise: { value: initial.noiseIntensity },
       uBloomOpacity: { value: initial.bloomIntensity },
@@ -413,6 +398,7 @@ function useGridScanEffect(
     let frame: number | null = null
     let timer: ReturnType<typeof setTimeout> | null = null
     const media = matchMedia('(prefers-reduced-motion: reduce)')
+    const clock = createGridScanClock()
     const canRender = () => !disposed && visible && !document.hidden
     const animated = () => settingsRef.current.scanOpacity > 0 && !media.matches
     const stop = () => {
@@ -422,10 +408,15 @@ function useGridScanEffect(
       timer = null
     }
     const render = () => {
-      if (!canRender()) return
+      const running = canRender() && animated()
+      const time = clock.sample(performance.now(), running)
+      if (!canRender() || uniforms.iResolution.value.x <= 0 || uniforms.iResolution.value.y <= 0) {
+        clock.pause()
+        return
+      }
       // The hidden-scan landing view is a static grid. Preserve its look without
-      // continuously animating imperceptible grain/jitter and running postprocessing.
-      uniforms.iTime.value = animated() ? performance.now() / 1000 : 0
+      // continuously animating imperceptible grain and running postprocessing.
+      uniforms.iTime.value = time
       renderer.clear(true, true, true)
       composer.render()
       if (onSnapshot && !snapshotSent && uniforms.iResolution.value.x > 0) {
