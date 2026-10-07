@@ -54,6 +54,7 @@ try {
   if (a.state!.matchId !== b.state!.matchId || a.state!.cutoffAt !== b.state!.cutoffAt)
     throw new Error('Room/clock mismatch')
   const attempted = new Set<string>()
+  const attemptSymbols = new Map<string, string>()
   const visibleCounts: number[] = []
   const batches = new Map<number, Set<string>>()
   const deadline = Date.now() + 19000
@@ -75,9 +76,26 @@ try {
         batches.set(drop.spawnedAt, ids)
       }
     }
+    const creditedSymbols = new Set(
+      a.state!.bags.find((bag) => bag.playerId === a.socket.id)!.assets.map((asset) => asset.symbol)
+    )
+    const latestClaims = new Map(a.claims.map((claim) => [claim.dropId, claim.status]))
+    const pendingSymbols = new Set(
+      [...latestClaims]
+        .filter(([, status]) => status === 'pending')
+        .map(([id]) => attemptSymbols.get(id))
+    )
+    // Coverage strategy only: await each symbol's quote before retrying a later drop.
+    // Real players may catch repeated symbols; the game still dedups by drop ID.
     for (const drop of a.state!.drops)
-      if (!attempted.has(drop.id) && Date.now() < drop.expiresAt) {
+      if (
+        !attempted.has(drop.id) &&
+        !creditedSymbols.has(drop.symbol) &&
+        !pendingSymbols.has(drop.symbol) &&
+        Date.now() < drop.expiresAt
+      ) {
         attempted.add(drop.id)
+        attemptSymbols.set(drop.id, drop.symbol)
         a.socket.emit('catch_stock', { dropId: drop.id })
         a.socket.emit('catch_stock', { dropId: drop.id }) // intentional replay; exactly one credit allowed
       }
