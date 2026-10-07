@@ -1,7 +1,13 @@
 import { useLayoutEffect, useRef } from 'react'
 import { stockAsset } from '../shared/assets'
 import { COIN_CONFIG } from '@/platform/game-engine/visuals/tron-disc'
-import { DEREZ_CELLS, deRezMotion, FRACTURE_MS, type DeRezCell } from './derez-motion'
+import {
+  DEREZ_CELLS,
+  deRezMotion,
+  deRezLogoRect,
+  FRACTURE_MS,
+  type DeRezCell,
+} from './derez-motion'
 const hex = (value: number) => '#' + value.toString(16).padStart(6, '0')
 const energy = hex(COIN_CONFIG.long.color)
 type Context = CanvasRenderingContext2D
@@ -67,7 +73,10 @@ function texture(
   ctx.arc(0, -4.3, 14.5, 0, Math.PI * 2)
   ctx.fillStyle = chamber
   ctx.fill()
-  if (logo.complete && logo.naturalWidth) ctx.drawImage(logo, -11.3, -15.6, 22.6, 22.6)
+  if (logo.complete && logo.naturalWidth) {
+    const rect = deRezLogoRect(logo.naturalWidth, logo.naturalHeight)
+    ctx.drawImage(logo, rect.x, rect.y, rect.width, rect.height)
+  }
   ctx.font = `800 5.8px ${font}`
   ctx.textAlign = 'center'
   ctx.fillStyle = '#ffffff'

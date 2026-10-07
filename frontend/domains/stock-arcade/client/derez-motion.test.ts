@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { DEREZ_CELLS, deRezMotion, DEREZ_MS, FRACTURE_MS } from './derez-motion'
+import { DEREZ_CELLS, deRezMotion, deRezLogoRect, DEREZ_MS, FRACTURE_MS } from './derez-motion'
 
 test('subdivision reuses one nested footprint and tiles each moving parent', () => {
   const medium = DEREZ_CELLS.flatMap((cell) => cell.children)
@@ -55,4 +55,21 @@ test('every fine cell starts shrinking immediately, never waits, and reaches zer
   expect(deRezMotion(450).energy).toBe(1)
   expect(deRezMotion(DEREZ_MS).fine).toBe(1)
   expect(deRezMotion(DEREZ_MS + 1000).fine).toBe(1)
+})
+
+test('contact texture preserves wide, square and portrait brand proportions in its logo chamber', () => {
+  for (const [width, height] of [
+    [220, 86],
+    [800, 190.803],
+    [395.4, 155.9],
+    [180, 120],
+    [24, 24],
+    [278.672, 360.438],
+  ]) {
+    const rect = deRezLogoRect(width, height)
+    expect(rect.width / rect.height).toBeCloseTo(width / height, 8)
+    expect(Math.max(rect.width, rect.height)).toBeCloseTo(22.6, 8)
+    expect(rect.x + rect.width / 2).toBeCloseTo(0, 8)
+    expect(rect.y + rect.height / 2).toBeCloseTo(-4.3, 8)
+  }
 })

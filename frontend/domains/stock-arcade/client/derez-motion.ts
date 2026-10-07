@@ -63,3 +63,14 @@ export function deRezMotion(elapsed: number) {
     energy: Math.min(1, fine * 4),
   }
 }
+
+/** Match SVG xMidYMid meet inside the original circular logo chamber. */
+export function deRezLogoRect(width: number, height: number) {
+  const fit = Math.min(22.6 / width, 22.6 / height)
+  return {
+    x: (-width * fit) / 2,
+    y: -4.3 - (height * fit) / 2,
+    width: width * fit,
+    height: height * fit,
+  }
+}
