@@ -99,3 +99,59 @@ samples), but could not provide audible monitoring. Subjective listening is **no
 verified**. Desktop mobile-size layout is **not iOS Safari or physical mobile audio**.
 Visibility-event fixture checks are simulated browser lifecycle coverage, not a
 phone backgrounding test. The app dev server was never started.
+
+
+## Corrected proper de-rez preview: 2026-10-07
+
+This supersedes the split-only preview above.
+
+- Source commit `9674048`; isolated Worker `grid-games-pivot`; version
+  `b7c3d5cc-1a3d-439f-a646-b23812a1b5a0` serves 100% at
+  `https://pivot.gridgames.space`, tagged `9674048`. Deployed stock JS
+  (`StockArcadeClient-BDx5qbYR.js`, 73,260 bytes), CSS and 163,214-byte WAV
+  match the final build byte for byte. Home and all three game routes return 200.
+- Strict types, lint, 55 tests / 37,696 assertions, build, whitespace check and
+  generated Worker-config dry run pass. New geometric regression checks require
+  increasing fragment counts/decreasing cell sizes, localized centers, no
+  gravity/downward-only drift, and zero remaining pieces at 520 ms.
+- Native Chrome inspected actual component phase frames at desktop 1200×760 and
+  mobile-width 390×1050: original circular logo/rim, 45 ms fracture, 150 ms coarse
+  original-art pieces, 275 ms smaller original-art pieces, 410 ms energy pixels,
+  and 490 ms collapsing points. A requestAnimationFrame-driven normal-speed
+  repeat using the actual component was also inspected through native screenshots
+  (including simultaneous INTC/NVDA/LLY contacts). This is visual component
+  evidence, not a recorded video or a physical-device test.
+- Actual Howler/WebAudio starts used contact offsets `0`/`0.35` with 310 ms
+  duration, credit `1.05`/230 ms, failure `1.35`/180 ms, budget `1.60`/130 ms.
+  Lobby had zero starts; ten rapid feedback requests coalesced into one cue.
+  Mute produced zero starts and paused music. Simulated hidden events paused
+  music/discarded feedback; visible resumed music without stale cues; idle was
+  silent; unmount left zero owned Howls and zero contact nodes. Original PCM peak
+  is 0.800 with zero clipped samples and zero-valued cue endpoints.
+- Final live stock regression completed all twenty canonical assets across two
+  ten-credit/$10 bags with shared shuffled drop contracts, deduplicated claims,
+  three-coin batches, max three choices over 532 samples. Common cutoff block
+  `82666636`, finite simulated payout `19.955505 USDG`. Disconnect cancellation
+  passed. Real quotes were used; execution and payout remained simulated.
+- Final retained Hyper Swiper/TapDancer start/price/position/settlement,
+  disconnect/reconnect identity, room/action/terminal isolation, stable return,
+  new rematch rooms, wrong/replayed ticket rejection and handoff timeout pass.
+- Both existing authenticated Chrome profiles loaded the corrected preview
+  without copied credentials. A native match showed separate pending dollars and
+  confirmed bag credit, an expired claim releasing its reservation with no spend
+  or credit, and ten acquired catches/$10 spent/$0 pending. Both result owners
+  displayed finite values (`9.9607` versus `0.0000` USDG) at block `82667113`.
+  Play Again returned the winning player to idle; result Back returned the other
+  to the games page. Full-budget refusal, rematch budget reset, Close controls and
+  pending-at-cutoff cancellation were additionally exercised in the intermediate
+  native preview; their implementation is unchanged and final unit/protocol
+  regressions cover their guards. No late/replayed callbacks gain credit or cues.
+- The task-owned localhost component fixture exited normally; its port is closed.
+  No stuck process required force termination. Existing tabs/logins are preserved,
+  the exercised sessions are idle, the app dev server was never started, and no
+  remote Git push, production overwrite or live financial action occurred.
+
+Remaining validation limits: subjective audible monitoring is unavailable through
+these tools; improved sound design is verified by its PCM and actual playback,
+not by listening. Desktop mobile-width inspection is not iOS Safari, hardware
+speaker/headphone listening or a physical-device background/resume test.
