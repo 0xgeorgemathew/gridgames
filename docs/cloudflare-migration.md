@@ -4,11 +4,11 @@
 
 The current `Pivot` branch uses TanStack Start/Router and the official Cloudflare Vite plugin. Next/Vinext/RSC dependencies and obsolete Railway build scripts are removed. Existing React/Zustand clients, Phaser engines, swipe handling, Tron styling, Privy and Farcaster integrations remain. The standalone advisory agent and Solidity contracts are unchanged; no advisory HTTP service existed, so none is invented.
 
-The verified deployed version is `306d610d-cdb9-4edd-94e4-046f0f2de8e8`. The isolated preview is https://pivot.gridgames.space, Worker `grid-games-pivot`, account `a22fe9411b81705409eb7cdf9be367e3` (George Mathew). Source config routes only that custom hostname. Its Lobby, GameRoom and QuoteGate bindings are local to that separate Worker: no production namespace IDs, D1, R2, Queues, data migration or live funds. Main production remains `grid-games` at `gridgames.space`. No main/remote branch push is part of this work.
+The verified deployed version is `80788e4f-4505-42aa-aff6-bd963abdaa20` (app source `6f3d27e1732fac34d9ea773e1ab156d3b047a6d7`). The isolated preview is https://pivot.gridgames.space, Worker `grid-games-pivot`, account `a22fe9411b81705409eb7cdf9be367e3` (George Mathew). Source config routes only that custom hostname. Its Lobby, GameRoom and QuoteGate bindings are local to that separate Worker: no production namespace IDs, D1, R2, Queues, data migration or live funds. Main production remains `grid-games` at `gridgames.space`. No main/remote branch push is part of this work.
 
 `src/routes/` owns page and HTTP routing, including the hidden `/.well-known/farcaster.json` route. `worker/index.ts` intercepts native WebSocket endpoints and delegates other requests to TanStack Start. Browser-only lazy loaders prevent Phaser/WebGL hydration on the server. Fonts are bundled as local static assets. TypeScript is strict.
 
-`/stock-arcade` is an additive prototype alongside both retained games. A room DO hosts `StockMatch`, with common readiness/start/cutoff and server-shuffled shared stock opportunities. The client renders readable tossed discs and swipe trails locally, snaps a caught disc toward the bag immediately, then shows a pending marker until the live quote returns. One attempt per player/drop; each player may catch the same shared opportunity. Every successful estimate credits simulated output units and spends $1 against a $10 player budget. In-flight quotes reserve dollars in `reservedSpend` before awaiting; credit moves those dollars into `spent`, and failure releases the reservation without debit or credit. There is no stock position-slot state or independent catch-count cap. IDs and timing come from the server, not client position/price claims.
+`/stock-arcade` is an additive prototype alongside both retained games. A room DO hosts `StockMatch`, with common readiness/start/cutoff and server-shuffled shared stock opportunities. The client renders readable tossed discs and swipe trails locally. A short slice effect stays at the catch point; pending quote dollars remain in a fixed HUD indicator until the live quote returns. One attempt per player/drop; each player may catch the same shared opportunity. Every successful estimate credits simulated output units and spends $1 against a $10 player budget. In-flight quotes reserve dollars in `reservedSpend` before awaiting; credit moves those dollars into `spent`, and failure releases the reservation without debit or credit. There is no stock position-slot state or independent catch-count cap. IDs and timing come from the server, not client position/price claims.
 
 All matches use one `QuoteGate` DO for this API key. It admits at most six requests in a sliding second, persists request deduplication, backs off on 429/server errors, and strips permit/transaction payloads. It calls only `/v1/quote`, never `/swap`, `/order`, approvals or signing. API quotes may select alternate, split or multi-hop routes between the canonical USDG and stock endpoints. Route continuity, chain, protocol, amounts and complete V4 keys are validated. Actual quote pools are retained separately from the designated scoring pool, which alone sets cutoff marks. The response uses the official ClassicQuote `slippage` field; malformed estimates fail without spend. V3 and V4 protocols are selected per designated pool, not all forced through V3. The API's `autoSlippage: DEFAULT` is an estimate-only API requirement, not an agreed live-money slippage policy.
 
@@ -24,11 +24,81 @@ Pre-game waiting and result screens retain the TRON layout/glow with static titl
 
 The final deployed stock lobby and landing each measured zero GL draws, zero RAF callbacks and zero mounted canvases over five seconds at 1200×900 DPR2. The harness checked active animation, unchanged renderer count on rerender, reduced motion, hidden tabs, unmount cleanup, missing WebGL and context loss. These are route-specific measurements, not a guarantee of device temperature or total Chrome GPU usage.
 
-Validation includes strict types, lint, 39 frontend tests/24359 assertions and the unchanged advisory package's 41 tests/125 assertions. Native Workers local preview served all page routes without hydration exceptions or 390×844 horizontal overflow. Live protocol checks cover both retained games, room isolation, rejected/replayed tickets, partial handoff timeout, disconnect and fresh rematch. Existing Privy sessions stay authenticated through routing and reload. The current Stock Ninja verification is recorded below; fresh OTP/login and signed Farcaster publication remain untested.
+Validation includes strict types, lint, 45 frontend tests/16245 assertions and the unchanged advisory package's 41 tests/125 assertions. Native Workers local preview served all page routes without hydration exceptions or 390×844 horizontal overflow. Live protocol checks cover both retained games, room isolation, rejected/replayed tickets, partial handoff timeout, disconnect and fresh rematch. Existing Privy sessions stay authenticated through routing and reload. The current Stock Ninja verification is recorded below; fresh OTP/login and signed Farcaster publication remain untested.
 
-### Stock Ninja revision and final validation
+### Approved coin, music and HUD corrections
 
-App source `8de54fd9625d67bb394dd464a7a85b58ecc44cf7` (core Stock Ninja implementation `cd16671121b0908d9855ea3d6a7b3b7f0f303556`) is deployed as version `306d610d-cdb9-4edd-94e4-046f0f2de8e8` (100% preview traffic). UI names and the document title say Stock Ninja. The stable `/stock-arcade` URL and game slug remain for existing links and transport compatibility. Selection menus contain no stock names; active discs and acquired-bag entries retain identifying tickers.
+App commit `6f3d27e1732fac34d9ea773e1ab156d3b047a6d7` is deployed as version
+`80788e4f-4505-42aa-aff6-bd963abdaa20`, verified at 100% isolated preview traffic.
+The published `StockArcadeClient-B3_3RlZO.js` checksum matches the built app;
+all twenty published brand SVGs match the checked-in source assets and the
+original `/audio/digital_dividend.mp3` is available. Production is unchanged.
+
+Each server launch contains three independent opportunities every 2700ms, with
+unchanged 2800ms catch windows. Larger 88–112px coins follow diagonal paths with
+constant gravity and continuous angular momentum; the higher central toss and
+separated lanes remain readable down to 320px. A final-round cutoff clips the
+flight without accelerating it. Catches still do not trigger a refill, and both
+players receive identical shuffled drop IDs, symbols, geometry and timestamps.
+The new [company vector provenance](stock-ninja-logos.md) replaces approximated
+marks and generic issuer thumbnails. A restrained 180ms local de-resolution
+replaces the flying pending marker. The actual shared TRON blade remains.
+
+The user-approved HUD applies the reference's floating rounded layout only to
+top/bottom controls: budget/opponent pills, settings, and a rounded bottom dock
+retaining you/timer/opponent with a raised central circular timer readout. Confirmed
+assets scroll horizontally, pending quote dollars occupy a distinct fixed area,
+and status text has a stable height. Both HUD boundaries are measured to reserve
+arena space. The stock-specific `MatchScoreRow` variant leaves older-game defaults
+unchanged. A synchronous local guard covers unacknowledged claims; ordered server
+ledger/claim acknowledgement transfers reservation ownership, so a multi-disc
+swipe cannot temporarily imply more accepted catches than the remaining budget.
+
+Stock music reuses the original loop at volume 0.3. It primes only from matchmaking
+gestures, persists its own mute preference, pauses outside play and when hidden,
+and releases media/listeners on unmount. Native Mute/Unmute toggled correctly;
+the Chrome tab audio indicator disappeared when a temporary blank tab hid the
+game and returned when the game became visible. Browser component tests verified
+actual media decoding/playback, mute persistence and unmount cleanup without an
+idle audio or animation loop.
+
+Types, lint, 45 focused tests/16245 assertions, production build and deployment
+dry-run passed. Actual presenter/effect/music browser fixtures at 320/390/1200px
+verified larger coins, all twenty vectors, HUD bounds, long names, touch bag
+scrolling, no flying marker, six ribbon layers/eight restrained shards, Exit and
+fresh reset. These fixtures are synthetic component coverage. Published mobile
+routes had no hydration/page errors or horizontal overflow; the idle stock route
+measured zero GL draws, RAF callbacks and mounted canvases over five seconds.
+
+Live stock protocol verification quoted all twenty stocks across independent
+$10/$10 bags, with replay-safe ledgers and identical three-coin batches across
+531 samples. At common cutoff block **82455430**, values 10.009796 and 9.995517 USDG
+produced a **20.005313 USDG simulated** prize with the winner already fixed.
+One quote timed out without spend; a later shared opportunity fulfilled that
+asset. Disconnect cancelled without payout. Complete retained-game regression
+runs passed prices/positions/settlement, independent parallel rooms, disconnect,
+fresh identity/rematch, wrong/replayed tickets and partial-handoff timeout.
+Initial concurrent protocol attempts timed out during matching; full sequential
+reruns passed. A follow-up started three concurrent independent stock rooms in
+4302 ms with identical three-coin contracts and no errors, then cancelled all
+without payout.
+
+Authenticated native desktop swipes confirmed ten catches/$10; both views agreed
+at block **82457064** on the **10.0136 USDG simulated** prize. The actual 390 CSS-pixel
+mobile run confirmed six catches/$6; both views agreed at block **82458554** on
+**5.9949 USDG simulated**. Native capture recorded the actual three-coin trajectory
+and local slice. Rematch/reset, active music menu controls, hidden/visible audio,
+Exit cancellation and Back routing passed. Fresh OTP/login and signed Farcaster
+publication remain untested; existing authenticated Privy profiles were reused
+through normal UI without copying authentication state. No transaction signing,
+live fills or financial rules were added. Fresh authenticated CPU sampling was
+inconclusive after the QA windows changed layout and entered another live match
+during measurement; no new per-tab CPU result is claimed. The published idle
+render-work counters above and media lifecycle checks are the verified scope.
+
+### Earlier Stock Ninja revision and validation
+
+Previous app source `8de54fd9625d67bb394dd464a7a85b58ecc44cf7` (core Stock Ninja implementation `cd16671121b0908d9855ea3d6a7b3b7f0f303556`) was deployed as version `306d610d-cdb9-4edd-94e4-046f0f2de8e8` (100% preview traffic). UI names and the document title say Stock Ninja. The stable `/stock-arcade` URL and game slug remain for existing links and transport compatibility. Selection menus contain no stock names; active discs and acquired-bag entries retain identifying tickers.
 
 One server-owned Fisher–Yates deck contains all twenty stocks once per cycle and reshuffles each cycle. Both players receive the same drop IDs, timestamps and shuffled opportunities. Paired spawns every 1500 ms with 2800 ms windows sustain two to four uncaught readable choices; four separated columns prevent overlap down to 320 CSS pixels. Catches do not trigger refills. Toss arcs, $1 quotes, the $10 budget, replay prevention and common cutoff remain authoritative.
 

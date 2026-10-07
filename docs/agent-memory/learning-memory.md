@@ -66,3 +66,7 @@ written upfront as policy.
 - Visual continuity requires the actual established panel, HUD geometry, controls and result shell, not only typography and colors. Extract reusable presenters/visual geometry from the retained game rather than rebuilding parallel lookalikes.
 - Validate multiple-choice spawn dynamics over the real room stream and the whole motion window. A screenshot with several records does not prove sustained readable choices; check concurrent visible count, unique IDs, shared timestamps and narrow-screen separation.
 - Stock Ninja uses dollar reservations and spending rather than inherited position slots. Keep financial budget limits independent from how many different stocks the catalog offers; simulated quotes may fail and must release reserved dollars without credit/debit.
+
+- Stock issuer `logoUrl` may point to a generic issuer icon. For identifiable stock discs, source real scalable brand geometry, retain provenance, and keep a ticker alongside wide wordmarks.
+- Local optimistic claim guards should count only unacknowledged local cost. The authoritative server ledger publishes reservations/releases before claim acknowledgement; counting local pending and server reserved dollars together after acknowledgement would double-count.
+- Prime stock media only from matchmaking gestures. Priming on every document gesture can briefly start a silent loop in lobby/results; lifecycle cleanup and stored mute behavior need real browser checks as well as media-unit coverage.
