@@ -1,8 +1,8 @@
 # Grid Games: spot-token collection prototype
 
-**Discussion date:** 6 October 2026
+**Discussion date:** 6 October 2026; architecture update 7 October 2026
 
-**Status:** Agreed prototype direction; venue research and unresolved design decisions recorded below.
+**Status:** Agreed prototype and Cloudflare architecture direction; venue research and unresolved design decisions recorded below.
 
 **Scope:** Documentation only. This spec does not authorize live-money implementation or deployment.
 
@@ -87,6 +87,119 @@ attribution, and payout. Purchased tokens are not distributed to each player per
 must reflect what custody actually receives rather than a quote's expected output. The eventual
 security design must reconcile contract balances with all outstanding bags and prevent one match
 from consuming another match's assets or paying the same entitlement twice.
+
+## Cloudflare architecture direction (7 October update)
+
+George strongly prefers a Cloudflare-first long-term architecture before regular users and onchain
+integration. He reports that usage so far has been limited to hackathon participants, with no
+permanent users as of this discussion. This is the reason to settle the framework direction now,
+rather than plan a later live migration. It is a user-reported product observation, not an analytics
+audit. The recent Railway-to-Cloudflare migration is recorded in the
+[existing migration notes](../cloudflare-migration.md).
+
+### Current stack and proposed framework migration
+
+Repository inspection on 7 October confirms React 19, Next.js dependencies and App Router routes,
+Vinext/Vite, Phaser, Zustand, Privy, wagmi/viem, and TanStack Query. The Vite config already uses
+`@cloudflare/vite-plugin`; the Worker entry delegates application requests to Vinext and routes
+multiplayer WebSockets to `Lobby` and per-match `GameRoom` Durable Objects. Workers logs and traces
+are enabled in the source Wrangler config. TanStack Start is **not installed or implemented**.
+See [frontend dependencies](../../frontend/package.json),
+[Vite config](../../frontend/vite.config.ts), [Worker entry](../../frontend/worker/index.ts), and
+[Wrangler config](../../frontend/wrangler.jsonc).
+
+**TanStack Start is the proposed migration direction**, not a completed migration or a prerequisite
+for using Cloudflare. Its official hosting guide supports Cloudflare Workers with Vite and the
+Cloudflare plugin: [TanStack Start hosting](https://tanstack.com/start/latest/docs/framework/react/guide/hosting#cloudflare-workers--official-partner).
+TanStack Query supplies data-fetching/cache behavior; its presence does not mean the app already uses
+Start. Framework changes do not automatically improve gameplay latency or swipe responsiveness.
+
+Before implementation, audit route and API-handler mapping, server functions and SSR/browser
+boundaries, auth and Farcaster flows, embedded-wallet/provider compatibility, wallet signing,
+TanStack Query hydration, multiplayer upgrade/handoff routing, bindings, and build/environment
+configuration. Preserve the Phaser engine and swipe feel, and verify them alongside auth and
+two-client multiplayer behavior. The audit determines migration scope; this spec does not propose
+rewriting the game engine.
+
+### One synchronization implementation, one object per match
+
+Keep **one Durable Object per match**, with WebSockets joining that match's participants. Write one
+well-tested synchronization implementation and reuse it in each independent object instance. More
+matches mean more instances of the same implementation; they do not require new synchronization code
+or a global cross-match clock coordinator. The existing lobby may continue matchmaking without
+becoming the clock or action authority for every active match. Cloudflare provides the per-object
+coordination/storage model and hosts the objects:
+[Durable Objects model](https://developers.cloudflare.com/durable-objects/concepts/what-are-durable-objects/).
+
+The application still implements synchronization. Each match authority should publish a common
+start and cutoff, with a **two-minute round target**, drop/action identifiers, valid catch windows,
+and comparable opportunity counts for participants. Clients estimate their offset to the match
+clock and animate locally from that timeline; broadcasting every animation frame is unnecessary.
+Client timestamps and locally rendered catches do not alone authorize purchases. Exact clock-offset
+estimation, latency tolerance, and catch validation remain design work. Whether both players receive
+the same randomized token sequence or independent sequences is also **open**.
+
+The current repository already has per-match objects, but active rooms use standard WebSockets and
+timers and mark restarted active matches as interrupted. That is a current implementation limit,
+not a sufficient recovery policy for purchased assets. Cloudflare supports standard and hibernating
+WebSockets; idle hibernation can save resources, while recurring timers prevent hibernation. Choose
+socket/timer behavior deliberately and retain durable match/action state:
+[WebSocket guidance](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
+
+### Catch submission and chain responsibilities
+
+The proposed latency-critical path is:
+
+```text
+local swipe → match DO validation → Worker / authorized wallet provider / RPC submission
+           → game contract executes Uniswap swap, holds assets, and records the bag
+           → receipt reconciliation updates match and player UI
+```
+
+The DO validates the participant, match phase, drop/catch window, unique action, and remaining player
+budget. It coordinates immediate submission through the Worker, authorized wallet provider, and RPC;
+ordinary catches should not first wait on a background queue. The exact provider/session mechanism
+and signing topology remain open. The game contract executes the Uniswap integration, receives and
+holds acquired tokens, and records actual quantities using the accounting model above.
+
+Persist action identity and pending submission state before external submission. Enforce unique
+catch IDs/idempotency **onchain as well as in the DO**, bound to the match and player. Bounded session
+authority, nonce management, and authoritative onchain spending limits are required; an offchain
+budget check alone cannot protect funds. Concurrent pending actions must not oversubscribe the
+remaining $10 cap or ten successful paid catches. The precise reservation, release, and funding
+guarantees still need design.
+
+Distinguish **accepted**, **pending**, and **confirmed**: acceptance means the match validator allowed
+the action; pending means the purchase is in progress; confirmed means receipt/settlement evidence
+supports the actual acquired amount. Optimistic visual feedback may keep swipes responsive, but a
+pending animation is not credited custody. Receipt/finality criteria, late or pending swaps at the
+cutoff, disconnects, and recovery remain open. DO storage and chain execution are not one atomic
+transaction: recovery must reconcile an existing catch and transaction/nonce before deciding what
+to retry, rather than create a new logical trade blindly.
+
+### Background work, data, and observability
+
+**Queues are optional** for background receipt reconciliation, recovery, and indexing. They are not
+the default catch-submission path. Cloudflare Queues uses at-least-once delivery, so messages can
+repeat, and delivery order is not guaranteed. Consumers must deduplicate by stable action/transaction
+identity, tolerate out-of-order state updates, and reconcile receipts without turning delivery
+retries into fresh purchases:
+[delivery guarantees](https://developers.cloudflare.com/queues/reference/delivery-guarantees/) and
+[ordering behavior](https://developers.cloudflare.com/queues/reference/how-queues-works/).
+
+**D1 is proposed** for profiles, match history, and leaderboards. It is not the chain custody ledger
+or the immediate match-action authority:
+[D1 overview](https://developers.cloudflare.com/d1/). Use Workers
+[logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/) and
+[traces](https://developers.cloudflare.com/workers/observability/traces/) to correlate match IDs,
+catch IDs, submission attempts, and transaction receipts. **R2 replay/asset storage is optional**, not
+a prototype requirement. The current Wrangler config has no D1, Queue, or R2 binding; these remain
+proposals, not provisioned services.
+
+This architecture direction preserves the varied-token arcade loop, $1 successful purchases, the
+$10 prototype cap, contract-held acquired bags, excluded unspent cash, and the largest-bag prize
+rule. Cloudflare does not settle valuation, permissions, issuer restrictions, chain finality, fees,
+security, or legal review; all prior open decisions remain in force.
 
 ## Venue research record
 
