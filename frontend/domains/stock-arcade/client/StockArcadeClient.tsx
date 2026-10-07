@@ -11,6 +11,7 @@ import {
 import { GameCanvasBackground } from '@/platform/ui/GameCanvasBackground'
 import './stock-game.css'
 import { StockDiscRim, StockBlade, StockDeRez } from './StockEffects'
+import { captureDisc, type DiscSnapshot } from './derez-renderer'
 const GridScanBackground = clientLazy(() =>
   import('@/platform/ui/GridScanBackground').then((m) => m.GridScanBackground)
 )
@@ -25,6 +26,10 @@ import { dropPoint, segmentHitsDisc, discDiameter, SLICE_EFFECT_MS } from './mot
 interface PendingVisual {
   drop: StockDrop
   caughtAt: number
+  sliceAngle: number
+  source: DiscSnapshot
+  x: number
+  y: number
 }
 export function StockArcadeClient() {
   const navigate = useNavigate()
@@ -176,7 +181,7 @@ export function StockArcadeClient() {
       socket.current = null
     }
   }, [allowed])
-  const catchDrop = (drop: StockDrop) => {
+  const catchDrop = (drop: StockDrop, sliceAngle = 0) => {
     const state = stateRef.current
     if (
       !socket.current?.connected ||
@@ -192,9 +197,24 @@ export function StockArcadeClient() {
       return
     }
     claimed.current.add(drop.id)
+    const point = dropPoint(drop, now),
+      nextPoint = dropPoint(drop, now + 16)
+    const width = arena.current?.clientWidth ?? window.innerWidth,
+      height = arena.current?.clientHeight ?? window.innerHeight
+    const button = Array.from(
+      arena.current?.querySelectorAll<HTMLButtonElement>('button.arcade-disc') ?? []
+    ).find((el) => el.dataset.dropId === drop.id)
+    const scale = discDiameter(width) / 66
+    const source = captureDisc(
+      drop.symbol,
+      button,
+      point.rotation,
+      ((((nextPoint.x - point.x) * width) / 16) * 1000) / scale,
+      ((((nextPoint.y - point.y) * height) / 16) * 1000) / scale
+    )
     setCaught((old) => [
       ...old.filter((v) => Date.now() + offset.current - v.caughtAt < SLICE_EFFECT_MS),
-      { drop, caughtAt: Date.now() + offset.current },
+      { drop, caughtAt: Date.now() + offset.current, sliceAngle, source, x: point.x, y: point.y },
     ])
     setNotice('Quote pending. No credit until the quote arrives.')
     socket.current?.emit('catch_stock', { dropId: drop.id })
@@ -227,7 +247,7 @@ export function StockArcadeClient() {
           discDiameter(p.width) / 2
         )
       )
-        catchDrop(drop)
+        catchDrop(drop, Math.atan2(p.y - previous.y, p.x - previous.x))
     }
     pointer.current = p
     setTrail((t) =>
@@ -398,42 +418,51 @@ export function StockArcadeClient() {
                       className="arcade-disc-face"
                       style={{ transform: `rotate(${reducedMotion ? 0 : -point.rotation}rad)` }}
                     >
-                      <img src={stockAsset(drop.symbol)?.logo} alt="" draggable={false} />
+                      <span className="ninja-disc-logo">
+                        <img src={stockAsset(drop.symbol)?.logo} alt="" draggable={false} />
+                      </span>
                       <span className="ninja-disc-label">
                         <span className="ninja-disc-symbol">{drop.symbol}</span>
-                        <span className="ninja-disc-price">$1</span>
                       </span>
                     </span>
                   </button>
                 )
               })}
             {!terminal &&
+              game.status === 'playing' &&
+              now < game.cutoffAt &&
               !reducedMotion &&
               caught
                 .filter((v) => now - v.caughtAt < SLICE_EFFECT_MS)
-                .map(({ drop, caughtAt }) => {
-                  const point = dropPoint(drop, caughtAt)
-                  return (
-                    <div
-                      key={drop.id}
-                      className="ninja-catch"
-                      style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
-                    >
-                      <StockDeRez
-                        progress={(now - caughtAt) / SLICE_EFFECT_MS}
-                        symbol={drop.symbol}
-                        rotation={point.rotation}
-                      />
-                    </div>
-                  )
-                })}
-            {!reducedMotion && trail.length > 1 && (
-              <StockBlade
-                points={trail.filter((p) => now - p.time < 180)}
-                mobile={(arena.current?.clientWidth ?? 900) < 768}
-                phase={now / 160}
-              />
-            )}
+                .map(({ drop, caughtAt, sliceAngle, source, x, y }) => (
+                  <div
+                    key={drop.id}
+                    className="ninja-catch"
+                    style={{
+                      left: `${x * 100}%`,
+                      top: `${y * 100}%`,
+                      width: source.diameter,
+                      height: source.diameter,
+                    }}
+                  >
+                    <StockDeRez
+                      progress={(now - caughtAt) / SLICE_EFFECT_MS}
+                      symbol={drop.symbol}
+                      sliceAngle={sliceAngle}
+                      source={source}
+                    />
+                  </div>
+                ))}
+            {game.status === 'playing' &&
+              now < game.cutoffAt &&
+              !reducedMotion &&
+              trail.length > 1 && (
+                <StockBlade
+                  points={trail.filter((p) => now - p.time < 180)}
+                  mobile={(arena.current?.clientWidth ?? 900) < 768}
+                  phase={now / 160}
+                />
+              )}
             <div className="arcade-bag-target">↓ YOUR BAG</div>
           </div>
 

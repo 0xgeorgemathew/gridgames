@@ -1,6 +1,6 @@
 import { useState, type RefObject } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Settings, LogOut, HelpCircle, Volume2, VolumeX } from 'lucide-react'
+import { Settings, LogOut, HelpCircle, Volume2, VolumeX, Wallet, Coins } from 'lucide-react'
 import { ActionButton } from '@/platform/ui/ActionButton'
 import { MatchmakingAuthPanel } from '@/platform/ui/MatchmakingAuthPanel'
 import { MatchScoreRow } from '@/platform/ui/MatchScoreRow'
@@ -8,7 +8,7 @@ import { MatchResultOverlay } from '@/platform/ui/MatchResultOverlay'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { PlayerName } from '@/platform/ui/PlayerName'
 import { cn } from '@/platform/utils/classNames.utils'
-import { MATCH_BUDGET, type ArcadeState, type Bag } from '../shared/types'
+import { CATCH_COST, MATCH_BUDGET, type ArcadeState, type Bag } from '../shared/types'
 import { stockAsset } from '../shared/assets'
 
 export interface LobbyPlayer {
@@ -186,12 +186,9 @@ export function StockHUD({
   return (
     <>
       <div ref={topRef} className="ninja-top-hud">
-        <div className="ninja-pill ninja-budget" aria-label={`$${budgetLeft} budget left`}>
-          <span className="ninja-hud-caption">BUDGET LEFT</span>
-          <strong>
-            ${budgetLeft}
-            <small> / $10</small>
-          </strong>
+        <div className="ninja-match-label">
+          <strong>STOCK NINJA</strong>
+          <span>SIMULATED MATCH</span>
         </div>
         <div className="ninja-top-right">
           <div className="ninja-pill ninja-opponent" title={other?.name || 'Opponent'}>
@@ -248,6 +245,34 @@ export function StockHUD({
         )}
       </div>
       <div ref={dockRef} className="ninja-bottom-hud">
+        <div className="ninja-trade-indicators">
+          <div
+            className="ninja-pill ninja-trade-indicator"
+            role="group"
+            aria-label={`$${budgetLeft} available simulated game balance`}
+          >
+            <Wallet size={19} aria-hidden="true" />
+            <div>
+              <span className="ninja-hud-caption">SIM BALANCE</span>
+              <strong>
+                ${budgetLeft}
+                <small> / ${MATCH_BUDGET}</small>
+              </strong>
+            </div>
+          </div>
+          <div
+            className="ninja-pill ninja-trade-indicator"
+            role="group"
+            aria-label={`$${CATCH_COST} per successful simulated catch`}
+            title="$1 per successful catch. A swipe may catch multiple discs."
+          >
+            <div>
+              <span className="ninja-hud-caption">TRADE AMOUNT</span>
+              <strong>${CATCH_COST}</strong>
+            </div>
+            <Coins size={19} aria-hidden="true" />
+          </div>
+        </div>
         <div className="ninja-dock">
           <MatchScoreRow
             variant="stock"
