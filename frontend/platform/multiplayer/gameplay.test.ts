@@ -6,7 +6,10 @@ import type { GameRoom } from '@/app/api/socket/multiplayer/room.manager'
 async function fixture(gameSlug: string) {
   let room!: GameRoom
   const create = RoomManager.prototype.createRoom
-  const spy = spyOn(RoomManager.prototype, 'createRoom').mockImplementation(function (...args) {
+  const spy = spyOn(RoomManager.prototype, 'createRoom').mockImplementation(function (
+    this: RoomManager,
+    ...args
+  ) {
     return (room = create.apply(this, args))
   })
   const frames: Array<{ event: string; args: any[] }> = []

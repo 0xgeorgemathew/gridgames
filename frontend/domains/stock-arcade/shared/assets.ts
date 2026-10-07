@@ -1,0 +1,118 @@
+import type { StockAsset } from './types'
+export const ROBINHOOD_CHAIN_ID = 4663
+export const USDG = '0x5fc5360d0400a0fd4f2af552add042d716f1d168' as const
+export const V4_POOL_MANAGER = '0x8366a39cc670b4001a1121b8f6a443a643e40951' as const
+export const V4_STATE_VIEW = '0xf3334192d15450cdd385c8b70e03f9a6bd9e673b' as const
+// Canonical issuer registry + bounded first-120 USDG-pool ranking, 2026-10-07 01:27:59 UTC.
+// This is a curated shortlist, not a claim of exhaustive chain-wide top-ten liquidity.
+export const STOCK_ASSETS: readonly StockAsset[] = [
+  {
+    symbol: 'META',
+    name: 'Meta',
+    address: '0xc0d6457c16cc70d6790dd43521c899c87ce02f35',
+    pool: '0x5875d407a42965b0e768c8925cea290e06fa50603ef34fc99eb92a1050e6ae36',
+    protocol: 4,
+    fee: 3000,
+    color: '#0866ff',
+    logo: '/stocks/META.svg',
+    tickSpacing: 60,
+    hooks: '0x0000000000000000000000000000000000000000',
+  },
+  {
+    symbol: 'NVDA',
+    name: 'NVIDIA',
+    address: '0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec',
+    pool: '0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3',
+    protocol: 3,
+    fee: 500,
+    color: '#76b900',
+    logo: '/stocks/NVDA.svg',
+  },
+  {
+    symbol: 'CRCL',
+    name: 'Circle',
+    address: '0xdf0992e440dd0be65bd8439b609d6d4366bf1cb5',
+    pool: '0x654e4143e82a5824445ade0824351c2a9acd95a8',
+    protocol: 3,
+    fee: 3000,
+    color: '#00b4a6',
+    logo: '/stocks/CRCL.svg',
+  },
+  {
+    symbol: 'SPCX',
+    name: 'SpaceX',
+    address: '0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea',
+    pool: '0xc61284332117c3fb23a2a56cceffd07f7af60029',
+    protocol: 3,
+    fee: 500,
+    color: '#dce9fa',
+    logo: '/stocks/SPCX.svg',
+  },
+  {
+    symbol: 'MSTR',
+    name: 'Strategy',
+    address: '0xec262a75e413fafd0df80480274532c79d42da09',
+    pool: '0x319bac87e616a89e241c10aeb8afd4892a852cdd8b373cd9765ecddc40b87cfe',
+    protocol: 4,
+    fee: 2500,
+    color: '#ff5228',
+    logo: '/stocks/MSTR.svg',
+    tickSpacing: 25,
+    hooks: '0x0000000000000000000000000000000000000000',
+  },
+  {
+    symbol: 'MU',
+    name: 'Micron',
+    address: '0xff080c8ce2e5feadaca0da81314ae59d232d4afd',
+    pool: '0xd057b1bc54917855bbee58ead58647f47cab35e5',
+    protocol: 3,
+    fee: 3000,
+    color: '#49a6ff',
+    logo: '/stocks/MU.svg',
+  },
+  {
+    symbol: 'HIMS',
+    name: 'Hims & Hers',
+    address: '0xccee82fe024c36fa15e1005ede3e9e4787e23d09',
+    pool: '0xc8c90d3a1c1a24967e773ac2ad0d456ba3e31f64',
+    protocol: 3,
+    fee: 3000,
+    color: '#e2c9a6',
+    logo: '/stocks/HIMS.svg',
+  },
+  {
+    symbol: 'RDDT',
+    name: 'Reddit',
+    address: '0x05b37fb53a299a1b874a619e1c4c404d52c36f4c',
+    pool: '0xa8744e76aed23b05f0126335e7bd38f7935d19fe',
+    protocol: 3,
+    fee: 10000,
+    color: '#ff4500',
+    logo: '/stocks/RDDT.svg',
+  },
+  {
+    symbol: 'GOOGL',
+    name: 'Alphabet',
+    address: '0x2e0847e8910a9732eb3fb1bb4b70a580adad4fe3',
+    pool: '0x34d0dc122cf9a8eb296fc5e0d3a233625d7d19b7',
+    protocol: 3,
+    fee: 500,
+    color: '#4285f4',
+    logo: '/stocks/GOOGL.svg',
+  },
+  {
+    symbol: 'TSLA',
+    name: 'Tesla',
+    address: '0x322f0929c4625ed5bad873c95208d54e1c003b2d',
+    pool: '0x8517f8071ae5b831b738052f12125e8e3d6c158b78728aa44ce3b25e5104d32e',
+    protocol: 4,
+    fee: 3000,
+    color: '#e82127',
+    logo: '/stocks/TSLA.svg',
+    tickSpacing: 60,
+    hooks: '0x0000000000000000000000000000000000000000',
+  },
+]
+export function stockAsset(symbol: string) {
+  return STOCK_ASSETS.find((a) => a.symbol === symbol)
+}

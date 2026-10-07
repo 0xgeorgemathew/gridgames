@@ -1,28 +1,23 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
+import { useNavigate } from '@tanstack/react-router'
+import { clientLazy } from '@/platform/ui/client-lazy'
 import { m, AnimatePresence, type Variants } from 'framer-motion'
 
-const GridScanBackground = dynamic(
-  () => import('@/platform/ui/GridScanBackground').then((mod) => mod.GridScanBackground),
-  { ssr: false }
+const GridScanBackground = clientLazy(() =>
+  import('@/platform/ui/GridScanBackground').then((mod) => mod.GridScanBackground)
 )
 
-const HyperSwiperOnboarding = dynamic(
-  () =>
-    import('@/domains/hyper-swiper/client/components/modals/OnboardingModal').then(
-      (mod) => mod.OnboardingModal
-    ),
-  { ssr: false }
+const HyperSwiperOnboarding = clientLazy(() =>
+  import('@/domains/hyper-swiper/client/components/modals/OnboardingModal').then(
+    (mod) => mod.OnboardingModal
+  )
 )
 
-const TapDancerOnboarding = dynamic(
-  () =>
-    import('@/domains/tap-dancer/client/components/modals/OnboardingModal').then(
-      (mod) => mod.OnboardingModal
-    ),
-  { ssr: false }
+const TapDancerOnboarding = clientLazy(() =>
+  import('@/domains/tap-dancer/client/components/modals/OnboardingModal').then(
+    (mod) => mod.OnboardingModal
+  )
 )
 
 import { games } from '@/domains'
@@ -56,7 +51,7 @@ const itemVariants: Variants = {
 }
 
 export function GameSelectionScreen() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { authenticated, login, logout, user } = usePrivy()
   const {
     isInMiniApp,
@@ -107,8 +102,7 @@ export function GameSelectionScreen() {
         />
         <m.p
           className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan text-sm tracking-[0.25em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+          style={{ opacity: 1 }}
         >
           AUTHENTICATING...
         </m.p>
@@ -129,8 +123,6 @@ export function GameSelectionScreen() {
       <div className="fixed inset-0 pointer-events-none z-10 opacity-10">
         <m.div
           className="w-full h-[2px] bg-tron-cyan"
-          animate={{ y: ['-10%', '110%'] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
           style={{ boxShadow: '0 0 15px rgba(0, 243, 255, 0.5)' }}
         />
         <div className="absolute inset-0 tron-grid opacity-15" />
@@ -149,6 +141,7 @@ export function GameSelectionScreen() {
               displayName={displayName}
               pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
               compact={true}
+              animateIdle={false}
             />
           </m.div>
         )}
@@ -189,14 +182,7 @@ export function GameSelectionScreen() {
               >
                 <m.div
                   className="absolute inset-0 border border-tron-cyan/60 rounded-sm"
-                  animate={{
-                    opacity: [0.4, 0.8, 0.4],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                  }}
+                  style={{ opacity: 0.8 }}
                 />
                 <span className="relative z-10 font-[family-name:var(--font-orbitron)] text-[10px] sm:text-[11px] tracking-[0.25em] font-medium text-tron-cyan">
                   LOGIN WITH GOOGLE
@@ -232,8 +218,7 @@ export function GameSelectionScreen() {
 
                   <m.div
                     className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-tron-cyan/50 to-transparent"
-                    animate={{ opacity: [0.4, 0.7, 0.4] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ opacity: 0.7 }}
                   />
 
                   <m.div
@@ -280,16 +265,18 @@ export function GameSelectionScreen() {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setOnboardingGame(game.slug)
-                        }}
-                        className="p-1.5 rounded hover:bg-tron-cyan/10 transition-colors"
-                      >
-                        <Info className="w-4 h-4 sm:w-5 sm:h-5 text-tron-cyan/40 hover:text-tron-cyan/70" />
-                      </button>
+                      {game.slug !== 'stock-arcade' && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setOnboardingGame(game.slug)
+                          }}
+                          className="p-1.5 rounded hover:bg-tron-cyan/10 transition-colors"
+                        >
+                          <Info className="w-4 h-4 sm:w-5 sm:h-5 text-tron-cyan/40 hover:text-tron-cyan/70" />
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           if (!isAvailable) {
@@ -300,7 +287,14 @@ export function GameSelectionScreen() {
                             e.stopPropagation()
                             setIsEntering(true)
                             setTimeout(() => {
-                              router.push(`/${game.slug}`)
+                              navigate({
+                                to:
+                                  game.slug === 'hyper-swiper'
+                                    ? '/hyper-swiper'
+                                    : game.slug === 'stock-arcade'
+                                      ? '/stock-arcade'
+                                      : '/tap-dancer',
+                              })
                             }, 500)
                           }
                         }}

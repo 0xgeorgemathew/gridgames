@@ -1,4 +1,6 @@
 import { DurableObject } from 'cloudflare:workers'
+import { StockMatch } from '@/domains/stock-arcade/server/match'
+import { valueBags } from '@/domains/stock-arcade/server/valuation'
 import { RealtimeServer } from '@/platform/multiplayer/server'
 import { parseFrame } from '@/platform/multiplayer/protocol'
 import { setupGameEvents } from '@/app/api/socket/multiplayer'
@@ -6,6 +8,7 @@ import { handoff, send, upgradeDenied, type RoomProvision } from './session'
 
 const actions = new Set([
   'scene_ready',
+  'catch_stock',
   'end_game',
   'slice_coin',
   'open_position',
@@ -24,6 +27,7 @@ export class GameRoom extends DurableObject<Cloudflare.Env> {
   private io: RealtimeServer | null = null
   private queue = Promise.resolve()
   private finishing = false
+  private arcade: StockMatch | null = null
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env)
     ctx.storage.sql.exec(
@@ -105,12 +109,14 @@ export class GameRoom extends DurableObject<Cloudflare.Env> {
           send(ws, 'error', { message: 'Action is not allowed in this room' })
           return
         }
-        await this.io?.receive(row.player_id, event.data)
+        if (this.arcade) this.arcade.handle(row.player_id, frame.event, frame.args[0])
+        else await this.io?.receive(row.player_id, event.data)
       })
     })
     const disconnected = () =>
       this.enqueue(async () => {
         if (!this.peers.delete(row.player_id) || this.finishing) return
+        this.arcade?.cancel('player_disconnected')
         await this.io?.disconnect(row.player_id)
         if (!this.finishing && (this.status === 'waiting' || this.status === 'active'))
           await this.finish('aborted', 'player_disconnected')
@@ -125,37 +131,64 @@ export class GameRoom extends DurableObject<Cloudflare.Env> {
         Date.now()
       )
       await this.ctx.storage.deleteAlarm()
-      this.io = new RealtimeServer((target, event, args) => {
-        if (!target || !['game_settlement', 'game_over', 'match_aborted'].includes(event)) return
-        const previous = this.ctx.storage.sql
-          .exec<{ result: string }>('SELECT result FROM lifecycle WHERE id=1')
-          .toArray()[0]
-        const result = { ...JSON.parse(previous.result), [event]: args[0] }
-        this.ctx.storage.sql.exec(
-          'UPDATE lifecycle SET result=?,updated_at=? WHERE id=1',
-          JSON.stringify(result),
-          Date.now()
-        )
-        if (event === 'game_over' || event === 'match_aborted') {
-          this.status = event === 'game_over' ? 'completed' : 'aborted'
-          this.ctx.storage.sql.exec('UPDATE lifecycle SET status=? WHERE id=1', this.status)
-          // Finish after the runtime sends its terminal event to both peers.
-          this.enqueue(() => this.finish(event === 'game_over' ? 'completed' : 'aborted'))
-        }
-      })
-      this.runtime = setupGameEvents(this.io, async (url) => {
-        const response = await fetch(url.replace('wss:', 'https:'), {
-          headers: { Upgrade: 'websocket' },
+      if (this.config.gameSlug === 'stock-arcade') {
+        this.arcade = new StockMatch(this.config, {
+          now: () => Date.now(),
+          quote: (symbol, requestId, swapper) =>
+            this.env.QUOTE_GATE.get(this.env.QUOTE_GATE.idFromName('uniswap-key-v1')).quote(
+              symbol,
+              requestId,
+              swapper
+            ),
+          value: (bags, cutoffAt) => valueBags(bags, cutoffAt, this.env.ROBINHOOD_RPC_URL),
+          emit: (event, payload) => {
+            // Persist ledger/lifecycle before broadcasting acknowledgements.
+            if (event === 'arcade_state')
+              this.ctx.storage.sql.exec(
+                'UPDATE lifecycle SET result=?,updated_at=? WHERE id=1',
+                JSON.stringify({ arcade_state: payload }),
+                Date.now()
+              )
+            for (const peer of this.peers.values()) send(peer, event, payload)
+          },
+          waitUntil: (task) => this.ctx.waitUntil(task),
+          terminal: (reason) =>
+            this.enqueue(() => this.finish(reason ? 'aborted' : 'completed', reason)),
         })
-        if (!response.webSocket) throw new Error(`Market upgrade failed (${response.status})`)
-        response.webSocket.accept()
-        return response.webSocket
-      })
-      for (const [id, peer] of this.peers)
-        this.io.connect(id, (frame) => {
-          if (peer.readyState === 1) peer.send(frame)
+        this.arcade.initialize()
+      } else {
+        this.io = new RealtimeServer((target, event, args) => {
+          if (!target || !['game_settlement', 'game_over', 'match_aborted'].includes(event)) return
+          const previous = this.ctx.storage.sql
+            .exec<{ result: string }>('SELECT result FROM lifecycle WHERE id=1')
+            .toArray()[0]
+          const result = { ...JSON.parse(previous.result), [event]: args[0] }
+          this.ctx.storage.sql.exec(
+            'UPDATE lifecycle SET result=?,updated_at=? WHERE id=1',
+            JSON.stringify(result),
+            Date.now()
+          )
+          if (event === 'game_over' || event === 'match_aborted') {
+            this.status = event === 'game_over' ? 'completed' : 'aborted'
+            this.ctx.storage.sql.exec('UPDATE lifecycle SET status=? WHERE id=1', this.status)
+            // Finish after the runtime sends its terminal event to both peers.
+            this.enqueue(() => this.finish(event === 'game_over' ? 'completed' : 'aborted'))
+          }
         })
-      await this.runtime.startMatch(this.config)
+        this.runtime = setupGameEvents(this.io, async (url) => {
+          const response = await fetch(url.replace('wss:', 'https:'), {
+            headers: { Upgrade: 'websocket' },
+          })
+          if (!response.webSocket) throw new Error(`Market upgrade failed (${response.status})`)
+          response.webSocket.accept()
+          return response.webSocket
+        })
+        for (const [id, peer] of this.peers)
+          this.io.connect(id, (frame) => {
+            if (peer.readyState === 1) peer.send(frame)
+          })
+        await this.runtime.startMatch(this.config)
+      }
     }
     return new Response(null, { status: 101, webSocket: pair[0] })
   }
@@ -181,7 +214,14 @@ export class GameRoom extends DurableObject<Cloudflare.Env> {
     if (reason)
       this.ctx.storage.sql.exec(
         'UPDATE lifecycle SET result=? WHERE id=1',
-        JSON.stringify({ match_aborted: { matchId: this.config.roomId, reason } })
+        JSON.stringify({
+          ...JSON.parse(
+            this.ctx.storage.sql
+              .exec<{ result: string }>('SELECT result FROM lifecycle WHERE id=1')
+              .toArray()[0].result
+          ),
+          match_aborted: { matchId: this.config.roomId, reason },
+        })
       )
     const retained = {
       ...this.config,
@@ -190,6 +230,8 @@ export class GameRoom extends DurableObject<Cloudflare.Env> {
     this.ctx.storage.sql.exec('UPDATE lifecycle SET config=? WHERE id=1', JSON.stringify(retained))
     this.ctx.storage.sql.exec('DELETE FROM tickets')
     await this.ctx.storage.deleteAlarm()
+    this.arcade?.cleanup()
+    this.arcade = null
     this.runtime?.cleanup()
     this.runtime = null
     for (const [id, ws] of this.peers) {

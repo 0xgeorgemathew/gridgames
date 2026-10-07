@@ -120,7 +120,7 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
         const gameSlug = p.gameSlug ?? 'hyper-swiper'
         const duration = p.gameDuration ?? 60000
         if (
-          !['hyper-swiper', 'tap-dancer'].includes(String(gameSlug)) ||
+          !['hyper-swiper', 'tap-dancer', 'stock-arcade'].includes(String(gameSlug)) ||
           typeof duration !== 'number' ||
           !Number.isFinite(duration) ||
           duration < 1000 ||

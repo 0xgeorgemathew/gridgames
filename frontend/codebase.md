@@ -4,17 +4,19 @@ Minimal context for working in `frontend/`. Read this before making changes.
 
 ## What This App Is
 
-Two multiplayer mini-games with shared match infrastructure:
+Multiplayer arcade games with shared match infrastructure:
 
 - **hyper-swiper**: Slice falling long/short coins
 - **tap-dancer**: Tap directional buttons in rhythm sequences
 
-Both are head-to-head matches where players start with fixed balances, and the server is authoritative for prices, room state, and settlement.
+**stock-arcade** adds a simulated $1 stock-collection prototype at `/stock-arcade`; it uses local React disc motion and the same native transport, lobby, and per-match DO wrapper.
+
+The original games are head-to-head matches where players start with fixed balances, and the server is authoritative for prices, room state, and settlement.
 
 ## Runtime Flow
 
 ```
-Next.js route → Game Client (Zustand + native WebSocket) → Phaser Scene → Game Systems
+TanStack Start route → Game Client (Zustand + native WebSocket) → Phaser Scene → Game Systems
                                     ↓
               Server: app/api/socket/multiplayer/ (room registry, game loop, settlement)
 ```
@@ -76,10 +78,10 @@ Change carefully - check both sides:
 - Don't run dev server (assume it's running)
 - Commands: `bun run types`, `bun run format`
 - Use `@/` imports
-- TypeScript strict is off → add explicit null checks
+- TypeScript strict is on → maintain typed payloads and null checks
 
 ## Deployment Runtime
 
-Vinext/Vite builds the Workers frontend. `worker/index.ts` delegates `/api/socket`
+TanStack Start/Router and Vite build the Workers frontend. `worker/index.ts` delegates `/api/socket`
 to the hibernating `Lobby` Durable Object and room paths to per-match `GameRoom` objects; `platform/multiplayer/` owns the event transport.
 See `../docs/cloudflare-migration.md` for deployment and restart limitations.

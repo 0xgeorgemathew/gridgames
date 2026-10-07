@@ -81,6 +81,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
               }
               className="text-white/70"
+              enableGlow={false}
             />
             <span>WINS</span>
           </div>
@@ -110,6 +111,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                     'text-[10px]',
                     !isWinner ? 'text-cyan-400/80' : 'text-orange-400/80'
                   )}
+                  enableGlow={false}
                 />
               ) : (
                 'OPP'
@@ -133,14 +135,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
         >
           <m.div
             className="absolute inset-0 rounded-lg"
-            animate={{
-              boxShadow: [
-                '0 0 15px rgba(0,217,255,0.2)',
-                '0 0 40px rgba(0,217,255,0.5)',
-                '0 0 15px rgba(0,217,255,0.2)',
-              ],
-            }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ boxShadow: '0 0 40px rgba(0,217,255,0.5)' }}
           />
           <div className="relative py-3 bg-black/40 backdrop-blur-md border border-cyan-400/30 rounded-lg">
             <span className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.2em] font-medium text-tron-cyan">

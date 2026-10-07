@@ -47,7 +47,10 @@ export class ClientGameRegistry {
   /**
    * Register a client game configuration
    */
-  register(definition: GameDefinition, clientConfig: ClientGameConfig): void {
+  register<A, S, E, R>(
+    definition: GameDefinition<A, S, E, R>,
+    clientConfig: ClientGameConfig
+  ): void {
     if (definition.metadata.slug !== clientConfig.slug) {
       throw new Error(
         `Slug mismatch: definition has "${definition.metadata.slug}" but config has "${clientConfig.slug}"`
@@ -55,7 +58,7 @@ export class ClientGameRegistry {
     }
 
     this.entries.set(definition.metadata.slug, {
-      definition,
+      definition: definition as GameDefinition,
       clientConfig,
     })
   }

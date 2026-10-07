@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useNavigate } from '@tanstack/react-router'
 import { useTradingStore } from '@/domains/hyper-swiper/client/state/trading.store'
 import { AnimatePresence, m } from 'framer-motion'
 import { GridScanBackground } from '@/platform/ui/GridScanBackground'
@@ -58,15 +58,7 @@ function MatchmakingAuthPanel({
           <div key="login" className="flex flex-col items-center gap-4">
             <m.p
               className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em]"
-              animate={{
-                opacity: [0.5, 1, 0.5],
-                textShadow: [
-                  '0 0 10px rgba(0, 243, 255, 0.3)',
-                  '0 0 20px rgba(0, 243, 255, 0.6)',
-                  '0 0 10px rgba(0, 243, 255, 0.3)',
-                ],
-              }}
-              transition={{ duration: 1.5, repeat: Infinity }}
+              style={{ opacity: 1, textShadow: '0 0 20px rgba(0, 243, 255, 0.6)' }}
             >
               {isInMiniApp ? 'CONNECTING TO GRID...' : 'VERIFYING CREDENTIALS...'}
             </m.p>
@@ -111,15 +103,7 @@ function MatchmakingAuthPanel({
           <div key="entering" className="flex flex-col items-center gap-3">
             <m.p
               className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em]"
-              animate={{
-                opacity: [0.6, 1, 0.6],
-                textShadow: [
-                  '0 0 10px rgba(0, 243, 255, 0.4)',
-                  '0 0 25px rgba(0, 243, 255, 0.8)',
-                  '0 0 10px rgba(0, 243, 255, 0.4)',
-                ],
-              }}
-              transition={{ duration: 1.2, repeat: Infinity }}
+              style={{ opacity: 1, textShadow: '0 0 25px rgba(0, 243, 255, 0.8)' }}
             >
               WAITING FOR PLAYER 2
             </m.p>
@@ -129,15 +113,6 @@ function MatchmakingAuthPanel({
                 <m.div
                   key={dotId}
                   className="w-2 h-2 bg-tron-cyan rounded-full"
-                  animate={{
-                    opacity: [0.3, 1, 0.3],
-                    scale: [0.8, 1, 0.8],
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    delay: (dotId - 1) * 0.2,
-                  }}
                   style={{ boxShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}
                 />
               ))}
@@ -223,6 +198,7 @@ function MatchmakingAuthPanel({
                           <PlayerName
                             username={player.name}
                             className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.1em] text-tron-cyan group-hover:text-white transition-colors"
+                            enableGlow={false}
                           />
                           <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] font-mono">
                             <span
@@ -262,7 +238,7 @@ function MatchmakingAuthPanel({
 }
 
 export function MatchmakingScreen() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { ready, authenticated, user } = usePrivy()
   const {
     isInMiniApp,
@@ -341,7 +317,7 @@ export function MatchmakingScreen() {
     miniAppUser,
     ready,
     authenticated,
-    router,
+    navigate,
   ])
 
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -349,7 +325,6 @@ export function MatchmakingScreen() {
   useEffect(() => {
     const hasOnboarded = localStorage.getItem('hyper_swiper_onboarded')
     if (!hasOnboarded) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowOnboarding(true)
     }
   }, [])
@@ -403,15 +378,7 @@ export function MatchmakingScreen() {
         />
         <m.p
           className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium"
-          animate={{
-            opacity: [0.5, 1, 0.5],
-            textShadow: [
-              '0 0 10px rgba(0, 243, 255, 0.3)',
-              '0 0 20px rgba(0, 243, 255, 0.6)',
-              '0 0 10px rgba(0, 243, 255, 0.3)',
-            ],
-          }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+          style={{ opacity: 1, textShadow: '0 0 20px rgba(0, 243, 255, 0.6)' }}
         >
           {miniAppAuthenticating ? 'AUTHENTICATING...' : 'INITIALIZING...'}
         </m.p>
@@ -434,7 +401,7 @@ export function MatchmakingScreen() {
       <GridScanBackground
         scanDirection={matchState === 'entering' ? 1 : 0} // 1 = towards user, 0 = away from user.
         scanRange={matchState === 'entering' ? [0.0, 2.0] : [2.0, 2.0]} // Lock it exactly at max depth
-        scanOpacity={matchState === 'entering' ? 0.8 : 0.0} // Hide entirely except on enter
+        scanOpacity={0} // Hide entirely except on enter
         scanDuration={matchState === 'entering' ? 0.8 : 4.0}
         scanGlow={matchState === 'entering' ? 1.0 : 0.0}
       />
@@ -442,7 +409,7 @@ export function MatchmakingScreen() {
       {/* Top Bar: Back button (left) + Profile badge (right) */}
       <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
         <button
-          onClick={() => router.push('/')}
+          onClick={() => navigate({ to: '/' })}
           className="pointer-events-auto px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md relative overflow-hidden group"
         >
           {/* Button corner accents */}
@@ -468,6 +435,7 @@ export function MatchmakingScreen() {
                 displayName={displayName}
                 pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
                 compact={true}
+                animateIdle={false}
               />
             </div>
           )}
@@ -478,14 +446,7 @@ export function MatchmakingScreen() {
         <div className="text-center relative">
           <m.h1
             className="font-[family-name:var(--font-orbitron)] text-base sm:text-lg font-bold tracking-[0.3em] text-white/90 mb-1"
-            animate={{
-              textShadow: [
-                '0 0 10px rgba(255, 255, 255, 0.1)',
-                '0 0 20px rgba(255, 255, 255, 0.2)',
-                '0 0 10px rgba(255, 255, 255, 0.1)',
-              ],
-            }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ textShadow: '0 0 20px rgba(255, 255, 255, 0.2)' }}
           >
             ENTER THE GRID
           </m.h1>
@@ -493,10 +454,6 @@ export function MatchmakingScreen() {
             {/* Title glow effect */}
             <m.div
               className="absolute -inset-4 pointer-events-none"
-              animate={{
-                opacity: [0.3, 0.5, 0.3],
-              }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               style={{
                 background:
                   'radial-gradient(ellipse at center, rgba(0, 243, 255, 0.15) 0%, transparent 70%)',
@@ -504,29 +461,14 @@ export function MatchmakingScreen() {
             />
             <m.h2
               className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan relative"
-              animate={{
-                textShadow: [
-                  '0 0 20px rgba(0, 243, 255, 0.5)',
-                  '0 0 40px rgba(0, 243, 255, 0.8)',
-                  '0 0 20px rgba(0, 243, 255, 0.5)',
-                ],
-              }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ textShadow: '0 0 40px rgba(0, 243, 255, 0.8)' }}
             >
               HYPER SWIPER
             </m.h2>
             {/* Underline accent */}
             <m.div
               className="absolute -bottom-2 left-0 right-0 h-[2px] bg-tron-cyan/60 mx-auto w-3/4"
-              animate={{
-                opacity: [0.4, 0.8, 0.4],
-                boxShadow: [
-                  '0 0 10px rgba(0, 243, 255, 0.3)',
-                  '0 0 20px rgba(0, 243, 255, 0.5)',
-                  '0 0 10px rgba(0, 243, 255, 0.3)',
-                ],
-              }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ opacity: 0.8, boxShadow: '0 0 20px rgba(0, 243, 255, 0.5)' }}
             />
           </div>
         </div>

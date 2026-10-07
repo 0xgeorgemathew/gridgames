@@ -1,0 +1,141 @@
+/* Only added stock gameplay geometry; existing TRON theme/layout lives in shared UI. */
+.arcade-arena {
+  position: absolute;
+  inset: 70px 0 170px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+.arcade-disc {
+  position: absolute;
+  width: 66px;
+  height: 66px;
+  border: 1.5px solid;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 25%, #263b43, #09131a 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: crosshair;
+  touch-action: none;
+  will-change: transform, top, left;
+}
+.arcade-disc img {
+  width: 34px;
+  height: 34px;
+  pointer-events: none;
+}
+.arcade-disc span {
+  font-family: var(--font-geist-mono);
+  font-size: 8px;
+  letter-spacing: 0.07em;
+  color: #e2f9ff;
+  pointer-events: none;
+}
+.arcade-pending-disc {
+  position: absolute;
+  width: 43px;
+  height: 43px;
+  border: 1px dashed var(--color-tron-cyan);
+  border-radius: 50%;
+  background: var(--color-tron-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.arcade-pending-disc img {
+  width: 26px;
+  height: 26px;
+}
+.arcade-pending-disc span {
+  position: absolute;
+  top: 100%;
+  font-size: 9px;
+  color: var(--color-tron-cyan);
+}
+.arcade-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px #00f3ff);
+}
+.arcade-bag-target {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  font-size: 9px;
+  color: var(--color-tron-cyan-dim);
+  letter-spacing: 0.14em;
+  pointer-events: none;
+}
+.arcade-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  text-align: center;
+  color: var(--color-tron-cyan);
+  font-family: var(--font-orbitron);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+.arcade-holdings {
+  display: flex;
+  gap: 7px;
+  min-height: 36px;
+  padding: 4px 16px;
+  flex-wrap: wrap;
+}
+.arcade-holdings > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--color-tron-cyan-dim);
+  padding: 3px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  color: var(--color-tron-cyan);
+}
+.arcade-holdings img {
+  width: 18px;
+  height: 18px;
+}
+.arcade-holdings small,
+.arcade-holdings p {
+  color: var(--color-tron-white-dim);
+  font-size: 10px;
+}
+.arcade-bottom {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+}
+.arcade-bottom p {
+  font-size: 10px;
+  color: var(--color-tron-white-dim);
+  flex: 1;
+  line-height: 1.5;
+}
+.arcade-bottom button {
+  flex-shrink: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-trail {
+    display: none;
+  }
+}
+
+.arcade-disc-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}

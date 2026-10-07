@@ -96,7 +96,7 @@ export function startGameLoop(
 
       if (room.canSpawnCoin()) {
         const forceType = room.getRequiredCoinType()
-        const coin = spawnCoin(room, forceType)
+        const coin = spawnCoin(room, forceType ?? undefined)
         if (coin) {
           emitCoinSpawn(coin)
         }

@@ -1,4 +1,5 @@
 # AGENTS.md
+
 Path-scoped memory for `frontend/`.
 
 ## Read First
@@ -23,9 +24,9 @@ bun run format
 
 ## Mental Model
 
-- Stack: Bun, Next.js App Router, React 19, Phaser, Zustand, vinext/Vite, native WebSockets, Cloudflare Workers/Durable Objects
-- Product: two multiplayer games, `hyper-swiper` and `tap-dancer`, sharing match infrastructure
-- Runtime flow: Next.js route -> React/Zustand client -> Phaser scene/systems -> native WebSocket multiplayer Durable Object
+- Stack: Bun, TanStack Start/Router, React 19, Phaser, Zustand, Vite, native WebSockets, Cloudflare Workers/Durable Objects
+- Product: original `hyper-swiper` and `tap-dancer` Phaser games plus the isolated simulated `stock-arcade`, sharing lobby and per-match DO transport
+- Runtime flow: TanStack Start route -> React/Zustand client -> Phaser scene/systems -> native WebSocket multiplayer Durable Object
 - The multiplayer server is authoritative for matchmaking, room state, prices, and settlement
 
 ## Placement Rules
@@ -46,7 +47,7 @@ bun run format
 
 - Semicolons are off
 - Prefer `@/` imports
-- TypeScript `strict` is off, so add explicit null/undefined/shape checks
+- TypeScript `strict` is on; preserve typed payloads and explicit shape checks
 - When changing socket payloads or match events, verify both client and server contracts:
   - `app/api/socket/multiplayer/events.types.ts`
   - `domains/match/events.ts`
@@ -64,3 +65,20 @@ bun run format
 - Lobby sockets can hibernate. Active rooms use standard sockets and game timers.
 - Intentional handoff preserves identity; transport failure creates a fresh session.
 - Match resumption is out of scope. A restarted active room is interrupted.
+
+## Pivot preview
+
+- `src/routes/` owns TanStack page and HTTP routes; `app/` retains reusable clients and server implementations.
+- `domains/stock-arcade/` owns the stock prototype, shared clock/drop contracts, ledger, fixed-block pricing and local motion.
+- `worker/quote-gate.ts` owns one aggregate API-key admission gate across all match objects.
+- Source `wrangler.jsonc` targets `grid-games-pivot` at `pivot.gridgames.space`; its namespaces are separate from `grid-games`.
+- No guest/auth bypass is enabled. Privy/Farcaster clients are retained.
+- Stock fills and USDG settlement are simulated. Never add signing, swaps, approvals, deposits or production writes under prototype authorization.
+- Quote key is a server-only Worker secret named `UNISWAP_API_KEY`; missing quotes fail without debit/credit.
+- Do not push/merge main or change its production route as part of Pivot.
+
+## Idle visual workload
+
+- `GridScanBackground` caches at most four shader rasters for idle viewport/theme combinations and releases the renderer/context after capture. Active scans own one renderer/composer per mounted canvas; update primitive uniforms rather than recreating resources for inline arrays.
+- A hidden scan renders the grid on demand. Active scans pause offscreen, in hidden tabs and for reduced motion; dispose timers, observers and GPU resources on unmount.
+- Stock lobby/results use static TRON glow and no animation-clock loop; live stock matches retain local animation. Verify authenticated idle routes as well as public landing pages before claiming idle load is resolved.

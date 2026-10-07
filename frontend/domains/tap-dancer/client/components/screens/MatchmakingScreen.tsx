@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useNavigate } from '@tanstack/react-router'
 import { useTradingStore } from '@/domains/tap-dancer/client/state/trading.store'
 import { AnimatePresence, m } from 'framer-motion'
 import { GridScanBackground } from '@/platform/ui/GridScanBackground'
@@ -144,6 +144,7 @@ function MatchmakingAuthPanel({
                           <PlayerName
                             username={player.name}
                             className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.1em] text-tron-cyan group-hover:text-white transition-colors"
+                            enableGlow={false}
                           />
                           <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] font-mono">
                             <span
@@ -178,7 +179,7 @@ function MatchmakingAuthPanel({
 }
 
 export function MatchmakingScreen() {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { ready, authenticated, user } = usePrivy()
   const {
     isInMiniApp,
@@ -262,7 +263,7 @@ export function MatchmakingScreen() {
     miniAppUser,
     ready,
     authenticated,
-    router,
+    navigate,
   ])
 
   const handleCloseOnboarding = useCallback(() => {
@@ -305,8 +306,7 @@ export function MatchmakingScreen() {
         />
         <m.p
           className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+          style={{ opacity: 1 }}
         >
           {miniAppAuthenticating ? 'AUTHENTICATING...' : 'INITIALIZING...'}
         </m.p>
@@ -329,14 +329,14 @@ export function MatchmakingScreen() {
       <GridScanBackground
         scanDirection={matchState === 'entering' ? 1 : 0}
         scanRange={matchState === 'entering' ? [0.0, 2.0] : [2.0, 2.0]}
-        scanOpacity={matchState === 'entering' ? 0.8 : 0.0}
+        scanOpacity={0}
         scanDuration={matchState === 'entering' ? 0.8 : 4.0}
         scanGlow={matchState === 'entering' ? 1.0 : 0.0}
       />
 
       <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
         <button
-          onClick={() => router.push('/')}
+          onClick={() => navigate({ to: '/' })}
           className="pointer-events-auto px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan hover:shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md hologram"
         >
           ← BACK
@@ -349,6 +349,7 @@ export function MatchmakingScreen() {
                 displayName={displayName}
                 pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
                 compact={true}
+                animateIdle={false}
               />
             </div>
           )}

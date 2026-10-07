@@ -1,10 +1,4 @@
-import type { Metadata } from 'next'
 import GameCanvas from '@/platform/ui/GameCanvas'
-
-export const metadata: Metadata = {
-  title: 'Grid Scene Test | Grid Games',
-  description: 'Internal GridScene render/performance test page for Grid Games.',
-}
 
 export default function GridTestPage() {
   return (

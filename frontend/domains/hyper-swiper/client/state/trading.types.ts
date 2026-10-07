@@ -31,8 +31,8 @@ export type CryptoSymbol = 'btcusdt'
 // Event bridge interface for React ↔ Phaser communication
 export interface PhaserEventBridge {
   emit(event: string, ...args: unknown[]): void
-  on(event: string, listener: (...args: unknown[]) => void): void
-  off(event: string, listener: (...args: unknown[]) => void): void
+  on<Args extends unknown[]>(event: string, listener: (...args: Args) => void): void
+  off<Args extends unknown[]>(event: string, listener: (...args: Args) => void): void
   destroy?(): void
 }
 

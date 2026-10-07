@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import './grid-background.css'
 import * as THREE from 'three'
 import {
   EffectComposer,
@@ -321,7 +322,9 @@ type Settings = typeof defaults
 
 function useGridScanEffect(
   containerRef: React.RefObject<HTMLDivElement | null>,
-  props: GridScanProps
+  props: GridScanProps,
+  onSnapshot?: (image: string) => void,
+  onFailure?: () => void
 ) {
   const params = { ...defaults, ...props }
   const settingsRef = useRef(params)
@@ -332,11 +335,19 @@ function useGridScanEffect(
     const container = containerRef.current
     if (!container) return
     const initial = settingsRef.current
-    const renderer = new THREE.WebGLRenderer({
-      antialias: false,
-      alpha: false,
-      powerPreference: 'low-power',
-    })
+    let renderer: THREE.WebGLRenderer
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        alpha: false,
+        powerPreference: 'low-power',
+      })
+    } catch {
+      // A decorative background must never take down login/navigation.
+      onSnapshot?.('')
+      onFailure?.()
+      return
+    }
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = false
@@ -396,6 +407,7 @@ function useGridScanEffect(
     effectPass.renderToScreen = true
     composer.addPass(effectPass)
 
+    let snapshotSent = false
     let disposed = false,
       visible = true
     let frame: number | null = null
@@ -416,6 +428,14 @@ function useGridScanEffect(
       uniforms.iTime.value = animated() ? performance.now() / 1000 : 0
       renderer.clear(true, true, true)
       composer.render()
+      if (onSnapshot && !snapshotSent && uniforms.iResolution.value.x > 0) {
+        snapshotSent = true
+        try {
+          onSnapshot(renderer.domElement.toDataURL('image/webp', 0.95))
+        } catch {
+          onSnapshot('')
+        }
+      }
     }
     const schedule = () => {
       if (!canRender() || !animated() || timer !== null || frame !== null) return
@@ -482,6 +502,13 @@ function useGridScanEffect(
     observer.observe(container)
     document.addEventListener('visibilitychange', refresh)
     media.addEventListener('change', refresh)
+    const contextLost = (event: Event) => {
+      event.preventDefault()
+      stop()
+      onSnapshot?.('')
+      onFailure?.()
+    }
+    renderer.domElement.addEventListener('webglcontextlost', contextLost)
     update(initial)
     resize()
     return () => {
@@ -495,7 +522,9 @@ function useGridScanEffect(
       material.dispose()
       geometry.dispose()
       composer.dispose()
+      renderer.domElement.removeEventListener('webglcontextlost', contextLost)
       renderer.dispose()
+      renderer.forceContextLoss()
       renderer.domElement.remove()
     }
   }, [containerRef])
@@ -524,8 +553,113 @@ function useGridScanEffect(
   ])
 }
 
+// Four viewport/theme snapshots are enough for route return/resize without keeping
+// GPU contexts or an unbounded image cache alive. The idle view is the actual shader
+// raster, preserving its grid geometry, colors and glow rather than a new UI design.
+const snapshots = new Map<string, string>()
+function GridRenderer({
+  onSnapshot,
+  onFailure,
+  ...props
+}: GridScanProps & { onSnapshot?: (image: string) => void; onFailure?: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  useGridScanEffect(containerRef, props, onSnapshot, onFailure)
+  return <div ref={containerRef} className="absolute inset-0" />
+}
 export function GridScanBackground(props: GridScanProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  useGridScanEffect(containerRef, props)
-  return <div ref={containerRef} className="absolute inset-0 z-0" />
+  const [view, setView] = useState({
+    width: 0,
+    height: 0,
+    visible: true,
+    hidden: false,
+    reduced: false,
+  })
+  const [snapshot, setSnapshot] = useState<{ key: string; image: string } | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
+  const settings = { ...defaults, ...props }
+  const cacheKey = JSON.stringify([
+    view.width,
+    view.height,
+    settings.linesColor,
+    settings.scanColor,
+    settings.lineThickness,
+    settings.gridScale,
+    settings.noiseIntensity,
+    settings.bloomIntensity,
+    settings.chromaticAberration,
+  ])
+  const existing = snapshot?.key === cacheKey ? snapshot.image : snapshots.get(cacheKey)
+  const active = settings.scanOpacity > 0 && !view.reduced && !view.hidden && view.visible
+  const ready =
+    failure !== cacheKey && view.width > 0 && view.height > 0 && !view.hidden && view.visible
+  const save = useCallback(
+    (image: string) => {
+      snapshots.set(cacheKey, image)
+      while (snapshots.size > 4) snapshots.delete(snapshots.keys().next().value!)
+      setSnapshot({ key: cacheKey, image })
+    },
+    [cacheKey]
+  )
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const media = matchMedia('(prefers-reduced-motion: reduce)')
+    const measure = () =>
+      setView((previous) => {
+        const next = {
+          ...previous,
+          width: container.clientWidth,
+          height: container.clientHeight,
+          hidden: document.hidden,
+          reduced: media.matches,
+        }
+        return Object.keys(next).every(
+          (key) => next[key as keyof typeof next] === previous[key as keyof typeof previous]
+        )
+          ? previous
+          : next
+      })
+    const resize = new ResizeObserver(measure)
+    resize.observe(container)
+    const observer = new IntersectionObserver((entries) =>
+      setView((previous) =>
+        previous.visible === entries[0].isIntersecting
+          ? previous
+          : { ...previous, visible: entries[0].isIntersecting }
+      )
+    )
+    observer.observe(container)
+    document.addEventListener('visibilitychange', measure)
+    media.addEventListener('change', measure)
+    measure()
+    return () => {
+      resize.disconnect()
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', measure)
+      media.removeEventListener('change', measure)
+    }
+  }, [])
+  return (
+    <div ref={containerRef} className="absolute inset-0 z-0 grid-background" aria-hidden="true">
+      <div className="grid-static-fallback">
+        <div className="grid-fallback-floor" />
+        <div className="grid-fallback-ceiling" />
+        <div className="grid-fallback-left" />
+        <div className="grid-fallback-right" />
+      </div>
+      {existing && (
+        <img src={existing} alt="" className="absolute inset-0 w-full h-full" draggable={false} />
+      )}
+      {ready && (active || existing === undefined) && (
+        <GridRenderer
+          key={cacheKey + (active ? ':active' : ':snapshot')}
+          {...props}
+          scanOpacity={active ? settings.scanOpacity : 0}
+          onSnapshot={active ? undefined : save}
+          onFailure={() => setFailure(cacheKey)}
+        />
+      )}
+    </div>
+  )
 }

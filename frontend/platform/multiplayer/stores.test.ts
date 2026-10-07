@@ -28,12 +28,12 @@ test.each(['hyper-swiper', 'tap-dancer'] as const)(
       innerHeight: 800,
     } as any
     globalThis.localStorage = { getItem: () => null, setItem: () => {} } as any
-    const module =
+    const gameModule =
       game === 'hyper-swiper'
         ? await import('@/domains/hyper-swiper/client/state/slices')
         : await import('@/domains/tap-dancer/client/state/slices')
     const store =
-      module.useTradingStore as unknown as typeof import('@/domains/hyper-swiper/client/state/slices').useTradingStore
+      gameModule.useTradingStore as unknown as typeof import('@/domains/hyper-swiper/client/state/slices').useTradingStore
     const addToast = store.getState().addToast
     store.setState({ addToast: () => {} })
     try {

@@ -69,7 +69,7 @@ test('client handshake sets identity, buffers only initial join and tears down l
   try {
     const socket = new RealtimeSocket('https://example.com')
     const ws = FakeWebSocket.instances.at(-1)!
-    let identities: string[] = []
+    const identities: string[] = []
     socket.on('connect', () => identities.push(socket.id!))
     socket.emit('join_waiting_pool', { playerName: 'A' })
     ws.readyState = 1

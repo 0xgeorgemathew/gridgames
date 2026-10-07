@@ -1,7 +1,8 @@
-import app from 'vinext/server/app-router-entry'
+import app from '@tanstack/react-start/server-entry'
 import { env } from 'cloudflare:workers'
 export { Multiplayer } from './multiplayer'
 export { Lobby } from './lobby'
+export { QuoteGate } from './quote-gate'
 export { GameRoom } from './game-room'
 
 export default {
@@ -16,6 +17,6 @@ export default {
     }
     const room = /^\/api\/socket\/room\/([0-9a-f-]{36})$/.exec(url.pathname)
     if (room) return env.GAME_ROOMS.get(env.GAME_ROOMS.idFromName(room[1])).fetch(request)
-    return app.fetch(request, bindings, ctx)
+    return app.fetch(request)
   },
 }
