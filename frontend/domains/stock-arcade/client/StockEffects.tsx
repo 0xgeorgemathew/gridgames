@@ -1,5 +1,5 @@
-import { useId } from 'react'
-import { deRezFragments, DEREZ_MS, FRACTURE_MS } from './derez-motion'
+import { DeRezCanvas } from './DeRezCanvas'
+import { deRezMotion, DEREZ_MS, FRACTURE_MS } from './derez-motion'
 import { stockAsset } from '../shared/assets'
 import type { ContactKind } from './contact-feedback'
 import { COIN_CONFIG } from '@/platform/game-engine/visuals/tron-disc'
@@ -89,7 +89,7 @@ export function StockBlade({
   )
 }
 /** Cut -> subdivide the original disc -> smaller fragments -> collapsing pixels.
- * Match-clock driven, localized, with no gravity or authoritative outcome mark. */
+ * Local monotonic-clock driven, with no gravity or authoritative outcome mark. */
 export function StockContact({
   progress,
   kind,
@@ -105,20 +105,16 @@ export function StockContact({
   angle?: number
   reducedMotion?: boolean
 }) {
-  const id = useId().replaceAll(':', '')
   if (kind !== 'pending') return null
   const p = Math.max(0, Math.min(1, progress))
   const elapsed = p * DEREZ_MS
   const separation = Math.min(1, elapsed / FRACTURE_MS)
-  const fragments = deRezFragments(elapsed)
-  const degrees = (angle * 180) / Math.PI
+  const motion = deRezMotion(elapsed)
   return (
     <div
       className="ninja-contact ninja-contact-pending"
       data-contact="pending"
-      data-derez-stage={
-        reducedMotion ? 'reduced' : elapsed < FRACTURE_MS ? 'fracture' : fragments.stage
-      }
+      data-derez-stage={reducedMotion ? 'reduced' : motion.stage}
     >
       {!reducedMotion &&
         elapsed < FRACTURE_MS &&
@@ -155,78 +151,8 @@ export function StockContact({
             </div>
           </div>
         ))}
-      {!reducedMotion && elapsed >= FRACTURE_MS && (
-        <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
-          <defs>
-            <radialGradient id={`${id}-chamber`} cx="35%" cy="25%">
-              <stop stopColor="#ffffff" />
-              <stop offset="1" stopColor="#e7edf0" />
-            </radialGradient>
-            <g id={`${id}-disc`}>
-              <g transform={`scale(0.9083) rotate(${(rotation * 180) / Math.PI})`}>
-                <DiscArtwork />
-              </g>
-              <circle cy="-4.3" r="14.5" fill={`url(#${id}-chamber)`} />
-              <image
-                href={stockAsset(symbol)!.logo}
-                x="-11.3"
-                y="-15.6"
-                width="22.6"
-                height="22.6"
-                preserveAspectRatio="xMidYMid meet"
-              />
-              <text
-                y="16.5"
-                fill="#ffffff"
-                textAnchor="middle"
-                fontFamily="var(--font-orbitron)"
-                fontSize="5.8"
-                fontWeight="800"
-              >
-                {symbol}
-              </text>
-            </g>
-            {fragments.cells.map((cell, i) => (
-              <clipPath key={i} id={`${id}-cell-${i}`}>
-                <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} />
-              </clipPath>
-            ))}
-          </defs>
-          <g transform={`rotate(${degrees})`}>
-            {fragments.cells.map((cell, i) => (
-              <g
-                key={`${fragments.stage}-${i}`}
-                transform={`translate(${cell.cx + cell.dx} ${cell.cy + cell.dy}) rotate(${cell.rotation}) scale(${cell.scale}) translate(${-cell.cx} ${-cell.cy})`}
-              >
-                <g clipPath={`url(#${id}-cell-${i})`}>
-                  <use
-                    href={`#${id}-disc`}
-                    transform={`rotate(${-degrees})`}
-                    opacity={1 - cell.energy}
-                  />
-                  <rect
-                    x={cell.x}
-                    y={cell.y}
-                    width={cell.width}
-                    height={cell.height}
-                    fill={energy}
-                    opacity={cell.energy}
-                  />
-                  <rect
-                    x={cell.x}
-                    y={cell.y}
-                    width={cell.width}
-                    height={cell.height}
-                    fill="none"
-                    stroke={energy}
-                    strokeWidth="0.55"
-                    opacity="0.8"
-                  />
-                </g>
-              </g>
-            ))}
-          </g>
-        </svg>
+      {!reducedMotion && (
+        <DeRezCanvas elapsed={elapsed} symbol={symbol} rotation={rotation} angle={angle} />
       )}
       <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
         {reducedMotion ? (

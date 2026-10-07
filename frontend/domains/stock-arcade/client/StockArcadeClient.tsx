@@ -62,7 +62,9 @@ export function StockArcadeClient() {
   const [game, setGame] = useState<ArcadeState | null>(null)
   const [connected, setConnected] = useState(false)
   const [waiting, setWaiting] = useState(false)
-  const [now, setNow] = useState(Date.now())
+  // Server time owns tosses/claims; monotonic local time owns contact art.
+  const [clock, setClock] = useState({ server: Date.now(), visual: 0 })
+  const now = clock.server
   const [caught, setCaught] = useState<ContactVisual[]>([])
   const [creditPulse, setCreditPulse] = useState<{ dropId: string; at: number } | null>(null)
   const [quotePulse, setQuotePulse] = useState<{
@@ -84,11 +86,11 @@ export function StockArcadeClient() {
     connected && game?.status === 'playing' && now >= game.startedAt && now < game.cutoffAt
   )
   const showContact = (anchor: ContactAnchor, kind: 'pending') => {
-    const at = Date.now() + offset.current
+    const at = performance.now()
     setCaught((old) =>
       [...old.filter((v) => at - v.at < CONTACT_MS[v.kind]), { ...anchor, kind, at }].slice(-9)
     )
-    setQuotePulse({ kind, at })
+    setQuotePulse({ kind, at: Date.now() + offset.current })
     music.feedback(kind)
   }
   useEffect(() => {
@@ -115,7 +117,7 @@ export function StockArcadeClient() {
     if (game?.status !== 'playing') return
     let frame = 0
     const animate = () => {
-      setNow(Date.now() + offset.current)
+      setClock({ server: Date.now() + offset.current, visual: performance.now() })
       frame = requestAnimationFrame(animate)
     }
     frame = requestAnimationFrame(animate)
@@ -490,7 +492,7 @@ export function StockArcadeClient() {
               game.status === 'playing' &&
               now < game.cutoffAt &&
               caught
-                .filter((v) => now - v.at < CONTACT_MS[v.kind])
+                .filter((v) => clock.visual - v.at < CONTACT_MS[v.kind])
                 .map((v) => (
                   <div
                     key={`${v.dropId}:${v.kind}`}
@@ -503,7 +505,7 @@ export function StockArcadeClient() {
                     }}
                   >
                     <StockContact
-                      progress={(now - v.at) / CONTACT_MS[v.kind]}
+                      progress={(clock.visual - v.at) / CONTACT_MS[v.kind]}
                       kind={v.kind}
                       symbol={v.symbol}
                       angle={v.angle}
