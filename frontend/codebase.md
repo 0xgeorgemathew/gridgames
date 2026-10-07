@@ -23,16 +23,16 @@ TanStack Start route → Game Client (Zustand + native WebSocket) → Phaser Sce
 
 ## Folder Structure
 
-| Folder                        | Purpose                                                      |
-| ----------------------------- | ------------------------------------------------------------ |
-| `domains/hyper-swiper/`       | Hyper Swiper game logic, state, Phaser systems               |
-| `domains/tap-dancer/`         | Tap Dancer game logic, state, Phaser systems                 |
-| `domains/match/`              | Shared match rules, position UX, events (used by both games) |
+| Folder                        | Purpose                                                            |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `domains/hyper-swiper/`       | Hyper Swiper game logic, state, Phaser systems                     |
+| `domains/tap-dancer/`         | Tap Dancer game logic, state, Phaser systems                       |
+| `domains/match/`              | Shared match rules, position UX, events (used by both games)       |
 | `platform/ui/`                | Shared legacy matchmaking/HUD/results, canvas, toasts, backgrounds |
-| `platform/game-engine/`       | Game registration, runtime bootstrap                         |
-| `platform/auth/`              | Privy/Mini App auth                                          |
-| `platform/utils/`             | Helpers (`cn()`, formatting)                                 |
-| `app/api/socket/multiplayer/` | Authoritative server: matchmaking, rooms, settlement         |
+| `platform/game-engine/`       | Game registration, runtime bootstrap                               |
+| `platform/auth/`              | Privy/Mini App auth                                                |
+| `platform/utils/`             | Helpers (`cn()`, formatting)                                       |
+| `app/api/socket/multiplayer/` | Authoritative server: matchmaking, rooms, settlement               |
 
 **Placement rule**: Game/match logic → `domains/`. Reusable infrastructure → `platform/`.
 
@@ -88,4 +88,4 @@ See `../docs/cloudflare-migration.md` for deployment and restart limitations.
 
 ## Stock Ninja
 
-The stock mode contains twenty verified canonical stocks and direct USDG scoring pools. `shared/sequence.ts` creates the per-room shared shuffle; `server/match.ts` owns paired drop scheduling, unique claims and dollars spent/reserved against the $10 budget. There is no stock position-slot inventory. The stable route/game slug is still `stock-arcade`. Stock coins keep local toss motion and use the original segmented TRON rim; `platform/game-engine/visuals/tron-ribbon.ts` is shared with the original Phaser laser. The stock playfield has no financial graph. See `../docs/stock-ninja-assets.md` for canonical-pool evidence.
+The stock mode contains twenty verified canonical stocks and direct USDG scoring pools. `shared/sequence.ts` creates the per-room shared shuffle; `server/match.ts` owns three-coin drop scheduling, unique claims and dollars spent/reserved against the $10 budget. There is no stock position-slot inventory. The stable route/game slug is still `stock-arcade`. Stock coins keep local toss motion and use the original segmented TRON rim; `platform/game-engine/visuals/tron-ribbon.ts` is shared with the original Phaser laser. `client/music.ts` and `use-stock-music.ts` reuse the original looping track with gesture, mute, visibility and cleanup handling. `client/claim-budget.ts` covers unacknowledged local claims without replacing server dollar reservations. Stock uses an explicit `MatchScoreRow` variant, floating budget/opponent pills, a raised central timer and a separately scrollable confirmed bag/pending indicator; both measured HUD boundaries reserve arena space. Coins use sourced SVG company logos (see `../docs/stock-ninja-logos.md`), 88–112px responsive diameters, constant-gravity diagonal tosses and a local 180ms slice. The stock playfield has no financial graph. See `../docs/stock-ninja-assets.md` for canonical-pool evidence.

@@ -1,13 +1,14 @@
-import type { StockDrop } from '../shared/types'
+import { DROP_WINDOW_MS, type StockDrop } from '../shared/types'
+
+export const SLICE_EFFECT_MS = 180
+export const discDiameter = (width: number) => Math.max(88, Math.min(112, width * 0.22))
 export function dropPoint(drop: StockDrop, now: number) {
-  const progress = Math.max(
-    0,
-    Math.min(1, (now - drop.spawnedAt) / (drop.expiresAt - drop.spawnedAt))
-  )
+  const progress = Math.max(0, Math.min(1, (now - drop.spawnedAt) / DROP_WINDOW_MS))
   return {
-    x: Math.max(0.1, Math.min(0.9, drop.lane + drop.drift * progress)),
-    y: 1.1 - 3.9 * progress * (1 - progress),
-    rotation: drop.rotation * Math.sin(progress * Math.PI),
+    x: drop.lane + drop.drift * progress,
+    // Constant gravity and horizontal momentum; cutoff clips a toss, never speeds it up.
+    y: 1.14 - (drop.launchVelocity ?? 3.8) * progress + 4.6 * progress * progress,
+    rotation: drop.rotation * progress,
     progress,
   }
 }

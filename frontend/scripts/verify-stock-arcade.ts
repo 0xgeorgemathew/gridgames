@@ -1,6 +1,6 @@
 import { RealtimeSocket } from '../platform/multiplayer/client'
 import { STOCK_ASSETS } from '../domains/stock-arcade/shared/assets'
-import { MATCH_BUDGET, CATCH_COST } from '../domains/stock-arcade/shared/types'
+import { MATCH_BUDGET, CATCH_COST, DROP_BATCH_SIZE } from '../domains/stock-arcade/shared/types'
 import { dropPoint } from '../domains/stock-arcade/client/motion'
 import type { ArcadeState } from '../domains/stock-arcade/shared/types'
 const base = process.argv[2] || 'http://127.0.0.1:4173'
@@ -60,6 +60,7 @@ try {
   const visibleCounts: number[] = []
   const batches = new Map<number, Set<string>>()
   const observed = new Map<string, string>()
+  const sharedDrops = new Map<string, string>()
   const allAttempts = new Set<string>()
   const deadline = Date.now() + 55000
   while (Date.now() < deadline && !a.terminal) {
@@ -78,6 +79,15 @@ try {
         const ids = batches.get(drop.spawnedAt) ?? new Set<string>()
         ids.add(drop.id)
         batches.set(drop.spawnedAt, ids)
+      }
+    }
+    for (const peer of [a, b]) {
+      for (const drop of peer.state!.drops) {
+        const prior = sharedDrops.get(drop.id)
+        const serialized = JSON.stringify(drop)
+        if (prior && prior !== serialized)
+          throw new Error('Shared drop geometry differs between peers')
+        sharedDrops.set(drop.id, serialized)
       }
     }
     for (const drop of b.state!.drops) observed.set(drop.id, drop.symbol)
@@ -129,11 +139,12 @@ try {
     throw new Error('Ledger/cap invariant')
   if (
     !visibleCounts.length ||
-    Math.min(...visibleCounts) < 2 ||
-    Math.max(...visibleCounts) > 4 ||
-    [...batches.values()].some((ids) => ids.size !== 2)
+    Math.max(...visibleCounts) > DROP_BATCH_SIZE ||
+    [...batches.values()].some((ids) => ids.size !== DROP_BATCH_SIZE)
   )
-    throw new Error('Expected paired spawns and two to four concurrent visible choices')
+    throw new Error(
+      'Expected three server-owned tosses per batch and at most three visible choices'
+    )
   console.log(
     JSON.stringify(
       {
@@ -144,6 +155,7 @@ try {
         attempts: attempted.size,
         credits: bags.map((bag) => bag.assets.length),
         spent: bags.map((bag) => bag.spent),
+        identicalSharedDropContracts: true,
         shuffledSequence: [...observed.values()].slice(0, 20),
         ledgerDedup: true,
         concurrentVisibleChoices: {
@@ -151,7 +163,7 @@ try {
           max: Math.max(...visibleCounts),
           samples: visibleCounts.length,
         },
-        pairedSpawns: [...batches.values()].every((ids) => ids.size === 2),
+        threeCoinBatches: [...batches.values()].every((ids) => ids.size === DROP_BATCH_SIZE),
         status: a.state!.status,
         reason: a.state!.reason,
         result: a.state!.result,

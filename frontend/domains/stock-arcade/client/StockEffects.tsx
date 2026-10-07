@@ -80,7 +80,7 @@ export function StockBlade({
 /** Short de-resolution: original cyan triangular/voxel shards with white cores. */
 export function StockDeRez({ progress }: { progress: number }) {
   const p = Math.max(0, Math.min(1, progress)),
-    distance = 12 + 40 * (1 - (1 - p) ** 3)
+    distance = 6 + 12 * p
   return (
     <svg
       className="ninja-derez"
@@ -93,7 +93,7 @@ export function StockDeRez({ progress }: { progress: number }) {
         return (
           <g
             key={i}
-            transform={`translate(${Math.cos(angle) * distance},${Math.sin(angle) * distance - p * 9}) rotate(${i * 45 + p * 100}) scale(${1 - p * 0.6})`}
+            transform={`translate(${Math.cos(angle) * distance},${Math.sin(angle) * distance}) rotate(${i * 45}) scale(${1 - p * 0.6})`}
           >
             {i % 2 ? (
               <path d="M-5,-5 H5 V5 H-5Z" fill={energy} opacity="0.8" />

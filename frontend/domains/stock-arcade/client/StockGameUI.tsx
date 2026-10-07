@@ -1,6 +1,6 @@
 import { useState, type RefObject } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Settings, LogOut, HelpCircle } from 'lucide-react'
+import { Settings, LogOut, HelpCircle, Volume2, VolumeX } from 'lucide-react'
 import { ActionButton } from '@/platform/ui/ActionButton'
 import { MatchmakingAuthPanel } from '@/platform/ui/MatchmakingAuthPanel'
 import { MatchScoreRow } from '@/platform/ui/MatchScoreRow'
@@ -163,6 +163,9 @@ export function StockHUD({
   remaining,
   notice,
   dockRef,
+  topRef,
+  muted,
+  onToggleSound,
   onExit,
   onHelp,
 }: {
@@ -172,98 +175,82 @@ export function StockHUD({
   remaining: number
   notice: string
   dockRef: RefObject<HTMLDivElement | null>
+  topRef: RefObject<HTMLDivElement | null>
+  muted: boolean
+  onToggleSound: () => void
   onExit: () => void
   onHelp: () => void
 }) {
   const [menu, setMenu] = useState(false)
+  const budgetLeft = Math.max(0, MATCH_BUDGET - (self?.spent ?? 0) - (self?.reservedSpend ?? 0))
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-30 pt-safe">
-        <div className="flex justify-center pt-3 relative">
-          <div className="flex items-center gap-2 px-4 py-2 bg-tron-black/90 backdrop-blur-md border border-tron-cyan/30 rounded-full pr-12 shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-            <span className="text-[10px] text-tron-cyan/60 uppercase tracking-[0.2em] font-bold">
-              CATCH
-            </span>
-            <span className="text-lg font-black font-numeric text-tron-cyan">$1</span>
-            <span className="text-[10px] font-bold text-tron-cyan/70 bg-tron-cyan/10 px-2 py-0.5 rounded-full">
-              SIMULATED
-            </span>
+      <div ref={topRef} className="ninja-top-hud">
+        <div className="ninja-pill ninja-budget" aria-label={`$${budgetLeft} budget left`}>
+          <span className="ninja-hud-caption">BUDGET LEFT</span>
+          <strong>
+            ${budgetLeft}
+            <small> / $10</small>
+          </strong>
+        </div>
+        <div className="ninja-top-right">
+          <div className="ninja-pill ninja-opponent" title={other?.name || 'Opponent'}>
+            <span className="ninja-hud-caption">OPPONENT</span>
+            <strong>{other?.name || 'Connecting…'}</strong>
           </div>
           <button
             onClick={() => setMenu(!menu)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center bg-tron-black/80 border border-tron-cyan/30 rounded-full focus-visible:outline-2 focus-visible:outline-tron-cyan hover:bg-tron-cyan/10 z-20"
+            className="ninja-settings"
             aria-label="Game settings"
             aria-expanded={menu}
           >
-            <Settings className="w-4 h-4 text-tron-cyan/70" />
+            <Settings size={18} />
           </button>
-          {menu && (
-            <>
-              <button
-                className="fixed inset-0 z-10"
-                aria-label="Close settings"
-                onClick={() => setMenu(false)}
-              />
-              <div className="absolute top-full right-2 mt-2 flex flex-col gap-1 bg-tron-black/95 border border-tron-cyan/30 rounded-lg overflow-hidden z-30 min-w-[120px]">
-                <button
-                  onClick={() => {
-                    setMenu(false)
-                    onHelp()
-                  }}
-                  className="flex items-center gap-2 px-3 py-2.5 text-sm text-tron-cyan/70 hover:bg-tron-cyan/10"
-                >
-                  <HelpCircle className="w-4 h-4" />
-                  How to play
-                </button>
-                <button
-                  onClick={() => {
-                    setMenu(false)
-                    onExit()
-                  }}
-                  aria-label="Exit match"
-                  className="flex items-center gap-2 px-3 py-2.5 text-sm text-tron-orange/70 hover:bg-tron-orange/10 border-t border-tron-cyan/20"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Exit
-                </button>
-              </div>
-            </>
-          )}
         </div>
-      </div>
-      <div ref={dockRef} className="fixed bottom-0 left-0 right-0 z-30 bottom-nav-container">
-        <div className="pb-safe relative bg-tron-black/95 backdrop-blur-xl shadow-[0_-5px_20px_rgba(0,243,255,0.1)]">
-          <div className="absolute top-0 inset-x-0 h-[2px] bg-tron-cyan/80" />
-          <div className="absolute top-[2px] left-0 w-4 h-px bg-tron-cyan/50" />
-          <div className="absolute top-[2px] right-0 w-4 h-px bg-tron-cyan/50" />
-          <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-1 font-mono text-[10px] tracking-wider border-b border-tron-cyan/10">
-            <span className="text-white/60">SIMULATED FILLS</span>
-            <span className="text-tron-cyan">
-              {`$${Math.max(0, MATCH_BUDGET - (self?.spent ?? 0) - (self?.reservedSpend ?? 0))} BUDGET LEFT`}
-            </span>
-            <span className="text-white/60 hidden min-[390px]:inline">SWIPE DISCS</span>
-          </div>
-          <div className="arcade-holdings" aria-label="Acquired assets">
-            {self?.assets.map((a) => (
-              <span
-                key={a.dropId}
-                title={`${a.symbol}: ${(Number(a.amount) / 1e18).toPrecision(3)} simulated units`}
+        {menu && (
+          <>
+            <button
+              className="fixed inset-0 z-10"
+              aria-label="Close settings"
+              onClick={() => setMenu(false)}
+            />
+            <div className="ninja-settings-menu">
+              <button
+                onClick={() => {
+                  onToggleSound()
+                  setMenu(false)
+                }}
               >
-                <img src={stockAsset(a.symbol)!.logo} alt="" />
-                {a.symbol}
-              </span>
-            ))}
-            {!self?.assets.length && (
-              <p>
-                YOUR BAG ·{' '}
-                {self?.reservedSpend ? `$${self.reservedSpend} pending` : 'NO CATCHES YET'}
-              </p>
-            )}
-          </div>
-          <p role="status" className="px-4 text-[9px] text-white/40 truncate" title={notice}>
-            {notice}
-          </p>
+                {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                {muted ? 'Unmute' : 'Mute'}
+              </button>
+              <button
+                onClick={() => {
+                  setMenu(false)
+                  onHelp()
+                }}
+              >
+                <HelpCircle size={17} />
+                How to play
+              </button>
+              <button
+                onClick={() => {
+                  setMenu(false)
+                  onExit()
+                }}
+                aria-label="Exit match"
+              >
+                <LogOut size={17} />
+                Exit
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      <div ref={dockRef} className="ninja-bottom-hud">
+        <div className="ninja-dock">
           <MatchScoreRow
+            variant="stock"
             gameTimeRemaining={remaining}
             isGameReady
             playerBalance={self?.spent ?? 0}
@@ -271,10 +258,34 @@ export function StockHUD({
             playerName={self?.name}
             opponentName={other?.name}
             compareValues={false}
-            playerDetail={`$${self?.spent ?? 0} spent · $${self?.reservedSpend ?? 0} pending`}
-            opponentDetail={`$${other?.spent ?? 0} spent`}
+            playerDetail="SPENT"
+            opponentDetail="SPENT"
             timerLabel={game.status === 'valuing' ? 'CUTOFF' : undefined}
           />
+          <div className="ninja-bag-row">
+            <div className="arcade-holdings" aria-label="Confirmed acquired assets" tabIndex={0}>
+              {self?.assets.map((a) => (
+                <span
+                  key={a.dropId}
+                  title={`${a.symbol}: ${(Number(a.amount) / 1e18).toPrecision(3)} simulated units`}
+                >
+                  <img src={stockAsset(a.symbol)!.logo} alt="" />
+                  {a.symbol}
+                </span>
+              ))}
+              {!self?.assets.length && <p>YOUR BAG · NO CATCHES YET</p>}
+            </div>
+            <span
+              className="ninja-pending"
+              aria-label={`$${self?.reservedSpend ?? 0} pending quotes`}
+            >
+              ${self?.reservedSpend ?? 0}
+              <small>PENDING</small>
+            </span>
+          </div>
+          <p role="status" className="ninja-status" title={notice}>
+            {notice || 'LIVE QUOTES · SIMULATED FILLS · NO REAL FUNDS'}
+          </p>
         </div>
       </div>
     </>

@@ -17,8 +17,11 @@ const GridScanBackground = clientLazy(() =>
 import { usePrivy } from '@privy-io/react-auth'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { RealtimeSocket } from '@/platform/multiplayer/client'
-import { CATCH_COST, MATCH_BUDGET, type ArcadeState, type StockDrop } from '../shared/types'
-import { dropPoint, segmentHitsDisc } from './motion'
+import { type ArcadeState, type StockDrop } from '../shared/types'
+import { stockAsset } from '../shared/assets'
+import { ClaimBudget } from './claim-budget'
+import { useStockMusic } from './use-stock-music'
+import { dropPoint, segmentHitsDisc, discDiameter, SLICE_EFFECT_MS } from './motion'
 interface PendingVisual {
   drop: StockDrop
   caughtAt: number
@@ -36,6 +39,8 @@ export function StockArcadeClient() {
   const socket = useRef<RealtimeSocket | null>(null)
   const arena = useRef<HTMLDivElement>(null)
   const dock = useRef<HTMLDivElement>(null)
+  const top = useRef<HTMLDivElement>(null)
+  const [topHeight, setTopHeight] = useState(78)
   const [dockHeight, setDockHeight] = useState(160)
   const [help, setHelp] = useState(false)
   const [lobbyOpen, setLobbyOpen] = useState(false)
@@ -43,13 +48,13 @@ export function StockArcadeClient() {
   const [refreshing, setRefreshing] = useState(false)
   const stateRef = useRef<ArcadeState | null>(null)
   const claimed = useRef(new Set<string>())
+  const claimBudget = useRef(new ClaimBudget())
   const offset = useRef(0)
   const [game, setGame] = useState<ArcadeState | null>(null)
   const [connected, setConnected] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [now, setNow] = useState(Date.now())
   const [caught, setCaught] = useState<PendingVisual[]>([])
-  const [pending, setPending] = useState<Record<string, PendingVisual>>({})
   const [notice, setNotice] = useState('')
   const [reducedMotion, setReducedMotion] = useState(false)
   const [trail, setTrail] = useState<Array<{ x: number; y: number; time: number }>>([])
@@ -57,12 +62,19 @@ export function StockArcadeClient() {
   const self = game?.bags.find((bag) => bag.playerId === socket.current?.id)
   const other = game?.bags.find((bag) => bag.playerId !== socket.current?.id)
   const terminal = game?.status === 'completed' || game?.status === 'cancelled'
+  const music = useStockMusic(
+    connected && game?.status === 'playing' && now >= game.startedAt && now < game.cutoffAt
+  )
   useEffect(() => {
-    if (!game || !dock.current) return
-    const observer = new ResizeObserver(([entry]) =>
-      setDockHeight(entry.target.getBoundingClientRect().height)
-    )
+    if (!game || !dock.current || !top.current) return
+    const measure = () => {
+      setDockHeight(dock.current!.getBoundingClientRect().height)
+      setTopHeight(top.current!.getBoundingClientRect().height)
+    }
+    const observer = new ResizeObserver(measure)
     observer.observe(dock.current)
+    observer.observe(top.current)
+    measure()
     return () => observer.disconnect()
   }, [game?.matchId])
   useEffect(() => {
@@ -91,6 +103,7 @@ export function StockArcadeClient() {
     client.on('disconnect', () => {
       setConnected(false)
       setWaiting(false)
+      claimBudget.current.reset()
       setNotice('Connection lost. The prototype match is cancelled; reconnect starts fresh.')
     })
     client.on('error', (raw: unknown) => {
@@ -138,22 +151,19 @@ export function StockArcadeClient() {
       setLobbyOpen(false)
       if (next.status === 'ready') {
         claimed.current.clear()
-        setPending({})
+        claimBudget.current.reset()
         setCaught([])
         client.emit('scene_ready')
       }
+      if (next.status === 'completed' || next.status === 'cancelled') claimBudget.current.reset()
       if (next.status === 'cancelled')
         setNotice(`Match cancelled: ${next.reason?.replaceAll('_', ' ')}. No payout.`)
     })
     client.on('arcade_claim', (raw: unknown) => {
       const claim = raw as { playerId: string; dropId: string; status: string; reason?: string }
       if (claim.playerId !== client.id) return
+      claimBudget.current.acknowledge(claim.dropId)
       if (claim.status === 'credited' || claim.status === 'failed') {
-        setPending((p) => {
-          const next = { ...p }
-          delete next[claim.dropId]
-          return next
-        })
         setNotice(
           claim.status === 'credited'
             ? 'Quote received. $1 simulated catch added to your bag.'
@@ -169,6 +179,7 @@ export function StockArcadeClient() {
   const catchDrop = (drop: StockDrop) => {
     const state = stateRef.current
     if (
+      !socket.current?.connected ||
       !state ||
       state.status !== 'playing' ||
       claimed.current.has(drop.id) ||
@@ -176,16 +187,15 @@ export function StockArcadeClient() {
     )
       return
     const bag = state.bags.find((b) => b.playerId === socket.current?.id)
-    if (!bag || bag.spent + bag.reservedSpend + CATCH_COST > MATCH_BUDGET) {
+    if (!bag || !claimBudget.current.reserve(drop.id, bag)) {
       setNotice('Budget spent or reserved by pending quotes. No further simulated spend.')
       return
     }
     claimed.current.add(drop.id)
     setCaught((old) => [
-      ...old.filter((v) => Date.now() + offset.current - v.caughtAt < 350),
+      ...old.filter((v) => Date.now() + offset.current - v.caughtAt < SLICE_EFFECT_MS),
       { drop, caughtAt: Date.now() + offset.current },
     ])
-    setPending((p) => ({ ...p, [drop.id]: { drop, caughtAt: Date.now() + offset.current } }))
     setNotice('Quote pending. No credit until the quote arrives.')
     socket.current?.emit('catch_stock', { dropId: drop.id })
   }
@@ -207,7 +217,15 @@ export function StockArcadeClient() {
       if (
         now >= drop.spawnedAt &&
         now < drop.expiresAt &&
-        segmentHitsDisc(previous.x, previous.y, p.x, p.y, point.x * p.width, point.y * p.height, 35)
+        segmentHitsDisc(
+          previous.x,
+          previous.y,
+          p.x,
+          p.y,
+          point.x * p.width,
+          point.y * p.height,
+          discDiameter(p.width) / 2
+        )
       )
         catchDrop(drop)
     }
@@ -220,9 +238,10 @@ export function StockArcadeClient() {
   }
   const findMatch = () => {
     if (!connected || !walletAddress) return
+    music.prepare()
     setGame(null)
     stateRef.current = null
-    setPending({})
+    claimBudget.current.reset()
     claimed.current.clear()
     setWaiting(true)
     setNotice('Finding another player…')
@@ -236,7 +255,7 @@ export function StockArcadeClient() {
   const reset = () => {
     setGame(null)
     stateRef.current = null
-    setPending({})
+    claimBudget.current.reset()
     setTrail([])
     setCaught([])
     claimed.current.clear()
@@ -259,10 +278,15 @@ export function StockArcadeClient() {
     <main
       className={
         game
-          ? 'fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none'
+          ? 'fixed inset-0 bg-tron-black overflow-hidden overscroll-none'
           : 'relative min-h-[100dvh] bg-black overflow-x-hidden'
       }
-      style={{ '--stock-hud-height': `${dockHeight}px` } as CSSProperties}
+      style={
+        {
+          '--stock-hud-height': `${dockHeight}px`,
+          '--stock-top-height': `${topHeight}px`,
+        } as CSSProperties
+      }
     >
       {!game ? (
         <GridScanBackground
@@ -293,6 +317,7 @@ export function StockArcadeClient() {
           onLogin={login}
           onEnter={findMatch}
           onOpenLobby={() => {
+            music.prepare()
             setLobbyOpen(true)
             socket.current?.emit('join_waiting_pool', {
               playerName,
@@ -305,6 +330,7 @@ export function StockArcadeClient() {
           onBackFromLobby={cancelSearch}
           onRefresh={refreshLobby}
           onSelect={(opponentSocketId) => {
+            music.prepare()
             setWaiting(true)
             socket.current?.emit('select_opponent', { opponentSocketId })
           }}
@@ -372,35 +398,19 @@ export function StockArcadeClient() {
                       className="arcade-disc-face"
                       style={{ transform: `rotate(${reducedMotion ? 0 : -point.rotation}rad)` }}
                     >
-                      <span className="ninja-disc-symbol">{drop.symbol}</span>
-                      <span className="ninja-disc-price">$1</span>
+                      <img src={stockAsset(drop.symbol)?.logo} alt="" draggable={false} />
+                      <span className="ninja-disc-label">
+                        <span className="ninja-disc-symbol">{drop.symbol}</span>
+                        <span className="ninja-disc-price">$1</span>
+                      </span>
                     </span>
                   </button>
                 )
               })}
             {!terminal &&
-              Object.entries(pending).map(([id, { drop, caughtAt }]) => {
-                const point = dropPoint(drop, caughtAt),
-                  p = reducedMotion ? 1 : Math.min(1, Math.max(0, (now - caughtAt) / 220))
-                return (
-                  <div
-                    key={id}
-                    className="arcade-pending-disc"
-                    style={{
-                      left: `${(point.x + (0.86 - point.x) * p) * 100}%`,
-                      top: `${(point.y + (0.9 - point.y) * p) * 100}%`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                  >
-                    <strong>{drop.symbol}</strong>
-                    <span>pending</span>
-                  </div>
-                )
-              })}
-            {!terminal &&
               !reducedMotion &&
               caught
-                .filter((v) => now - v.caughtAt < 350)
+                .filter((v) => now - v.caughtAt < SLICE_EFFECT_MS)
                 .map(({ drop, caughtAt }) => {
                   const point = dropPoint(drop, caughtAt)
                   return (
@@ -409,7 +419,7 @@ export function StockArcadeClient() {
                       className="ninja-catch"
                       style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
                     >
-                      <StockDeRez progress={(now - caughtAt) / 350} />
+                      <StockDeRez progress={(now - caughtAt) / SLICE_EFFECT_MS} />
                     </div>
                   )
                 })}
@@ -430,6 +440,9 @@ export function StockArcadeClient() {
             remaining={remaining}
             notice={notice}
             dockRef={dock}
+            topRef={top}
+            muted={music.muted}
+            onToggleSound={music.toggle}
             onExit={() => socket.current?.emit('end_game')}
             onHelp={() => setHelp(true)}
           />

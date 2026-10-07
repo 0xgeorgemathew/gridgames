@@ -161,8 +161,8 @@ export class StockMatch {
     this.state.drops = this.state.drops.filter((d) => d.expiresAt > now)
     const batch = Math.floor(this.nextDrop / DROP_BATCH_SIZE)
     if (now >= this.state.startedAt + batch * DROP_INTERVAL_MS) {
-      // Shared paired opportunities keep two to four choices alive, not a refill
-      // triggered by catches. Every player sees the same server-shuffled deck.
+      // Three shared tosses per launch. Each deck stays independent of catches;
+      // the previous flight clears the arena before the next larger coins arrive.
       const spawnedAt = this.state.startedAt + batch * DROP_INTERVAL_MS
       for (let n = 0; n < DROP_BATCH_SIZE; n++) {
         const i = this.nextDrop++
@@ -173,10 +173,11 @@ export class StockMatch {
           symbol: asset.symbol,
           spawnedAt,
           expiresAt: Math.min(spawnedAt + DROP_WINDOW_MS, this.state.cutoffAt),
-          // Alternating widely spaced pairs; fixed columns stay separate on mobile.
-          lane: [0.16, 0.63, 0.39, 0.86][i % 4],
-          drift: 0,
-          rotation: i % 2 ? -0.35 : 0.35,
+          // Parallel diagonal paths stay separated at 320px; reverse each launch.
+          lane: [0.145, 0.445, 0.745][n] + (batch % 2 ? 0.11 : 0),
+          drift: batch % 2 ? -0.11 : 0.11,
+          rotation: batch % 2 ? -2.8 : 2.8,
+          launchVelocity: n === 1 ? 3.95 : 3.7,
         }
         this.state.drops.push(drop)
       }

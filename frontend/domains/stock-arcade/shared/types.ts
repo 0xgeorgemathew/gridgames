@@ -17,7 +17,10 @@ export interface StockDrop {
   expiresAt: number
   lane: number
   drift: number
+  /** Angular travel during one toss, in radians. */
   rotation: number
+  /** Normalized upward impulse; absent in older room snapshots. */
+  launchVelocity?: number
 }
 export interface Acquisition {
   dropId: string
@@ -64,5 +67,5 @@ export interface QuoteCredit {
 export const CATCH_COST = 1
 export const MATCH_BUDGET = 10
 export const DROP_WINDOW_MS = 2800
-export const DROP_INTERVAL_MS = 1500
-export const DROP_BATCH_SIZE = 2
+export const DROP_INTERVAL_MS = 2700
+export const DROP_BATCH_SIZE = 3

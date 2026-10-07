@@ -3,7 +3,13 @@ import { StockMatch } from './match'
 import { ValuationError } from './valuation-error'
 import { dropPoint } from '../client/motion'
 import { STOCK_ASSETS } from '../shared/assets'
-import type { ArcadeResult, QuoteCredit } from '../shared/types'
+import {
+  DROP_BATCH_SIZE,
+  DROP_INTERVAL_MS,
+  type ArcadeResult,
+  type QuoteCredit,
+} from '../shared/types'
+import { discDiameter } from '../client/motion'
 import type { RoomProvision } from '@/worker/session'
 function fixture(
   quote?: (symbol: string, request: string) => Promise<QuoteCredit>,
@@ -133,7 +139,7 @@ test('ten confirmed catches enforce $10 cap independently per player', async () 
   try {
     f.start()
     for (let i = 0; i < 11; i++) {
-      f.setNow(f.match.state.startedAt + i * 1500)
+      f.setNow(f.match.state.startedAt + i * DROP_INTERVAL_MS)
       f.match.tick()
       const drop = f.match.state.drops.at(-1)!
       f.match.handle('a', 'catch_stock', { dropId: drop.id })
@@ -222,32 +228,45 @@ test('tie, empty acquisitions and infrastructure failures keep distinct terminal
   }
 })
 
-test('paired shared opportunities offer two to four distinct, separated mobile choices through play', () => {
+test('three shared tosses per batch retain shuffled fairness and readable separated large mobile coins', () => {
   const f = fixture()
   try {
     f.start()
     const symbols = new Set<string>()
-    for (let elapsed = 200; elapsed < 60000; elapsed += 100) {
+    const batches = new Map<number, Set<string>>()
+    for (let elapsed = 0; elapsed < 60000; elapsed += 100) {
       const now = f.match.state.startedAt + elapsed
       f.setNow(now)
       f.match.tick()
       const drops = f.match.state.drops
-      expect(drops.length).toBeGreaterThanOrEqual(2)
-      expect(drops.length).toBeLessThanOrEqual(4)
       expect(new Set(drops.map((d) => d.id)).size).toBe(drops.length)
-      const visible = drops.filter((d) => dropPoint(d, now).y <= 1)
-      expect(visible.length).toBeGreaterThanOrEqual(2)
-      for (const drop of drops) symbols.add(drop.symbol)
-      for (const width of [320, 390, 900]) {
-        const points = visible.map((d) => dropPoint(d, now))
+      for (const drop of drops) {
+        symbols.add(drop.symbol)
+        const ids = batches.get(drop.spawnedAt) ?? new Set<string>()
+        ids.add(drop.id)
+        batches.set(drop.spawnedAt, ids)
+      }
+      for (const [width, height] of [
+        [320, 300],
+        [390, 580],
+        [900, 780],
+      ]) {
+        const radius = discDiameter(width) / 2
+        const points = drops
+          .map((d) => dropPoint(d, now))
+          .filter((p) => p.y * height - radius < height)
+        expect(points.length).toBeLessThanOrEqual(DROP_BATCH_SIZE)
         for (let i = 0; i < points.length; i++) {
-          expect(points[i].x * width).toBeGreaterThan(33)
-          expect(points[i].x * width).toBeLessThan(width - 33)
+          expect(points[i].x * width).toBeGreaterThanOrEqual(radius)
+          expect(points[i].x * width).toBeLessThanOrEqual(width - radius)
           for (let j = i + 1; j < points.length; j++)
-            expect(Math.abs(points[i].x - points[j].x) * width).toBeGreaterThan(66)
+            expect(
+              Math.hypot((points[i].x - points[j].x) * width, (points[i].y - points[j].y) * height)
+            ).toBeGreaterThan(discDiameter(width))
         }
       }
     }
+    expect([...batches.values()].every((ids) => ids.size === 3)).toBe(true)
     expect(symbols.size).toBe(STOCK_ASSETS.length)
     expect(f.requests).toHaveLength(0)
     expect(f.match.state.bags.map((b) => b.spent)).toEqual([0, 0])
@@ -273,10 +292,10 @@ test('in-flight quotes reserve dollars before awaiting and never exceed either p
   try {
     f.start()
     for (let i = 0; i < 6; i++) {
-      f.setNow(f.match.state.startedAt + i * 1500)
+      f.setNow(f.match.state.startedAt + i * DROP_INTERVAL_MS)
       f.match.tick()
       for (const drop of f.match.state.drops.filter(
-        (d) => d.spawnedAt === f.match.state.startedAt + i * 1500
+        (d) => d.spawnedAt === f.match.state.startedAt + i * DROP_INTERVAL_MS
       ))
         f.match.handle('a', 'catch_stock', { dropId: drop.id })
     }

@@ -70,9 +70,9 @@ bun run format
 
 - `src/routes/` owns TanStack page and HTTP routes; `app/` retains reusable clients and server implementations.
 - `domains/stock-arcade/` owns Stock Ninja (stable `stock-arcade` URL/slug), shared clock/drop contracts, dollar budget ledger, fixed-block pricing and local motion.
-- Stock has twenty verified assets, one server-shuffled deck shared by both players, paired independent opportunities and no position-slot state. Reserve pending dollar cost before quoting; never exceed the $10 budget.
+- Stock has twenty verified assets, one server-shuffled deck shared by both players, three independent opportunities per launch and no position-slot state. Reserve pending dollar cost before quoting; never exceed the $10 budget.
 - `platform/ui/MatchmakingAuthPanel`, `MatchScoreRow`, `MatchResultOverlay` are the original game presenters shared with stock. Preserve their established layout.
-- `platform/game-engine/visuals/` owns the shared original TRON disc palette and glass-ribbon geometry. Stock keeps tossed motion, segmented energy rims, short de-resolution and no financial graph.
+- `platform/game-engine/visuals/` owns the shared original TRON disc palette and glass-ribbon geometry. Stock keeps diagonal ballistic tosses, genuine SVG brand marks, segmented energy rims, a local 180ms slice and no financial graph. Stock music reuses the original loop, stops outside play/hidden tabs, and retains a per-game mute preference.
 - `worker/quote-gate.ts` owns one aggregate API-key admission gate across all match objects.
 - Source `wrangler.jsonc` targets `grid-games-pivot` at `pivot.gridgames.space`; its namespaces are separate from `grid-games`.
 - No guest/auth bypass is enabled. Privy/Farcaster clients are retained.
@@ -84,4 +84,4 @@ bun run format
 
 - `GridScanBackground` caches at most four shader rasters for idle viewport/theme combinations and releases the renderer/context after capture. Active scans own one renderer/composer per mounted canvas; update primitive uniforms rather than recreating resources for inline arrays.
 - A hidden scan renders the grid on demand. Active scans pause offscreen, in hidden tabs and for reduced motion; dispose timers, observers and GPU resources on unmount.
-- Stock lobby/results use static TRON glow and no animation-clock loop; live stock matches retain local animation. Verify authenticated idle routes as well as public landing pages before claiming idle load is resolved.
+- Stock lobby/results use static TRON glow and no animation-clock or audio loop; live stock matches retain local animation. Measure both HUD boundaries; keep the bag touch-scrollable. Local unacknowledged claim reservations prevent optimistic budget over-catching, while the ordered server ledger/ack remains authoritative. Verify authenticated idle routes as well as public landing pages before claiming idle load is resolved.

@@ -3,6 +3,7 @@ import React from 'react'
 import { cn } from '@/platform/utils/classNames.utils'
 import { Clock } from 'lucide-react'
 interface MatchScoreRowProps {
+  variant?: 'default' | 'stock'
   gameTimeRemaining: number
   isGameReady: boolean
   playerBalance?: number
@@ -31,6 +32,7 @@ function getDisplayName(name: string | undefined, maxLength: number = 8): string
 }
 
 export const MatchScoreRow = React.memo(function MatchScoreRow({
+  variant = 'default',
   gameTimeRemaining,
   isGameReady,
   playerBalance,
@@ -53,6 +55,33 @@ export const MatchScoreRow = React.memo(function MatchScoreRow({
     (playerBalance !== undefined &&
       opponentBalance !== undefined &&
       playerBalance === opponentBalance)
+
+  if (variant === 'stock')
+    return (
+      <div className="ninja-score-row">
+        <div className="ninja-spend" title={playerName}>
+          <span className="ninja-hud-caption">YOU</span>
+          <strong>${playerBalance ?? 0}</strong>
+          <small>{playerDetail}</small>
+        </div>
+        <div
+          className={cn('ninja-timer', isLowTime && 'ninja-timer-low')}
+          role="timer"
+          aria-label="Match time remaining"
+        >
+          <Clock size={14} />
+          <strong>{timerLabel ?? formatTime(gameTimeRemaining)}</strong>
+          <small>SIMULATED</small>
+        </div>
+        <div className="ninja-spend" title={opponentName}>
+          <span className="ninja-hud-caption ninja-player-name">
+            {getDisplayName(opponentName, 14) || 'OPPONENT'}
+          </span>
+          <strong>${opponentBalance ?? 0}</strong>
+          <small>{opponentDetail}</small>
+        </div>
+      </div>
+    )
 
   return (
     <div className="flex items-center justify-between gap-2 px-3 py-3">
