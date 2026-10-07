@@ -9,7 +9,7 @@ Multiplayer arcade games with shared match infrastructure:
 - **hyper-swiper**: Slice falling long/short coins
 - **tap-dancer**: Tap directional buttons in rhythm sequences
 
-**stock-arcade** adds a simulated $1 stock-collection prototype at `/stock-arcade`; it uses local React disc motion and the same native transport, lobby, and per-match DO wrapper.
+**stock-arcade** is Stock Ninja, a simulated $1 stock-collection prototype at `/stock-arcade`; it uses local React disc motion and the same native transport, lobby, and per-match DO wrapper.
 
 The original games are head-to-head matches where players start with fixed balances, and the server is authoritative for prices, room state, and settlement.
 
@@ -28,7 +28,7 @@ TanStack Start route → Game Client (Zustand + native WebSocket) → Phaser Sce
 | `domains/hyper-swiper/`       | Hyper Swiper game logic, state, Phaser systems               |
 | `domains/tap-dancer/`         | Tap Dancer game logic, state, Phaser systems                 |
 | `domains/match/`              | Shared match rules, position UX, events (used by both games) |
-| `platform/ui/`                | Shared UI: canvas bootstrapping, toasts, backgrounds         |
+| `platform/ui/`                | Shared legacy matchmaking/HUD/results, canvas, toasts, backgrounds |
 | `platform/game-engine/`       | Game registration, runtime bootstrap                         |
 | `platform/auth/`              | Privy/Mini App auth                                          |
 | `platform/utils/`             | Helpers (`cn()`, formatting)                                 |
@@ -85,3 +85,7 @@ Change carefully - check both sides:
 TanStack Start/Router and Vite build the Workers frontend. `worker/index.ts` delegates `/api/socket`
 to the hibernating `Lobby` Durable Object and room paths to per-match `GameRoom` objects; `platform/multiplayer/` owns the event transport.
 See `../docs/cloudflare-migration.md` for deployment and restart limitations.
+
+## Stock Ninja
+
+The stock mode contains twenty verified canonical stocks and direct USDG scoring pools. `shared/sequence.ts` creates the per-room shared shuffle; `server/match.ts` owns paired drop scheduling, unique claims and dollars spent/reserved against the $10 budget. There is no stock position-slot inventory. The stable route/game slug is still `stock-arcade`. Stock coins keep local toss motion and use the original segmented TRON rim; `platform/game-engine/visuals/tron-ribbon.ts` is shared with the original Phaser laser. The stock playfield has no financial graph. See `../docs/stock-ninja-assets.md` for canonical-pool evidence.

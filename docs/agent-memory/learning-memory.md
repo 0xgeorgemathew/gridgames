@@ -62,3 +62,7 @@ written upfront as policy.
 
 - A successful ten-asset quote path does not prove the cutoff RPC path. Batch designated-pool reads at one selected block, honor Retry-After within a finite read budget, and require completed common-block settlement in live validation. Public provider capacity remains an external dependency. Distinguish tie and empty-acquisition outcomes from infrastructure failure.
 - Protocol replay checks must await the actual room handshake before replaying its consumed ticket. A fixed 200 ms sleep can test a still-active lobby WebSocket instead, giving a false acceptance result.
+
+- Visual continuity requires the actual established panel, HUD geometry, controls and result shell, not only typography and colors. Extract reusable presenters/visual geometry from the retained game rather than rebuilding parallel lookalikes.
+- Validate multiple-choice spawn dynamics over the real room stream and the whole motion window. A screenshot with several records does not prove sustained readable choices; check concurrent visible count, unique IDs, shared timestamps and narrow-screen separation.
+- Stock Ninja uses dollar reservations and spending rather than inherited position slots. Keep financial budget limits independent from how many different stocks the catalog offers; simulated quotes may fail and must release reserved dollars without credit/debit.

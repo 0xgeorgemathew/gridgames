@@ -69,7 +69,10 @@ bun run format
 ## Pivot preview
 
 - `src/routes/` owns TanStack page and HTTP routes; `app/` retains reusable clients and server implementations.
-- `domains/stock-arcade/` owns the stock prototype, shared clock/drop contracts, ledger, fixed-block pricing and local motion.
+- `domains/stock-arcade/` owns Stock Ninja (stable `stock-arcade` URL/slug), shared clock/drop contracts, dollar budget ledger, fixed-block pricing and local motion.
+- Stock has twenty verified assets, one server-shuffled deck shared by both players, paired independent opportunities and no position-slot state. Reserve pending dollar cost before quoting; never exceed the $10 budget.
+- `platform/ui/MatchmakingAuthPanel`, `MatchScoreRow`, `MatchResultOverlay` are the original game presenters shared with stock. Preserve their established layout.
+- `platform/game-engine/visuals/` owns the shared original TRON disc palette and glass-ribbon geometry. Stock keeps tossed motion, segmented energy rims, short de-resolution and no financial graph.
 - `worker/quote-gate.ts` owns one aggregate API-key admission gate across all match objects.
 - Source `wrangler.jsonc` targets `grid-games-pivot` at `pivot.gridgames.space`; its namespaces are separate from `grid-games`.
 - No guest/auth bypass is enabled. Privy/Farcaster clients are retained.
