@@ -26,6 +26,7 @@ import { RealtimeSocket } from '@/platform/multiplayer/client'
 import { type ArcadeState, type StockDrop } from '../shared/types'
 import { stockAsset } from '../shared/assets'
 import { ClaimBudget } from './claim-budget'
+import { MatchPlayer } from './match-player'
 import { useStockMusic } from './use-stock-music'
 import { dropPoint, segmentHitsDisc, discDiameter } from './motion'
 interface ContactVisual extends ContactAnchor {
@@ -54,6 +55,7 @@ export function StockArcadeClient() {
   const [refreshing, setRefreshing] = useState(false)
   const stateRef = useRef<ArcadeState | null>(null)
   const claimed = useRef(new Set<string>())
+  const matchPlayer = useRef(new MatchPlayer())
   const claimBudget = useRef(new ClaimBudget())
   const feedback = useRef(new ContactFeedback())
   const offset = useRef(0)
@@ -68,8 +70,11 @@ export function StockArcadeClient() {
   const [reducedMotion, setReducedMotion] = useState(false)
   const [trail, setTrail] = useState<Array<{ x: number; y: number; time: number }>>([])
   const pointer = useRef<{ x: number; y: number } | null>(null)
-  const self = game?.bags.find((bag) => bag.playerId === socket.current?.id)
-  const other = game?.bags.find((bag) => bag.playerId !== socket.current?.id)
+  const localId = game
+    ? (matchPlayer.current.get(game.matchId) ?? socket.current?.id)
+    : socket.current?.id
+  const self = game?.bags.find((bag) => bag.playerId === localId)
+  const other = game?.bags.find((bag) => bag.playerId !== localId)
   const terminal = game?.status === 'completed' || game?.status === 'cancelled'
   const music = useStockMusic(
     connected && game?.status === 'playing' && now >= game.startedAt && now < game.cutoffAt
@@ -159,6 +164,7 @@ export function StockArcadeClient() {
     client.on('arcade_state', (raw: unknown) => {
       const next = raw as ArcadeState
       if (!next || next.simulation !== true || !Array.isArray(next.bags)) return
+      matchPlayer.current.remember(next.matchId, client.id)
       offset.current = next.serverTime - Date.now()
       if (next.status === 'playing' && stateRef.current?.status !== 'playing')
         setNotice('Swipe discs. Quotes stay pending until confirmed.')
@@ -287,6 +293,7 @@ export function StockArcadeClient() {
     if (!connected || !walletAddress) return
     music.prepare()
     setGame(null)
+    matchPlayer.current.reset()
     stateRef.current = null
     claimBudget.current.reset()
     feedback.current.reset()
@@ -304,6 +311,7 @@ export function StockArcadeClient() {
   }
   const reset = () => {
     setGame(null)
+    matchPlayer.current.reset()
     stateRef.current = null
     claimBudget.current.reset()
     feedback.current.reset()

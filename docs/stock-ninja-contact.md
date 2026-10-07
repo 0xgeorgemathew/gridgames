@@ -29,7 +29,7 @@ the round. Ready/rematch/disconnect resets it. Unknown/restored bag entries do n
 manufacture confirmation cues. Native transport discards messages from an old
 WebSocket during room handoff; the feedback handler additionally requires the
 current room/match and live pre-cutoff state. Late old-round responses and terminal
-state changes stay silent. Reduced motion uses a compact outline without disc
+state changes stay silent. Completed results retain the original match player ID across a fresh transport reconnect; a new match captures its new session. This prevents missing-bag/NaN display without changing scoring. Reduced motion uses a compact outline without disc
 scaling or the moving blade.
 
 ## Audio ownership
