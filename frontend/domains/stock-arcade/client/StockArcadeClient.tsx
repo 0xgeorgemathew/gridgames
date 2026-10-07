@@ -17,7 +17,6 @@ const GridScanBackground = clientLazy(() =>
 import { usePrivy } from '@privy-io/react-auth'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { RealtimeSocket } from '@/platform/multiplayer/client'
-import { stockAsset } from '../shared/assets'
 import { CATCH_COST, MATCH_BUDGET, type ArcadeState, type StockDrop } from '../shared/types'
 import { dropPoint, segmentHitsDisc } from './motion'
 interface PendingVisual {
@@ -393,7 +392,7 @@ export function StockArcadeClient() {
                       transform: 'translate(-50%, -50%)',
                     }}
                   >
-                    <img src={stockAsset(drop.symbol)!.logo} alt="" />
+                    <strong>{drop.symbol}</strong>
                     <span>pending</span>
                   </div>
                 )

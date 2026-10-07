@@ -180,3 +180,11 @@
   font-size: 8px;
   margin-top: 4px;
 }
+
+.arcade-pending-disc strong {
+  color: #fff;
+  font-family: var(--font-orbitron);
+  font-size: 9px;
+  font-weight: 800;
+  text-shadow: 0 0 7px #00f3ff66;
+}
