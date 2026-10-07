@@ -7,7 +7,7 @@ export const games: GameConfig[] = [
   tapDancerConfig,
   {
     slug: 'stock-arcade',
-    name: 'Stock Arcade',
+    name: 'Stock Ninja',
     description: 'Swipe stock discs to collect $1 simulated catches. No real funds.',
     icon: '/stocks/SPCX.svg',
     status: 'available',

@@ -104,7 +104,7 @@ test('pending reservation releases on quote failure; duplicate claims cannot spe
     const drop = f.match.state.drops[0]
     f.match.handle('a', 'catch_stock', { dropId: drop.id })
     f.match.handle('a', 'catch_stock', { dropId: drop.id })
-    expect(f.match.state.bags[0].pending).toBe(1)
+    expect(f.match.state.bags[0].reservedSpend).toBe(1)
     expect(f.requests).toHaveLength(1)
     resolve({ amount: '100', pool: STOCK_ASSETS[0].pool, quoteId: 'q' })
     await f.drain()
@@ -123,7 +123,7 @@ test('pending reservation releases on quote failure; duplicate claims cannot spe
     fail.start()
     fail.match.handle('a', 'catch_stock', { dropId: fail.match.state.drops[0].id })
     await fail.drain()
-    expect(fail.match.state.bags[0]).toMatchObject({ spent: 0, pending: 0, assets: [] })
+    expect(fail.match.state.bags[0]).toMatchObject({ spent: 0, reservedSpend: 0, assets: [] })
   } finally {
     fail.match.cleanup()
   }
@@ -248,9 +248,48 @@ test('paired shared opportunities offer two to four distinct, separated mobile c
         }
       }
     }
-    expect(symbols.size).toBe(10)
+    expect(symbols.size).toBe(STOCK_ASSETS.length)
     expect(f.requests).toHaveLength(0)
     expect(f.match.state.bags.map((b) => b.spent)).toEqual([0, 0])
+  } finally {
+    f.match.cleanup()
+  }
+})
+
+test('in-flight quotes reserve dollars before awaiting and never exceed either player budget', async () => {
+  const finish: Array<() => void> = []
+  const f = fixture(
+    (symbol, id) =>
+      new Promise((resolve) =>
+        finish.push(() =>
+          resolve({
+            amount: '100',
+            pool: STOCK_ASSETS.find((a) => a.symbol === symbol)!.pool,
+            quoteId: id,
+          })
+        )
+      )
+  )
+  try {
+    f.start()
+    for (let i = 0; i < 6; i++) {
+      f.setNow(f.match.state.startedAt + i * 1500)
+      f.match.tick()
+      for (const drop of f.match.state.drops.filter(
+        (d) => d.spawnedAt === f.match.state.startedAt + i * 1500
+      ))
+        f.match.handle('a', 'catch_stock', { dropId: drop.id })
+    }
+    expect(f.requests).toHaveLength(10)
+    expect(f.match.state.bags[0]).toMatchObject({ spent: 0, reservedSpend: 10, assets: [] })
+    expect('pending' in f.match.state.bags[0]).toBe(false)
+    f.match.handle('b', 'catch_stock', { dropId: f.match.state.drops.at(-1)!.id })
+    expect(f.match.state.bags[1].reservedSpend).toBe(1)
+    for (const resolve of finish) resolve()
+    await f.drain()
+    expect(f.match.state.bags[0].spent).toBe(10)
+    expect(f.match.state.bags[0].reservedSpend).toBe(0)
+    expect(f.match.state.bags[1].spent).toBe(1)
   } finally {
     f.match.cleanup()
   }

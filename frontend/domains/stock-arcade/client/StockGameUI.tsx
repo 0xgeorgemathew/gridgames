@@ -8,7 +8,7 @@ import { MatchResultOverlay } from '@/platform/ui/MatchResultOverlay'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { PlayerName } from '@/platform/ui/PlayerName'
 import { cn } from '@/platform/utils/classNames.utils'
-import type { ArcadeState, Bag } from '../shared/types'
+import { MATCH_BUDGET, type ArcadeState, type Bag } from '../shared/types'
 import { stockAsset } from '../shared/assets'
 
 export interface LobbyPlayer {
@@ -79,7 +79,7 @@ export function StockMatchmakingScreen(props: {
                 className="font-[family-name:var(--font-orbitron)] text-2xl sm:text-3xl lg:text-4xl font-bold tracking-[0.3em] text-tron-cyan relative"
                 style={{ textShadow: '0 0 40px rgba(0,243,255,0.8)' }}
               >
-                STOCK ARCADE
+                STOCK NINJA
               </h2>
               <div
                 className="absolute -bottom-2 left-0 right-0 h-[2px] bg-tron-cyan/60 mx-auto w-3/4"
@@ -239,9 +239,7 @@ export function StockHUD({
           <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-1 font-mono text-[10px] tracking-wider border-b border-tron-cyan/10">
             <span className="text-white/60">SIMULATED FILLS</span>
             <span className="text-tron-cyan">
-              {self?.spent === 10
-                ? '10/10 · Bag locked until cutoff'
-                : `${10 - (self?.spent ?? 0) - (self?.pending ?? 0)} SLOTS READY`}
+              {`$${Math.max(0, MATCH_BUDGET - (self?.spent ?? 0) - (self?.reservedSpend ?? 0))} BUDGET LEFT`}
             </span>
             <span className="text-white/60 hidden min-[390px]:inline">SWIPE DISCS</span>
           </div>
@@ -256,7 +254,10 @@ export function StockHUD({
               </span>
             ))}
             {!self?.assets.length && (
-              <p>YOUR BAG · {self?.pending ? `${self.pending} pending` : 'NO CATCHES YET'}</p>
+              <p>
+                YOUR BAG ·{' '}
+                {self?.reservedSpend ? `$${self.reservedSpend} pending` : 'NO CATCHES YET'}
+              </p>
             )}
           </div>
           <p role="status" className="px-4 text-[9px] text-white/40 truncate" title={notice}>
@@ -270,8 +271,8 @@ export function StockHUD({
             playerName={self?.name}
             opponentName={other?.name}
             compareValues={false}
-            playerDetail={`${self?.spent ?? 0}/10 invested · ${self?.pending ?? 0} pending`}
-            opponentDetail={`${other?.spent ?? 0}/10 invested`}
+            playerDetail={`$${self?.spent ?? 0} spent · $${self?.reservedSpend ?? 0} pending`}
+            opponentDetail={`$${other?.spent ?? 0} spent`}
             timerLabel={game.status === 'valuing' ? 'CUTOFF' : undefined}
           />
         </div>
@@ -337,7 +338,7 @@ export function StockResult({
               {i === 0 ? 'YOU' : bag?.name || 'OPPONENT'}
             </span>
             <span className="text-[9px] text-white/40">
-              {bag?.spent ?? 0} catches · ${bag?.spent ?? 0} invested
+              {bag?.assets.length ?? 0} catches · ${bag?.spent ?? 0} invested
             </span>
           </div>
           <span className="relative z-10 font-numeric text-sm font-bold text-tron-cyan shrink-0 ml-2">
@@ -384,8 +385,9 @@ export function StockInstructions({ onClose }: { onClose: () => void }) {
             Failed quotes spend nothing. Both players get the same opportunities.
           </p>
           <p className="text-tron-cyan/70 text-sm leading-relaxed">
-            Ten catches lock your bag until the common cutoff. Acquired assets decide the winner;
-            unspent cash stays outside. Fills and the USDG prize are simulated.
+            You have a $10 budget for the round. Acquired assets decide the winner; unspent cash
+            stays outside. Twenty stocks arrive in a shared shuffled sequence. Fills and the USDG
+            prize are simulated.
           </p>
           <ActionButton color="cyan" onClick={onClose}>
             ENTER THE GRID

@@ -10,6 +10,7 @@ import {
 } from './StockGameUI'
 import { GameCanvasBackground } from '@/platform/ui/GameCanvasBackground'
 import './stock-game.css'
+import { StockDiscRim, StockBlade, StockDeRez } from './StockEffects'
 const GridScanBackground = clientLazy(() =>
   import('@/platform/ui/GridScanBackground').then((m) => m.GridScanBackground)
 )
@@ -17,7 +18,7 @@ import { usePrivy } from '@privy-io/react-auth'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { RealtimeSocket } from '@/platform/multiplayer/client'
 import { stockAsset } from '../shared/assets'
-import type { ArcadeState, StockDrop } from '../shared/types'
+import { CATCH_COST, MATCH_BUDGET, type ArcadeState, type StockDrop } from '../shared/types'
 import { dropPoint, segmentHitsDisc } from './motion'
 interface PendingVisual {
   drop: StockDrop
@@ -48,6 +49,7 @@ export function StockArcadeClient() {
   const [connected, setConnected] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [now, setNow] = useState(Date.now())
+  const [caught, setCaught] = useState<PendingVisual[]>([])
   const [pending, setPending] = useState<Record<string, PendingVisual>>({})
   const [notice, setNotice] = useState('')
   const [reducedMotion, setReducedMotion] = useState(false)
@@ -138,6 +140,7 @@ export function StockArcadeClient() {
       if (next.status === 'ready') {
         claimed.current.clear()
         setPending({})
+        setCaught([])
         client.emit('scene_ready')
       }
       if (next.status === 'cancelled')
@@ -174,11 +177,15 @@ export function StockArcadeClient() {
     )
       return
     const bag = state.bags.find((b) => b.playerId === socket.current?.id)
-    if (!bag || bag.spent + bag.pending >= 10) {
-      setNotice('Bag full or quotes pending. No further simulated spend.')
+    if (!bag || bag.spent + bag.reservedSpend + CATCH_COST > MATCH_BUDGET) {
+      setNotice('Budget spent or reserved by pending quotes. No further simulated spend.')
       return
     }
     claimed.current.add(drop.id)
+    setCaught((old) => [
+      ...old.filter((v) => Date.now() + offset.current - v.caughtAt < 350),
+      { drop, caughtAt: Date.now() + offset.current },
+    ])
     setPending((p) => ({ ...p, [drop.id]: { drop, caughtAt: Date.now() + offset.current } }))
     setNotice('Quote pending. No credit until the quote arrives.')
     socket.current?.emit('catch_stock', { dropId: drop.id })
@@ -207,7 +214,9 @@ export function StockArcadeClient() {
     }
     pointer.current = p
     setTrail((t) =>
-      [...t.filter((p) => now - p.time < 160), { x: p.x, y: p.y, time: now }].slice(-15)
+      [...t.filter((p) => now - p.time < 160), { x: p.x, y: p.y, time: now }].slice(
+        p.width < 768 ? -24 : -20
+      )
     )
   }
   const findMatch = () => {
@@ -230,6 +239,7 @@ export function StockArcadeClient() {
     stateRef.current = null
     setPending({})
     setTrail([])
+    setCaught([])
     claimed.current.clear()
     setLobbyOpen(false)
     setWaiting(false)
@@ -343,8 +353,7 @@ export function StockArcadeClient() {
                   !terminal && !claimed.current.has(d.id) && now >= d.spawnedAt && now < d.expiresAt
               )
               .map((drop) => {
-                const a = stockAsset(drop.symbol)!,
-                  point = dropPoint(drop, now)
+                const point = dropPoint(drop, now)
                 return (
                   <button
                     key={drop.id}
@@ -357,16 +366,15 @@ export function StockArcadeClient() {
                       left: `${point.x * 100}%`,
                       top: `${point.y * 100}%`,
                       transform: `translate(-50%, -50%) rotate(${reducedMotion ? 0 : point.rotation}rad)`,
-                      borderColor: a.color,
-                      boxShadow: `0 0 18px ${a.color}35`,
                     }}
                   >
+                    <StockDiscRim />
                     <span
                       className="arcade-disc-face"
                       style={{ transform: `rotate(${reducedMotion ? 0 : -point.rotation}rad)` }}
                     >
-                      <img src={a.logo} alt="" draggable={false} />
-                      <span>{drop.symbol}</span>
+                      <span className="ninja-disc-symbol">{drop.symbol}</span>
+                      <span className="ninja-disc-price">$1</span>
                     </span>
                   </button>
                 )
@@ -390,19 +398,28 @@ export function StockArcadeClient() {
                   </div>
                 )
               })}
+            {!terminal &&
+              !reducedMotion &&
+              caught
+                .filter((v) => now - v.caughtAt < 350)
+                .map(({ drop, caughtAt }) => {
+                  const point = dropPoint(drop, caughtAt)
+                  return (
+                    <div
+                      key={drop.id}
+                      className="ninja-catch"
+                      style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
+                    >
+                      <StockDeRez progress={(now - caughtAt) / 350} />
+                    </div>
+                  )
+                })}
             {!reducedMotion && trail.length > 1 && (
-              <svg className="arcade-trail">
-                <polyline
-                  points={trail
-                    .filter((p) => now - p.time < 180)
-                    .map((p) => `${p.x},${p.y}`)
-                    .join(' ')}
-                  fill="none"
-                  stroke="#00f3ff"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <StockBlade
+                points={trail.filter((p) => now - p.time < 180)}
+                mobile={(arena.current?.clientWidth ?? 900) < 768}
+                phase={now / 160}
+              />
             )}
             <div className="arcade-bag-target">↓ YOUR BAG</div>
           </div>

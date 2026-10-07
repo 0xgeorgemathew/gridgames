@@ -7,7 +7,7 @@ const Client = lazy(() =>
 )
 export const Route = createFileRoute('/stock-arcade')({
   ssr: false,
-  head: () => ({ meta: [{ title: 'Stock Arcade | Grid Games Pivot' }] }),
+  head: () => ({ meta: [{ title: 'Stock Ninja | Grid Games Pivot' }] }),
   component: () => (
     <Suspense fallback={<div>Loading arcade…</div>}>
       <Client />

@@ -3,8 +3,10 @@ export const ROBINHOOD_CHAIN_ID = 4663
 export const USDG = '0x5fc5360d0400a0fd4f2af552add042d716f1d168' as const
 export const V4_POOL_MANAGER = '0x8366a39cc670b4001a1121b8f6a443a643e40951' as const
 export const V4_STATE_VIEW = '0xf3334192d15450cdd385c8b70e03f9a6bd9e673b' as const
-// Canonical issuer registry + bounded first-120 USDG-pool ranking, 2026-10-07 01:27:59 UTC.
-// This is a curated shortlist, not a claim of exhaustive chain-wide top-ten liquidity.
+// Canonical issuer registry; initial ten retained, ten additions verified 2026-10-07.
+// Additions: bounded first-100 direct USDG pool sample, on-chain block 82349532.
+// Curated stocks, not a claim of exhaustive chain-wide liquidity ranking.
+// Evidence: docs/stock-ninja-assets.md.
 export const STOCK_ASSETS: readonly StockAsset[] = [
   {
     symbol: 'META',
@@ -111,6 +113,114 @@ export const STOCK_ASSETS: readonly StockAsset[] = [
     logo: '/stocks/TSLA.svg',
     tickSpacing: 60,
     hooks: '0x0000000000000000000000000000000000000000',
+  },
+  {
+    symbol: 'AMZN',
+    name: 'Amazon',
+    address: '0x12f190a9f9d7d37a250758b26824b97ce941bf54',
+    pool: '0x8ac92da74ab5f3b1d024dc1943ad7e15dc4179ef',
+    protocol: 3,
+    fee: 3000,
+    color: '#00f3ff',
+    logo: '/stocks/AMZN.png',
+  },
+  {
+    symbol: 'COIN',
+    name: 'Coinbase',
+    address: '0x6330d8c3178a418788df01a47479c0ce7ccf450b',
+    pool: '0x007a13fa152f6dc383cad20a8eaab4e1e2538b606936eae2a424f8aa47d6db31',
+    protocol: 4,
+    fee: 10000,
+    color: '#00f3ff',
+    logo: '/stocks/COIN.png',
+    tickSpacing: 200,
+    hooks: '0x0000000000000000000000000000000000000000',
+  },
+  {
+    symbol: 'AAPL',
+    name: 'Apple',
+    address: '0xaf3d76f1834a1d425780943c99ea8a608f8a93f9',
+    pool: '0xc748f4671a867db48b552f6b7650bf3255e05f80f00e3f7aad1b17ccb7898fdb',
+    protocol: 4,
+    fee: 3000,
+    color: '#00f3ff',
+    logo: '/stocks/AAPL.png',
+    tickSpacing: 60,
+    hooks: '0x0000000000000000000000000000000000000000',
+  },
+  {
+    symbol: 'COST',
+    name: 'Costco',
+    address: '0x4ea005168d7f09a7a0ba9d1def21a479950e44c2',
+    pool: '0x0a2121a50a09ed0796ae81f9c53ff9398355a398',
+    protocol: 3,
+    fee: 3000,
+    color: '#00f3ff',
+    logo: '/stocks/COST.png',
+  },
+  {
+    symbol: 'PLTR',
+    name: 'Palantir Technologies',
+    address: '0x894e1ec2d74ffe5aef8dc8a9e84686accb964f2a',
+    pool: '0xee430ee1003e1985e1828a01b9a20dad67ad4302994fe2abb4a173de4ac54623',
+    protocol: 4,
+    fee: 10000,
+    color: '#00f3ff',
+    logo: '/stocks/PLTR.png',
+    tickSpacing: 200,
+    hooks: '0x0000000000000000000000000000000000000000',
+  },
+  {
+    symbol: 'GME',
+    name: 'GameStop',
+    address: '0x1b0e319c6a659f002271b69db8a7df2f911c153e',
+    pool: '0xe9713f453adb9245b19559790c96f470a18f2fdf',
+    protocol: 3,
+    fee: 10000,
+    color: '#00f3ff',
+    logo: '/stocks/GME.png',
+  },
+  {
+    symbol: 'AMD',
+    name: 'AMD',
+    address: '0x86923f96303d656e4aa86d9d42d1e57ad2023fdc',
+    pool: '0xde9f85fdd9e05a943a52f2c69ffafe3064a3287df03d02c9b431bc92d4781274',
+    protocol: 4,
+    fee: 10000,
+    color: '#00f3ff',
+    logo: '/stocks/AMD.png',
+    tickSpacing: 200,
+    hooks: '0x0000000000000000000000000000000000000000',
+  },
+  {
+    symbol: 'AMC',
+    name: 'AMC Entertainment',
+    address: '0x05a3d1cd21d0c88145e82600e62e7e496e0f222b',
+    pool: '0xaa34fea710a1a737840329051d81d3b0b7c564d5',
+    protocol: 3,
+    fee: 3000,
+    color: '#00f3ff',
+    logo: '/stocks/AMC.png',
+  },
+  {
+    symbol: 'INTC',
+    name: 'Intel',
+    address: '0xc72b96e0e48ecd4dc75e1e45396e26300bc39681',
+    pool: '0x2e5a92f5013a64661a49312111be2e8abd33f56a',
+    protocol: 3,
+    fee: 3000,
+    color: '#00f3ff',
+    logo: '/stocks/INTC.png',
+  },
+  {
+    symbol: 'LLY',
+    name: 'Eli Lilly',
+    address: '0x8005d266423c7ea827372c9c864491e5786600ea',
+    pool: '0xf212d02146a897f5f686e9d629f6a73da534324a',
+    protocol: 3,
+    fee: 500,
+    color: '#00f3ff',
+    logo: '/stocks/LLY.png',
   },
 ]
 export function stockAsset(symbol: string) {

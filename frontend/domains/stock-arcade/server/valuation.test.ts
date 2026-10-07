@@ -74,7 +74,7 @@ test('both bags use one block at or before cutoff, batched pool reads, fixed-blo
           playerId: 'a',
           name: 'A',
           spent: 1,
-          pending: 0,
+          reservedSpend: 0,
           assets: [
             {
               dropId: 'd',
@@ -86,7 +86,7 @@ test('both bags use one block at or before cutoff, batched pool reads, fixed-blo
             },
           ],
         },
-        { playerId: 'b', name: 'B', spent: 0, pending: 0, assets: [] },
+        { playerId: 'b', name: 'B', spent: 0, reservedSpend: 0, assets: [] },
       ],
       100500,
       'https://fixture.invalid'
@@ -133,7 +133,7 @@ test('a provider backoff beyond the valuation budget cancels without premature r
             playerId: 'a',
             name: 'A',
             spent: 1,
-            pending: 0,
+            reservedSpend: 0,
             assets: [
               {
                 dropId: 'd',
@@ -145,7 +145,7 @@ test('a provider backoff beyond the valuation budget cancels without premature r
               },
             ],
           },
-          { playerId: 'b', name: 'B', spent: 0, pending: 0, assets: [] },
+          { playerId: 'b', name: 'B', spent: 0, reservedSpend: 0, assets: [] },
         ],
         100500,
         'https://fixture.invalid'

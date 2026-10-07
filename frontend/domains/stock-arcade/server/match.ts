@@ -1,7 +1,9 @@
 import { ValuationError } from './valuation-error'
+import { shuffledStocks } from '../shared/sequence'
 import { STOCK_ASSETS } from '../shared/assets'
 import {
-  CATCH_CAP,
+  MATCH_BUDGET,
+  CATCH_COST,
   DROP_INTERVAL_MS,
   DROP_BATCH_SIZE,
   DROP_WINDOW_MS,
@@ -26,6 +28,7 @@ export class StockMatch {
   private ready = new Set<string>()
   private claims = new Map<string, { status: 'pending' | 'credited' | 'failed'; symbol: string }>()
   private attempted = new Set<string>()
+  private sequence = shuffledStocks(STOCK_ASSETS)
   private nextDrop = 0
   private timer: ReturnType<typeof setInterval> | null = null
   private readyTimer: ReturnType<typeof setTimeout> | null = null
@@ -45,7 +48,7 @@ export class StockMatch {
         playerId: p.id,
         name: p.name,
         spent: 0,
-        pending: 0,
+        reservedSpend: 0,
         assets: [],
       })),
     }
@@ -84,21 +87,21 @@ export class StockMatch {
       !drop ||
       now < drop.spawnedAt ||
       now >= drop.expiresAt ||
-      bag.spent + bag.pending >= CATCH_CAP ||
+      bag.spent + bag.reservedSpend + CATCH_COST > MATCH_BUDGET ||
       this.attempted.has(key)
     ) {
       this.services.emit('arcade_claim', {
         playerId,
         dropId,
         status: 'failed',
-        reason: 'Catch unavailable, expired or bag full',
+        reason: 'Catch unavailable, expired or budget exhausted',
       })
       return
     }
     // Reserve before the first await. Each opportunity is independent for each player.
     this.attempted.add(key)
     this.claims.set(key, { status: 'pending', symbol: drop.symbol })
-    bag.pending++
+    bag.reservedSpend += CATCH_COST
     this.publish()
     this.services.emit('arcade_claim', { playerId, dropId, status: 'pending' })
     const task = this.services
@@ -119,8 +122,8 @@ export class StockMatch {
           ...quote,
           receivedAt: this.services.now(),
         }
-        bag.pending--
-        bag.spent++
+        bag.reservedSpend -= CATCH_COST
+        bag.spent += CATCH_COST
         bag.assets.push(acquisition)
         this.claims.set(key, { status: 'credited', symbol: drop.symbol })
         this.publish()
@@ -128,7 +131,7 @@ export class StockMatch {
       })
       .catch((error: unknown) => {
         if (this.claims.get(key)?.status !== 'pending') return
-        bag.pending = Math.max(0, bag.pending - 1)
+        bag.reservedSpend = Math.max(0, bag.reservedSpend - CATCH_COST)
         this.claims.set(key, { status: 'failed', symbol: drop.symbol })
         this.publish()
         this.services.emit('arcade_claim', {
@@ -159,11 +162,12 @@ export class StockMatch {
     const batch = Math.floor(this.nextDrop / DROP_BATCH_SIZE)
     if (now >= this.state.startedAt + batch * DROP_INTERVAL_MS) {
       // Shared paired opportunities keep two to four choices alive, not a refill
-      // triggered by catches. The same ten-asset sequence and caps remain authoritative.
+      // triggered by catches. Every player sees the same server-shuffled deck.
       const spawnedAt = this.state.startedAt + batch * DROP_INTERVAL_MS
       for (let n = 0; n < DROP_BATCH_SIZE; n++) {
         const i = this.nextDrop++
-        const asset = STOCK_ASSETS[i % STOCK_ASSETS.length]
+        if (i > 0 && i % STOCK_ASSETS.length === 0) this.sequence = shuffledStocks(STOCK_ASSETS)
+        const asset = this.sequence[i % this.sequence.length]
         const drop: StockDrop = {
           id: `${this.config.roomId}:${i}`,
           symbol: asset.symbol,
@@ -182,7 +186,7 @@ export class StockMatch {
 
   private cutoff() {
     this.cleanup()
-    const ambiguous = this.state.bags.some((b) => b.pending > 0)
+    const ambiguous = this.state.bags.some((b) => b.reservedSpend > 0)
     if (ambiguous) {
       this.cancel('pending_at_cutoff')
       return

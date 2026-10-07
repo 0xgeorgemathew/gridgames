@@ -1,4 +1,6 @@
 import { RealtimeSocket } from '../platform/multiplayer/client'
+import { STOCK_ASSETS } from '../domains/stock-arcade/shared/assets'
+import { MATCH_BUDGET, CATCH_COST } from '../domains/stock-arcade/shared/types'
 import { dropPoint } from '../domains/stock-arcade/client/motion'
 import type { ArcadeState } from '../domains/stock-arcade/shared/types'
 const base = process.argv[2] || 'http://127.0.0.1:4173'
@@ -41,13 +43,13 @@ try {
   a.socket.emit('find_match', {
     playerName: 'Quote QA A',
     gameSlug: 'stock-arcade',
-    gameDuration: 22000,
+    gameDuration: 60000,
     walletAddress: '0x0000000000000000000000000000000000000001',
   })
   b.socket.emit('find_match', {
     playerName: 'Quote QA B',
     gameSlug: 'stock-arcade',
-    gameDuration: 22000,
+    gameDuration: 60000,
     walletAddress: '0x0000000000000000000000000000000000000002',
   })
   await until(() => a.state?.status === 'playing' && b.state?.status === 'playing', 'shared start')
@@ -57,7 +59,9 @@ try {
   const attemptSymbols = new Map<string, string>()
   const visibleCounts: number[] = []
   const batches = new Map<number, Set<string>>()
-  const deadline = Date.now() + 19000
+  const observed = new Map<string, string>()
+  const allAttempts = new Set<string>()
+  const deadline = Date.now() + 55000
   while (Date.now() < deadline && !a.terminal) {
     // Observe the uncaught opponent's actual authoritative stream and render geometry.
     const time = Date.now() + b.serverOffset
@@ -76,37 +80,51 @@ try {
         batches.set(drop.spawnedAt, ids)
       }
     }
-    const creditedSymbols = new Set(
-      a.state!.bags.find((bag) => bag.playerId === a.socket.id)!.assets.map((asset) => asset.symbol)
-    )
-    const latestClaims = new Map(a.claims.map((claim) => [claim.dropId, claim.status]))
-    const pendingSymbols = new Set(
-      [...latestClaims]
-        .filter(([, status]) => status === 'pending')
-        .map(([id]) => attemptSymbols.get(id))
-    )
-    // Coverage strategy only: await each symbol's quote before retrying a later drop.
-    // Real players may catch repeated symbols; the game still dedups by drop ID.
-    for (const drop of a.state!.drops)
-      if (
-        !attempted.has(drop.id) &&
-        !creditedSymbols.has(drop.symbol) &&
-        !pendingSymbols.has(drop.symbol) &&
-        Date.now() < drop.expiresAt
-      ) {
-        attempted.add(drop.id)
-        attemptSymbols.set(drop.id, drop.symbol)
-        a.socket.emit('catch_stock', { dropId: drop.id })
-        a.socket.emit('catch_stock', { dropId: drop.id }) // intentional replay; exactly one credit allowed
+    for (const drop of b.state!.drops) observed.set(drop.id, drop.symbol)
+    for (const [peer, targets] of [
+      [a, STOCK_ASSETS.slice(0, 10)],
+      [b, STOCK_ASSETS.slice(10)],
+    ] as const) {
+      const creditedSymbols = new Set(
+        peer
+          .state!.bags.find((bag) => bag.playerId === peer.socket.id)!
+          .assets.map((asset) => asset.symbol)
+      )
+      const latestClaims = new Map(peer.claims.map((claim) => [claim.dropId, claim.status]))
+      const pendingSymbols = new Set(
+        [...latestClaims]
+          .filter(([, status]) => status === 'pending')
+          .map(([id]) => attemptSymbols.get(id))
+      )
+      for (const drop of peer.state!.drops) {
+        const key = `${peer.socket.id}:${drop.id}`
+        if (
+          !allAttempts.has(key) &&
+          targets.some((asset) => asset.symbol === drop.symbol) &&
+          !creditedSymbols.has(drop.symbol) &&
+          !pendingSymbols.has(drop.symbol) &&
+          Date.now() < drop.expiresAt
+        ) {
+          allAttempts.add(key)
+          attempted.add(drop.id)
+          attemptSymbols.set(drop.id, drop.symbol)
+          peer.socket.emit('catch_stock', { dropId: drop.id })
+          peer.socket.emit('catch_stock', { dropId: drop.id })
+        }
       }
+    }
     await new Promise((r) => setTimeout(r, 100))
   }
   await until(() => a.terminal && b.terminal, 'cutoff', 35000)
-  const bag = a.state!.bags.find((bag) => bag.playerId === a.socket.id)!
+  const bags = a.state!.bags
   if (
-    bag.spent > 10 ||
-    bag.assets.length !== bag.spent ||
-    new Set(bag.assets.map((x) => x.dropId)).size !== bag.assets.length
+    bags.some(
+      (bag) =>
+        bag.spent > MATCH_BUDGET ||
+        bag.reservedSpend !== 0 ||
+        bag.assets.length * CATCH_COST !== bag.spent ||
+        new Set(bag.assets.map((x) => x.dropId)).size !== bag.assets.length
+    )
   )
     throw new Error('Ledger/cap invariant')
   if (
@@ -124,7 +142,9 @@ try {
         sameRoom: true,
         commonCutoff: true,
         attempts: attempted.size,
-        credits: bag.spent,
+        credits: bags.map((bag) => bag.assets.length),
+        spent: bags.map((bag) => bag.spent),
+        shuffledSequence: [...observed.values()].slice(0, 20),
         ledgerDedup: true,
         concurrentVisibleChoices: {
           min: Math.min(...visibleCounts),
@@ -138,7 +158,9 @@ try {
         quoteResults: a.claims
           .filter((c) => c.status === 'failed')
           .map((c) => ({ drop: c.dropId.split(':').at(-1), reason: c.reason })),
-        acquired: bag.assets.map((x) => ({ symbol: x.symbol, amount: x.amount, pool: x.pool })),
+        acquired: bags
+          .flatMap((bag) => bag.assets)
+          .map((x) => ({ symbol: x.symbol, amount: x.amount, pool: x.pool })),
       },
       null,
       2
@@ -147,11 +169,14 @@ try {
   if (
     requireCompleted &&
     (a.state!.status !== 'completed' ||
-      bag.spent !== 10 ||
-      new Set(bag.assets.map((asset) => asset.symbol)).size !== 10 ||
+      bags.some((bag) => bag.spent !== MATCH_BUDGET) ||
+      new Set(bags.flatMap((bag) => bag.assets).map((asset) => asset.symbol)).size !==
+        STOCK_ASSETS.length ||
       !a.state!.result?.winnerFixed)
   )
-    throw new Error('Expected all ten quoted catches and fixed common-cutoff settlement')
+    throw new Error(
+      'Expected all twenty quoted assets across two $10 budgets and fixed common-cutoff settlement'
+    )
 } finally {
   a.close()
   b.close()
