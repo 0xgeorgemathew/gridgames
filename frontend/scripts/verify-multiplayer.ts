@@ -236,14 +236,31 @@ try {
   const transfer = await missing.wait('transport_handoff')
   const path = transfer.path as string
   const denied = async (suffix: string) => {
-    const response = await fetch(base + suffix, { headers: { Upgrade: 'websocket', Connection:'Upgrade', 'Sec-WebSocket-Version':'13', 'Sec-WebSocket-Key':btoa('0123456789abcdef'), Origin:base } })
+    const response = await fetch(base + suffix, {
+      headers: {
+        Upgrade: 'websocket',
+        Connection: 'Upgrade',
+        'Sec-WebSocket-Version': '13',
+        'Sec-WebSocket-Key': btoa('0123456789abcdef'),
+        Origin: base,
+      },
+    })
     if (response.status !== 403) {
       response.webSocket?.close()
-      throw new Error(`Ticket accepted: ${response.status}`)
+      throw new Error(`Ticket accepted at ${suffix.split('?')[0]}: ${response.status}`)
     }
   }
   await denied(path.split('?')[0] + '?ticket=wrong')
-  await new Promise((resolve) => setTimeout(resolve, 200))
+  // Wait for the joined seat's actual room handshake, not a fixed network delay.
+  const joinedRoom = path.split('?')[0].split('/').at(-1)
+  const handoffDeadline = Date.now() + 5000
+  while (
+    (!joined.socket.connected || joined.socket.roomId !== joinedRoom) &&
+    Date.now() < handoffDeadline
+  )
+    await new Promise((resolve) => setTimeout(resolve, 30))
+  if (!joined.socket.connected || joined.socket.roomId !== joinedRoom)
+    throw new Error('Joined seat did not complete its room handoff')
   await denied(joined.handoffs[0])
   await joined.wait('match_aborted', 20000)
   if (joined.frames.some((frame) => frame.event === 'match_found'))
