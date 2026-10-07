@@ -4,7 +4,7 @@
 
 The current `Pivot` branch uses TanStack Start/Router and the official Cloudflare Vite plugin. Next/Vinext/RSC dependencies and obsolete Railway build scripts are removed. Existing React/Zustand clients, Phaser engines, swipe handling, Tron styling, Privy and Farcaster integrations remain. The standalone advisory agent and Solidity contracts are unchanged; no advisory HTTP service existed, so none is invented.
 
-The verified deployed version is `80788e4f-4505-42aa-aff6-bd963abdaa20` (app source `6f3d27e1732fac34d9ea773e1ab156d3b047a6d7`). The isolated preview is https://pivot.gridgames.space, Worker `grid-games-pivot`, account `a22fe9411b81705409eb7cdf9be367e3` (George Mathew). Source config routes only that custom hostname. Its Lobby, GameRoom and QuoteGate bindings are local to that separate Worker: no production namespace IDs, D1, R2, Queues, data migration or live funds. Main production remains `grid-games` at `gridgames.space`. No main/remote branch push is part of this work.
+The verified deployed version is `99855924-8eaa-42e0-b902-1ac44f90ad1d` (app source `38541e248ffd922c6ab0e8583a3249a71aea0459`). The isolated preview is https://pivot.gridgames.space, Worker `grid-games-pivot`, account `a22fe9411b81705409eb7cdf9be367e3` (George Mathew). Source config routes only that custom hostname. Its Lobby, GameRoom and QuoteGate bindings are local to that separate Worker: no production namespace IDs, D1, R2, Queues, data migration or live funds. Main production remains `grid-games` at `gridgames.space`. No main/remote branch push is part of this work.
 
 `src/routes/` owns page and HTTP routing, including the hidden `/.well-known/farcaster.json` route. `worker/index.ts` intercepts native WebSocket endpoints and delegates other requests to TanStack Start. Browser-only lazy loaders prevent Phaser/WebGL hydration on the server. Fonts are bundled as local static assets. TypeScript is strict.
 
@@ -26,7 +26,7 @@ The final deployed stock lobby and landing each measured zero GL draws, zero RAF
 
 Validation includes strict types, lint, 45 frontend tests/16245 assertions and the unchanged advisory package's 41 tests/125 assertions. Native Workers local preview served all page routes without hydration exceptions or 390×844 horizontal overflow. Live protocol checks cover both retained games, room isolation, rejected/replayed tickets, partial handoff timeout, disconnect and fresh rematch. Existing Privy sessions stay authenticated through routing and reload. The current Stock Ninja verification is recorded below; fresh OTP/login and signed Farcaster publication remain untested.
 
-### Approved coin, music and HUD corrections
+### Earlier approved coin, music and HUD corrections
 
 App commit `6f3d27e1732fac34d9ea773e1ab156d3b047a6d7` is deployed as version
 `80788e4f-4505-42aa-aff6-bd963abdaa20`, verified at 100% isolated preview traffic.
@@ -400,7 +400,7 @@ scalable SVG artwork; genuine black marks sit on a neutral pale chamber. NVIDIA
 uses a viewBox crop of its original green symbol for readability. See
 [artwork provenance](stock-ninja-logos.md) for all twenty sources.
 
-The slice now lasts at most360ms rather than180ms and fractures the actual disc
+The slice now lasts at most 360ms rather than180ms and fractures the actual disc
 core, segmented rim and original logo into32 bounded angular prism fragments.
 Edges briefly illuminate, fragments separate locally (under14CSSpx even on a
 112px disc), and staggered shrink/dissolve removes them. No debris travels through
@@ -415,3 +415,46 @@ The [reference frame](https://images3.alphacoders.com/967/thumb-1920-96795.jpg)
 is film imagery used for visual review only; it is not included in the game.
 This is an original lightweight2D interpretation for coin feedback, not copied
 film animation.
+
+### Verified refinement deployment
+
+App source `38541e248ffd922c6ab0e8583a3249a71aea0459` is deployed as
+`99855924-8eaa-42e0-b902-1ac44f90ad1d` at 100% traffic on `grid-games-pivot`.
+Published `StockArcadeClient-DDcXRkSu.js` and all 20 SVG files match the final build
+byte-for-byte. No production/main/remote-Git or real-money changes were made.
+
+Strict types, lint, build and deployment dry-run pass;47 tests / 16,543 assertions
+pass, including exact 75% arc preservation and an authoritative catch during the
+extended flight followed by rejection at exact expiry. Existing budget, local
+reservation, duplicate, pending/late cutoff and cancellation coverage passes.
+Built local Worker/DO protocol verifies the same three-coin contracts, all 20
+shared stocks, dedup and disconnect cancellation. Without the local quote secret,
+quotes correctly fail with no simulated debit/credit. The final preview was
+restarted against the final build for page/asset checks after an earlier running
+preview retained stale chunk names across a rebuild.
+
+Live quote-backed protocol verification completed with 10 catches / $10 per player,
+all 20stocks acquired across both bags, identical shared drops and at most 3
+visible choices across 532 samples. Both results used block 82490462, with a
+**19.994084USDG simulated** prize. Disconnect cancellation and the full retained
+Hyper/Tap live suite (prices, positions, settlement, independent rooms, tickets,
+reconnect and fresh rematch) pass.
+
+Actual authenticated native Chrome UI verified 9 mobile catches / $9, with both
+clients agreeing on block 82491493 and an **8.9972USDG simulated** prize. Mobile
+content width was measured390 native/CSS px at 100% zoom; no profile-wide zoom was
+changed. Desktop then confirmed 10 catches / $10 and refused further swipe debit,
+with both clients agreeing on block 82492647 and a **9.9947USDG simulated** prize.
+Fresh rematch resets, Exit cancellation for both players and lobby Back passed.
+Actual screenshots show the original-color logos, larger discs and localized
+fracture on desktop/mobile. A 6.04-second native mobile toss video uses measured
+frame timestamp intervals (27 frames captured over 6.119 seconds), not accelerated
+playback. Its low capture frame rate is an evidence limitation, not game FPS.
+
+Actual-component synthetic fixtures at 1200/390/320px verified measured HUD
+boundaries, three separated readable discs, all 20untinted logos, touch bag
+scrolling, original audio loop/mute and terminal reset cleanup. Public Stock
+lobby 5-second counters remained0 GL draws / 0 RAF callbacks / 0 canvases after its cached
+raster. Fresh OTP/Farcaster publication and native Task Manager CPU measurements
+were not repeated; do not treat those as passes. Evidence is saved in the task's
+`evidence/refinement/` directory.

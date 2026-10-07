@@ -70,3 +70,12 @@ written upfront as policy.
 - Stock issuer `logoUrl` may point to a generic issuer icon. For identifiable stock discs, source real scalable brand geometry, retain provenance, and keep a ticker alongside wide wordmarks.
 - Local optimistic claim guards should count only unacknowledged local cost. The authoritative server ledger publishes reservations/releases before claim acknowledgement; counting local pending and server reserved dollars together after acknowledgement would double-count.
 - Prime stock media only from matchmaking gestures. Priming on every document gesture can briefly start a silent loop in lobby/results; lifecycle cleanup and stored mute behavior need real browser checks as well as media-unit coverage.
+
+- A white stock logo can be caused by presentation filters even when its SVG is
+  colored. Inspect both source artwork and CSS before replacing it. Preserve
+  original colors/gradients; put genuine black marks on a neutral chamber rather
+  than tinting them. Crop a verified symbol through the SVG viewBox when a wide
+  corporate wordmark becomes unreadable. Keep source provenance for each asset.
+- Scale both stock toss duration and launch interval together when changing speed,
+  and use the same shared duration for client motion and authoritative expiry.
+  Cutoff clips motion; it must not compress a late toss into a faster trajectory.
