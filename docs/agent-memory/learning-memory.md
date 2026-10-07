@@ -105,3 +105,11 @@ written upfront as policy.
   an idle raster at time zero to page uptime can jump animation state at launch.
   Keep GridScan geometry rigid, start its sweep locally, and inspect cold/cache/active
   transitions as well as zero idle draw counts.
+
+- Keep local contact lifetimes independent of a corrected server clock: quote/state
+  updates can rewind artwork even when they do not explicitly wait for a quote.
+  Use monotonic local time for contact art and retain authoritative time for rules.
+- Continuous subdivision must inherit its moving parent at the boundary and start
+  shrinking immediately. Measure actual active simultaneous hits: fewer SVG nodes
+  can still increase paint/style work. Cache small contact textures/geometry and
+  verify hidden/unmount/late-callback cleanup without adding idle loops.
