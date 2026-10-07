@@ -96,5 +96,7 @@ written upfront as policy.
 
 - Stock contact animation must visibly alter the original logo and rim. An intact
   fade plus an abstract mark can satisfy event assertions yet fail game feel.
-  Keep a readable local slice phase distinct from authoritative HUD quote outcomes;
-  inspect actual rendered phases as well as ownership/accounting tests.
+  A two-half split/fade is not proper de-rez: preserve original artwork through
+  successively smaller digital fragments, then collapse the pixels locally. Keep
+  authoritative outcomes in the HUD; inspect timed phases and normal-speed playback
+  at desktop/mobile sizes as well as ownership/accounting tests.

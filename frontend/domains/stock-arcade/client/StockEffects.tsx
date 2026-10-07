@@ -1,3 +1,5 @@
+import { useId } from 'react'
+import { deRezFragments, DEREZ_MS, FRACTURE_MS } from './derez-motion'
 import { stockAsset } from '../shared/assets'
 import type { ContactKind } from './contact-feedback'
 import { COIN_CONFIG } from '@/platform/game-engine/visuals/tron-disc'
@@ -86,8 +88,8 @@ export function StockBlade({
     </svg>
   )
 }
-/** Split the actual logo and rim along the swipe, then dissolve in place.
- * Match-clock driven: no particle loop, gravity, delayed callback or credit mark. */
+/** Cut -> subdivide the original disc -> smaller fragments -> collapsing pixels.
+ * Match-clock driven, localized, with no gravity or authoritative outcome mark. */
 export function StockContact({
   progress,
   kind,
@@ -103,14 +105,23 @@ export function StockContact({
   angle?: number
   reducedMotion?: boolean
 }) {
+  const id = useId().replaceAll(':', '')
   if (kind !== 'pending') return null
   const p = Math.max(0, Math.min(1, progress))
-  const separation = 1 - Math.pow(1 - Math.min(1, p / 0.8), 3)
-  const dissolve = Math.max(0, (p - 0.48) / 0.52)
-  const opacity = 1 - dissolve * dissolve
+  const elapsed = p * DEREZ_MS
+  const separation = Math.min(1, elapsed / FRACTURE_MS)
+  const fragments = deRezFragments(elapsed)
+  const degrees = (angle * 180) / Math.PI
   return (
-    <div className="ninja-contact ninja-contact-pending" data-contact="pending" style={{ opacity }}>
+    <div
+      className="ninja-contact ninja-contact-pending"
+      data-contact="pending"
+      data-derez-stage={
+        reducedMotion ? 'reduced' : elapsed < FRACTURE_MS ? 'fracture' : fragments.stage
+      }
+    >
       {!reducedMotion &&
+        elapsed < FRACTURE_MS &&
         [-1, 1].map((side) => (
           <div key={side} className="ninja-slice-axis" style={{ transform: `rotate(${angle}rad)` }}>
             <div
@@ -120,7 +131,7 @@ export function StockContact({
                   side < 0
                     ? 'polygon(0 0,100% 0,100% 50%,0 50%)'
                     : 'polygon(0 50%,100% 50%,100% 100%,0 100%)',
-                transform: `translate(${side * separation * 3}%,${side * separation * 17}%) rotate(${side * separation * 0.12}rad) scale(${1 - dissolve * 0.12})`,
+                transform: `translate(${side * separation * 1}%,${side * separation * 5}%) rotate(${side * separation * 0.03}rad)`,
               }}
             >
               <div className="ninja-contact-disc" style={{ transform: `rotate(${-angle}rad)` }}>
@@ -139,16 +150,92 @@ export function StockContact({
                 </span>
               </div>
               <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
-                <path d="M-25 0H25" stroke={energy} strokeWidth="2" opacity={1 - dissolve} />
+                <path d="M-25 0H25" stroke={energy} strokeWidth="2" opacity={1} />
               </svg>
             </div>
           </div>
         ))}
+      {!reducedMotion && elapsed >= FRACTURE_MS && (
+        <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
+          <defs>
+            <radialGradient id={`${id}-chamber`} cx="35%" cy="25%">
+              <stop stopColor="#ffffff" />
+              <stop offset="1" stopColor="#e7edf0" />
+            </radialGradient>
+            <g id={`${id}-disc`}>
+              <g transform={`scale(0.9083) rotate(${(rotation * 180) / Math.PI})`}>
+                <DiscArtwork />
+              </g>
+              <circle cy="-4.3" r="14.5" fill={`url(#${id}-chamber)`} />
+              <image
+                href={stockAsset(symbol)!.logo}
+                x="-11.3"
+                y="-15.6"
+                width="22.6"
+                height="22.6"
+                preserveAspectRatio="xMidYMid meet"
+              />
+              <text
+                y="16.5"
+                fill="#ffffff"
+                textAnchor="middle"
+                fontFamily="var(--font-orbitron)"
+                fontSize="5.8"
+                fontWeight="800"
+              >
+                {symbol}
+              </text>
+            </g>
+            {fragments.cells.map((cell, i) => (
+              <clipPath key={i} id={`${id}-cell-${i}`}>
+                <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} />
+              </clipPath>
+            ))}
+          </defs>
+          <g transform={`rotate(${degrees})`}>
+            {fragments.cells.map((cell, i) => (
+              <g
+                key={`${fragments.stage}-${i}`}
+                transform={`translate(${cell.cx + cell.dx} ${cell.cy + cell.dy}) rotate(${cell.rotation}) scale(${cell.scale}) translate(${-cell.cx} ${-cell.cy})`}
+              >
+                <g clipPath={`url(#${id}-cell-${i})`}>
+                  <use
+                    href={`#${id}-disc`}
+                    transform={`rotate(${-degrees})`}
+                    opacity={1 - cell.energy}
+                  />
+                  <rect
+                    x={cell.x}
+                    y={cell.y}
+                    width={cell.width}
+                    height={cell.height}
+                    fill={energy}
+                    opacity={cell.energy}
+                  />
+                  <rect
+                    x={cell.x}
+                    y={cell.y}
+                    width={cell.width}
+                    height={cell.height}
+                    fill="none"
+                    stroke={energy}
+                    strokeWidth="0.55"
+                    opacity="0.8"
+                  />
+                </g>
+              </g>
+            ))}
+          </g>
+        </svg>
+      )}
       <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
         {reducedMotion ? (
-          <circle r="27" fill="none" stroke={energy} strokeWidth="2" />
+          <circle r="27" fill="none" stroke={energy} strokeWidth="2" opacity={1 - p} />
         ) : (
-          <g transform={`rotate(${(angle * 180) / Math.PI})`} opacity={Math.max(0, 1 - p / 0.32)}>
+          <g
+            transform={`rotate(${(angle * 180) / Math.PI})`}
+            opacity={Math.max(0, 1 - elapsed / 90)}
+          >
             <path d="M-30 0H30" stroke={energy} strokeWidth="4" opacity="0.6" />
             <path d="M-30 0H30" stroke="#ffffff" strokeWidth="1.5" />
           </g>

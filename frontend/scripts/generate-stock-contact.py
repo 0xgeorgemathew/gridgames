@@ -6,7 +6,7 @@ import struct
 import wave
 
 RATE = 44100
-samples = [0.0] * int(RATE * 1.5)
+samples = [0.0] * int(RATE * 1.85)
 rng = random.Random(4663)
 
 
@@ -30,6 +30,10 @@ def cue(offset, duration, kind, variant=0):
                     + 0.27 * band * math.exp(-t * 23)
                     + 0.19 * math.sin(edge_phase) * math.exp(-t * 28)
                     + 0.09 * math.sin(edge_phase * 1.51) * math.exp(-t * 37))
+            if t > 0.09:
+                u = t - 0.09
+                pulse = max(0, math.sin(2 * math.pi * 34 * u)) ** 4
+                tone += 0.12 * band * pulse * math.exp(-u * 14)
         elif kind == 'credited':
             # Small, warm resolved interval; separate from the physical slice.
             tone = 0.32 * math.sin(2 * math.pi * 784 * t) * math.exp(-t * 20)
@@ -48,10 +52,10 @@ def cue(offset, duration, kind, variant=0):
 
 
 for v in range(3):
-    cue(v * 0.25, 0.19, 'pending', v)
-cue(0.75, 0.23, 'credited')
-cue(1.05, 0.18, 'failed')
-cue(1.30, 0.13, 'rejected')
+    cue(v * 0.35, 0.31, 'pending', v)
+cue(1.05, 0.23, 'credited')
+cue(1.35, 0.18, 'failed')
+cue(1.60, 0.13, 'rejected')
 path = Path(__file__).resolve().parents[1] / 'public/audio/stock-contact.wav'
 with wave.open(str(path), 'wb') as out:
     out.setnchannels(1)

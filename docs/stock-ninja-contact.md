@@ -1,18 +1,20 @@
-# Stock Ninja slice and outcome feedback
+# Stock Ninja de-rez and outcome feedback
 
-The requirements review on 2026-10-07 replaced the intact fading disc and floating
-quote tick/cross. Contact now visibly cuts **the original logo and segmented rim**
-along the swipe direction. Two clipped halves separate by at most about one third
-of a disc diameter, rotate slightly and dissolve locally over **380 ms**. The first
-122 ms includes a white/cyan blade flash; the split remains legible before fading.
-No cubes, gravity, debris flying downscreen, new collision/penalty/combo rules or
-extra animation loop. Reduced motion uses a stationary cyan outline.
+The requirements correction on 2026-10-07 replaces the intermediate two-half
+split/fade with **progressive digital disintegration of the original coin**.
+A 90 ms swipe-aligned fracture preserves the circular company logo and segmented
+rim. The same artwork then subdivides into 8 coarse and 32 smaller fragments,
+then up to 128 fine cells. Fine pieces become cyan energy pixels and shrink to
+zero by **520 ms**. The sequence has no overall opacity fade. Fragment centers
+stay within the contact footprint; there is no gravity or travelling debris.
+The match clock owns its lifetime; reduced motion keeps a stationary outline.
+Quote outcomes remain subtly in the HUD, never a floating checkmark at the hit.
 
 ## Actual event meanings
 
 | Event                                                           | Visual                                                                                               | Sound                                                                  | Accounting                                   |
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
-| Unique locally reserved contact                                 | Swipe-aligned split of logo/rim; cyan pending HUD                                                    | 190 ms layered body/edge/energy tail; three slight material variations | Pending only, no asset credit                |
+| Unique locally reserved contact                                 | Progressive original-logo/rim de-rez; cyan pending HUD                                                    | 310 ms body/blade/digital decay; three material variations | Pending only, no asset credit                |
 | Authoritative credited acknowledgement for that initiated claim | Newly acquired bag entry pulses mint for 600 ms; subtle mint status/pending HUD, no arena mark       | 230 ms warm resolved interval                                          | Server credited simulated units and $1 spend |
 | Authoritative failed acknowledgement                            | Amber reservation-release status/pending HUD and available-balance outline for 650 ms; no arena mark | 180 ms low descending release                                          | Reservation released, no spend/credit        |
 | Local budget refusal                                            | Amber available-balance outline for 250 ms; disc remains visible/catchable                           | 130 ms damped double tap, 350 ms cooldown                              | No reservation/spend/credit                  |
@@ -29,17 +31,17 @@ ownership across transport reconnect (the earlier fix remains intact).
 
 The existing `StockAudio` controller retains native streaming music and one
 autoplay-disabled Howler 2.2.4 sprite Howl. The original six-cue mono file is now
-44.1 kHz, 1.5 seconds and 132,344 bytes, generated deterministically by
+44.1 kHz, 1.85 seconds and 163,214 bytes, generated deterministically by
 `scripts/generate-stock-contact.py`; it contains no third-party/film samples.
 Contact layers combine a short low body, band-limited blade noise and a bright
-decaying edge rather than the old dry tick. Variations do not form a combo ladder.
+decaying edge plus a band-limited pulsing digital tail aligned with subdivision. Variations do not form a combo ladder.
 
 Loaded/unlocked/visible/current-round guards discard unavailable transients;
 nothing is deferred until load or gesture. A real three-active-ID cap remains
 independent of Howler's inactive-object pool; simultaneous contacts coalesce,
 confirmation may replace contact tails, and overlap gain decreases. Contact gain
 is 0.42, credit 0.28 and negative outcomes 0.30 before overlap attenuation. Music
-stays at 0.30. The sprite has no clipped samples (peak 0.822 before playback gain).
+stays at 0.30. The sprite has no clipped samples (peak 0.800 before playback gain).
 
 The existing shared mute preference, silent gesture unlock, visibility pause,
 current-round music resume, error handling and owned-only unmount cleanup remain.
@@ -51,7 +53,10 @@ real quotes with simulated fills/payouts, native transport and older games remai
 
 Reference: [official Howler API, sprites, pooling and mobile unlock](https://github.com/goldfire/howler.js#documentation).
 
-## Verified preview: 2026-10-07
+## Intermediate split preview verification: 2026-10-07
+
+The following is historical coverage of the intermediate split implementation,
+not signoff on proper de-rez. Corrected deployment verification is recorded below.
 
 - Source commit `0b1a670`; isolated Worker `grid-games-pivot`; deployed version
   `9cc40b7a-d4dd-49e3-a274-504efc962016` at `https://pivot.gridgames.space`.

@@ -1,11 +1,11 @@
 import type { ContactKind } from './contact-feedback'
 export const CONTACT_SPRITES: Record<string, [number, number]> = {
-  pending0: [0, 190],
-  pending1: [250, 190],
-  pending2: [500, 190],
-  credited: [750, 230],
-  failed: [1050, 180],
-  rejected: [1300, 130],
+  pending0: [0, 310],
+  pending1: [350, 310],
+  pending2: [700, 310],
+  credited: [1050, 230],
+  failed: [1350, 180],
+  rejected: [1600, 130],
 }
 export interface SoundPort {
   loaded(): boolean
