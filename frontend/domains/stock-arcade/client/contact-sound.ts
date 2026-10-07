@@ -1,11 +1,11 @@
 import type { ContactKind } from './contact-feedback'
 export const CONTACT_SPRITES: Record<string, [number, number]> = {
-  pending0: [0, 90],
-  pending1: [160, 90],
-  pending2: [320, 90],
-  credited: [480, 160],
-  failed: [720, 140],
-  rejected: [940, 90],
+  pending0: [0, 190],
+  pending1: [250, 190],
+  pending2: [500, 190],
+  credited: [750, 230],
+  failed: [1050, 180],
+  rejected: [1300, 130],
 }
 export interface SoundPort {
   loaded(): boolean
@@ -67,7 +67,7 @@ export class ContactSound {
     try {
       const id = this.port.play(kind === 'pending' ? `pending${this.variation++ % 3}` : kind)
       this.port.volume(
-        (kind === 'pending' ? 0.25 : kind === 'credited' ? 0.21 : 0.19) /
+        (kind === 'pending' ? 0.42 : kind === 'credited' ? 0.28 : 0.3) /
           Math.sqrt(this.voices.length + 1),
         id
       )

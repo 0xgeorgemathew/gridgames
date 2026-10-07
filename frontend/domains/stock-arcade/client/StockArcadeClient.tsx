@@ -30,7 +30,7 @@ import { MatchPlayer } from './match-player'
 import { useStockMusic } from './use-stock-music'
 import { dropPoint, segmentHitsDisc, discDiameter } from './motion'
 interface ContactVisual extends ContactAnchor {
-  kind: ContactKind
+  kind: 'pending'
   at: number
 }
 export function StockArcadeClient() {
@@ -65,6 +65,10 @@ export function StockArcadeClient() {
   const [now, setNow] = useState(Date.now())
   const [caught, setCaught] = useState<ContactVisual[]>([])
   const [creditPulse, setCreditPulse] = useState<{ dropId: string; at: number } | null>(null)
+  const [quotePulse, setQuotePulse] = useState<{
+    kind: Exclude<ContactKind, 'rejected'>
+    at: number
+  } | null>(null)
   const [rejectedAt, setRejectedAt] = useState(-Infinity)
   const [notice, setNotice] = useState('')
   const [reducedMotion, setReducedMotion] = useState(false)
@@ -79,11 +83,12 @@ export function StockArcadeClient() {
   const music = useStockMusic(
     connected && game?.status === 'playing' && now >= game.startedAt && now < game.cutoffAt
   )
-  const showContact = (anchor: ContactAnchor, kind: ContactKind) => {
+  const showContact = (anchor: ContactAnchor, kind: 'pending') => {
     const at = Date.now() + offset.current
     setCaught((old) =>
       [...old.filter((v) => at - v.at < CONTACT_MS[v.kind]), { ...anchor, kind, at }].slice(-9)
     )
+    setQuotePulse({ kind, at })
     music.feedback(kind)
   }
   useEffect(() => {
@@ -128,6 +133,7 @@ export function StockArcadeClient() {
       feedback.current.reset()
       setCaught([])
       setCreditPulse(null)
+      setQuotePulse(null)
       setNotice('Connection lost. The prototype match is cancelled; reconnect starts fresh.')
     })
     client.on('error', (raw: unknown) => {
@@ -179,9 +185,16 @@ export function StockArcadeClient() {
         claimBudget.current.reset()
         setCaught([])
         setCreditPulse(null)
+        setQuotePulse(null)
         setRejectedAt(-Infinity)
         feedback.current.reset(next.matchId)
         client.emit('scene_ready')
+      }
+      if (next.status !== 'playing') {
+        pointer.current = null
+        setTrail([])
+        setCaught([])
+        setQuotePulse(null)
       }
       if (next.status === 'completed' || next.status === 'cancelled') claimBudget.current.reset()
       if (next.status === 'cancelled')
@@ -204,10 +217,12 @@ export function StockArcadeClient() {
       if (!contact) return
       if (claim.status === 'credited') {
         setCreditPulse({ dropId: claim.dropId, at: Date.now() + offset.current })
-        showContact(contact, 'credited')
+        setQuotePulse({ kind: 'credited', at: Date.now() + offset.current })
+        music.feedback('credited')
         setNotice('Quote received. $1 simulated catch added to your bag.')
       } else {
-        showContact(contact, 'failed')
+        setQuotePulse({ kind: 'failed', at: Date.now() + offset.current })
+        music.feedback('failed')
         setNotice(
           `${claim.reason || 'Quote unavailable'} · $1 reservation released. No spend or credit.`
         )
@@ -298,6 +313,7 @@ export function StockArcadeClient() {
     claimBudget.current.reset()
     feedback.current.reset()
     setCreditPulse(null)
+    setQuotePulse(null)
     setRejectedAt(-Infinity)
     claimed.current.clear()
     setWaiting(true)
@@ -316,6 +332,7 @@ export function StockArcadeClient() {
     claimBudget.current.reset()
     feedback.current.reset()
     setCreditPulse(null)
+    setQuotePulse(null)
     setRejectedAt(-Infinity)
     setTrail([])
     setCaught([])
@@ -517,10 +534,18 @@ export function StockArcadeClient() {
             dockRef={dock}
             topRef={top}
             creditPulse={
-              creditPulse && now - creditPulse.at < 360
+              creditPulse && now - creditPulse.at < CONTACT_MS.credited
                 ? {
                     dropId: creditPulse.dropId,
-                    progress: Math.max(0, (now - creditPulse.at) / 360),
+                    progress: Math.max(0, (now - creditPulse.at) / CONTACT_MS.credited),
+                  }
+                : undefined
+            }
+            quotePulse={
+              quotePulse && now - quotePulse.at < CONTACT_MS[quotePulse.kind]
+                ? {
+                    kind: quotePulse.kind,
+                    progress: Math.max(0, (now - quotePulse.at) / CONTACT_MS[quotePulse.kind]),
                   }
                 : undefined
             }

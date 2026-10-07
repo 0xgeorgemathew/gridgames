@@ -1,5 +1,5 @@
 export type ContactKind = 'pending' | 'credited' | 'failed' | 'rejected'
-export const CONTACT_MS = { pending: 180, credited: 220, failed: 160, rejected: 160 } as const
+export const CONTACT_MS = { pending: 380, credited: 600, failed: 650, rejected: 250 } as const
 export interface ContactAnchor {
   dropId: string
   symbol: string

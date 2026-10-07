@@ -1,63 +1,52 @@
-# Stock Ninja arcade contact feedback
+# Stock Ninja slice and outcome feedback
 
-George replaced the film-style de-rez direction with game-fit arcade feedback on
-2026-10-07. The previous chunk/glass effect is removed from the runtime. Current
-feedback uses a compact **neon snap**, not fragments or prolonged destruction.
-Circular original-color logos, the floating simulated balance/per-catch cost HUD,
-75% toss speed, shared three-disc launches, twenty stocks, dollar reservations and
-all existing economic rules remain.
+The requirements review on 2026-10-07 replaced the intact fading disc and floating
+quote tick/cross. Contact now visibly cuts **the original logo and segmented rim**
+along the swipe direction. Two clipped halves separate by at most about one third
+of a disc diameter, rotate slightly and dissolve locally over **380 ms**. The first
+122 ms includes a white/cyan blade flash; the split remains legible before fading.
+No cubes, gravity, debris flying downscreen, new collision/penalty/combo rules or
+extra animation loop. Reduced motion uses a stationary cyan outline.
 
 ## Actual event meanings
 
-| Event                                                                                                 | Visual                                                            | Sound                                                            | Accounting                                          |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------- |
-| Unique local contact, budget successfully reserved                                                    | White cut/rim snap, original disc fades locally over180ms         | Quiet90ms dry synthetic tik-zzt, one of three non-ladder timbres | Pending only; no asset credit                       |
-| Authoritative `arcade_claim: credited` for a locally initiated claim                                  | Compact220ms mint check; newly acquired bag entry pulses          | Quieter160ms two-note confirmation                               | Server already credited simulated units and$1 spend |
-| `arcade_claim: failed` for that local claim                                                           | Restrained160ms amber cross; truthful reservation-release message | Soft140ms descending cue                                         | No spend/credit; reservation released               |
-| Local budget guard refuses a new contact                                                              | Amber available-balance outline; disc remains catchable           | Damped90ms low tok,350ms sound cooldown                          | No reservation/spend/credit                         |
-| Miss, spawn, pointer movement without a new contact, already handled disc or replayed acknowledgement | None                                                              | Silent                                                           | Existing rules                                      |
+| Event                                                           | Visual                                                                                               | Sound                                                                  | Accounting                                   |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
+| Unique locally reserved contact                                 | Swipe-aligned split of logo/rim; cyan pending HUD                                                    | 190 ms layered body/edge/energy tail; three slight material variations | Pending only, no asset credit                |
+| Authoritative credited acknowledgement for that initiated claim | Newly acquired bag entry pulses mint for 600 ms; subtle mint status/pending HUD, no arena mark       | 230 ms warm resolved interval                                          | Server credited simulated units and $1 spend |
+| Authoritative failed acknowledgement                            | Amber reservation-release status/pending HUD and available-balance outline for 650 ms; no arena mark | 180 ms low descending release                                          | Reservation released, no spend/credit        |
+| Local budget refusal                                            | Amber available-balance outline for 250 ms; disc remains visible/catchable                           | 130 ms damped double tap, 350 ms cooldown                              | No reservation/spend/credit                  |
+| Empty swipe, miss, duplicate intersection or acknowledgement    | None                                                                                                 | Silent                                                                 | Existing rules                               |
 
-There are no invented collisions, penalties, combo multipliers or real trade
-confirmation sounds. Pending has no checkmark. A single swipe can contact several
-discs, each with its own visual. Near-simultaneous audio is coalesced and at most
-three voices are active; new confirmation/failure cues can replace older contact
-tails. Overlap gain decreases. The rejected disc stays visible and is eligible
-for a later valid contact if pending capacity releases.
-
-`ContactFeedback` deduplicates local claims and terminal acknowledgements within
-the round. Ready/rematch/disconnect resets it. Unknown/restored bag entries do not
-manufacture confirmation cues. Native transport discards messages from an old
-WebSocket during room handoff; the feedback handler additionally requires the
-current room/match and live pre-cutoff state. Late old-round responses and terminal
-state changes stay silent. Completed results retain the original match player ID across a fresh transport reconnect; a new match captures its new session. This prevents missing-bag/NaN display without changing scoring. Reduced motion uses a compact outline without disc
-scaling or the moving blade.
+The shared clock removes contact art. Terminal/ready/rematch/disconnect clears
+local feedback; leaving a live state also clears pointer/blade history. Credits
+and failures require a unique initiated current-room claim, playing state and a
+pre-cutoff timestamp. Restored ledgers, replayed messages, old rooms and late round
+callbacks do not manufacture cues. Completed results retain original player
+ownership across transport reconnect (the earlier fix remains intact).
 
 ## Audio ownership
 
-Howler **2.2.4** supplies one preloaded, autoplay-disabled WebAudio sound-sprite
-Howl with HTML5 fallback. Sprite offsets/durations are milliseconds and playback
-IDs enforce a real voice cap: Howler's `pool` only recycles inactive objects.
-Transient cues require decoded/loaded audio and an unlocked current gesture;
-past cues are discarded rather than played after load/unlock. A play error does
-not block gameplay or queue a historical retry.
+The existing `StockAudio` controller retains native streaming music and one
+autoplay-disabled Howler 2.2.4 sprite Howl. The original six-cue mono file is now
+44.1 kHz, 1.5 seconds and 132,344 bytes, generated deterministically by
+`scripts/generate-stock-contact.py`; it contains no third-party/film samples.
+Contact layers combine a short low body, band-limited blade noise and a bright
+decaying edge rather than the old dry tick. Variations do not form a combo ladder.
 
-The existing native HTML5 music element and `StockMusic` lifecycle are retained
-for the original streaming loop and immediate visibility handling. One
-`StockAudio` controller owns both music and contact sounds. The shared per-game
-mute preference stops both; hidden tabs stop transient sounds and pause music.
-Visibility resumes music only during the enabled current round, with no replay
-of hidden contact history. Ordinary Start/pointer/key gestures unlock silently.
-Unmount removes app listeners, pauses/releases music, stops/unloads only the
-owned Howl and invalidates old callbacks. There is no global mute/unload, audio
-polling loop or effect-owned RAF. Howler's normal idle auto-suspend remains on.
+Loaded/unlocked/visible/current-round guards discard unavailable transients;
+nothing is deferred until load or gesture. A real three-active-ID cap remains
+independent of Howler's inactive-object pool; simultaneous contacts coalesce,
+confirmation may replace contact tails, and overlap gain decreases. Contact gain
+is 0.42, credit 0.28 and negative outcomes 0.30 before overlap attenuation. Music
+stays at 0.30. The sprite has no clipped samples (peak 0.822 before playback gain).
 
-Official references: [release2.2.4](https://github.com/goldfire/howler.js/releases/tag/v2.2.4),
-[API, sprites, playback, pooling and mobile unlock](https://github.com/goldfire/howler.js#documentation),
-[upstream implementation](https://raw.githubusercontent.com/goldfire/howler.js/master/src/howler.core.js).
+The existing shared mute preference, silent gesture unlock, visibility pause,
+current-round music resume, error handling and owned-only unmount cleanup remain.
+No global mute/unload, stale-hit replay, audio polling or second sound system.
 
-`public/audio/stock-contact.wav` is an original synthetic mono six-cue sprite,
-48,554bytes, generated deterministically by `scripts/generate-stock-contact.py`.
-No film or third-party sound sample ships. Visuals use existing shared TRON rim
-and ribbon geometry, SVG/DOM only, confined to roughly1.27disc diameters and
-removed by the existing match clock. There are no particle canvases or idle
-contact animation work.
+Circular original-color artwork, lower balance/catch HUD, twenty canonical stocks,
+shared three-disc shuffle, 75% toss speed, server catch windows, $1/$10 accounting,
+real quotes with simulated fills/payouts, native transport and older games remain.
+
+Reference: [official Howler API, sprites, pooling and mobile unlock](https://github.com/goldfire/howler.js#documentation).

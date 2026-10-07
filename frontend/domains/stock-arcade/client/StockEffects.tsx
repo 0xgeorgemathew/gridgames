@@ -86,8 +86,8 @@ export function StockBlade({
     </svg>
   )
 }
-/** A compact arcade snap; pending never shows a success mark. Advanced by the
- * existing match clock, with no particle canvas, own RAF or delayed animation. */
+/** Split the actual logo and rim along the swipe, then dissolve in place.
+ * Match-clock driven: no particle loop, gravity, delayed callback or credit mark. */
 export function StockContact({
   progress,
   kind,
@@ -103,71 +103,55 @@ export function StockContact({
   angle?: number
   reducedMotion?: boolean
 }) {
+  if (kind !== 'pending') return null
   const p = Math.max(0, Math.min(1, progress))
-  const opacity = 1 - p * p
-  const pending = kind === 'pending'
-  const positive = kind === 'credited'
-  const color = pending ? energy : positive ? '#a3fff1' : '#ff9c45'
-  const scale = reducedMotion
-    ? 1
-    : pending
-      ? 1 + Math.sin(p * Math.PI) * 0.055
-      : 0.93 + Math.sin(p * Math.PI) * 0.09
+  const separation = 1 - Math.pow(1 - Math.min(1, p / 0.8), 3)
+  const dissolve = Math.max(0, (p - 0.48) / 0.52)
+  const opacity = 1 - dissolve * dissolve
   return (
-    <div
-      className={`ninja-contact ninja-contact-${kind}`}
-      data-contact={kind}
-      style={{ opacity, transform: `scale(${scale})` }}
-    >
-      {pending && !reducedMotion && (
-        <div className="ninja-contact-disc" style={{ opacity: Math.max(0, 1 - p / 0.8) }}>
-          <div style={{ position: 'absolute', inset: 0, transform: `rotate(${rotation}rad)` }}>
-            <StockDiscRim />
+    <div className="ninja-contact ninja-contact-pending" data-contact="pending" style={{ opacity }}>
+      {!reducedMotion &&
+        [-1, 1].map((side) => (
+          <div key={side} className="ninja-slice-axis" style={{ transform: `rotate(${angle}rad)` }}>
+            <div
+              className="ninja-slice-half"
+              style={{
+                clipPath:
+                  side < 0
+                    ? 'polygon(0 0,100% 0,100% 50%,0 50%)'
+                    : 'polygon(0 50%,100% 50%,100% 100%,0 100%)',
+                transform: `translate(${side * separation * 3}%,${side * separation * 17}%) rotate(${side * separation * 0.12}rad) scale(${1 - dissolve * 0.12})`,
+              }}
+            >
+              <div className="ninja-contact-disc" style={{ transform: `rotate(${-angle}rad)` }}>
+                <div
+                  style={{ position: 'absolute', inset: 0, transform: `rotate(${rotation}rad)` }}
+                >
+                  <StockDiscRim />
+                </div>
+                <span className="arcade-disc-face">
+                  <span className="ninja-disc-logo">
+                    <img src={stockAsset(symbol)!.logo} alt="" />
+                  </span>
+                  <span className="ninja-disc-label">
+                    <span className="ninja-disc-symbol">{symbol}</span>
+                  </span>
+                </span>
+              </div>
+              <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
+                <path d="M-25 0H25" stroke={energy} strokeWidth="2" opacity={1 - dissolve} />
+              </svg>
+            </div>
           </div>
-          <span className="arcade-disc-face">
-            <span className="ninja-disc-logo">
-              <img src={stockAsset(symbol)!.logo} alt="" />
-            </span>
-            <span className="ninja-disc-label">
-              <span className="ninja-disc-symbol">{symbol}</span>
-            </span>
-          </span>
-        </div>
-      )}
+        ))}
       <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
-        <circle
-          r={pending ? 29 : 17}
-          fill="none"
-          stroke={color}
-          strokeWidth={pending ? 1.8 : 1}
-          opacity={reducedMotion ? 0.8 : 0.9 * (1 - p)}
-        />
-        {pending ? (
-          <g transform={`rotate(${(angle * 180) / Math.PI})`}>
-            <path
-              d="M-26 0h52"
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth={reducedMotion ? 0.65 : 1.2}
-              opacity={Math.max(0, 1 - p * 3)}
-            />
-            <path
-              d="M-23 -4h10m26 8h10"
-              stroke={energy}
-              strokeWidth="1"
-              fill="none"
-              opacity={1 - p}
-            />
-          </g>
+        {reducedMotion ? (
+          <circle r="27" fill="none" stroke={energy} strokeWidth="2" />
         ) : (
-          <path
-            d={positive ? 'M-7 0l5 5 9-10' : 'M-5-5l10 10m0-10L-5 5'}
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <g transform={`rotate(${(angle * 180) / Math.PI})`} opacity={Math.max(0, 1 - p / 0.32)}>
+            <path d="M-30 0H30" stroke={energy} strokeWidth="4" opacity="0.6" />
+            <path d="M-30 0H30" stroke="#ffffff" strokeWidth="1.5" />
+          </g>
         )}
       </svg>
     </div>

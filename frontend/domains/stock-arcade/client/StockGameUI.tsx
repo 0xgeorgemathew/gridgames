@@ -166,6 +166,7 @@ export function StockHUD({
   topRef,
   muted,
   creditPulse,
+  quotePulse,
   budgetPulse = 0,
   onToggleSound,
   onExit,
@@ -180,6 +181,7 @@ export function StockHUD({
   topRef: RefObject<HTMLDivElement | null>
   muted: boolean
   creditPulse?: { dropId: string; progress: number }
+  quotePulse?: { kind: 'pending' | 'credited' | 'failed'; progress: number }
   budgetPulse?: number
   onToggleSound: () => void
   onExit: () => void
@@ -187,6 +189,12 @@ export function StockHUD({
 }) {
   const [menu, setMenu] = useState(false)
   const budgetLeft = Math.max(0, MATCH_BUDGET - (self?.spent ?? 0) - (self?.reservedSpend ?? 0))
+  const quoteColor =
+    quotePulse?.kind === 'failed'
+      ? '#ff9c45'
+      : quotePulse?.kind === 'credited'
+        ? '#a3fff1'
+        : '#00f3ff'
   return (
     <>
       <div ref={topRef} className="ninja-top-hud">
@@ -254,14 +262,18 @@ export function StockHUD({
             className="ninja-pill ninja-trade-indicator"
             role="group"
             aria-label={`$${budgetLeft} available simulated game balance`}
-            data-feedback={budgetPulse > 0 ? 'rejected' : undefined}
+            data-feedback={
+              budgetPulse > 0 ? 'rejected' : quotePulse?.kind === 'failed' ? 'failed' : undefined
+            }
             style={
-              budgetPulse > 0
-                ? {
-                    borderColor: `rgba(255,156,69,${budgetPulse})`,
-                    boxShadow: `0 0 ${8 * budgetPulse}px #ff9c4533`,
-                  }
-                : undefined
+              quotePulse?.kind === 'failed'
+                ? { borderColor: `rgba(255,156,69,${1 - quotePulse.progress})` }
+                : budgetPulse > 0
+                  ? {
+                      borderColor: `rgba(255,156,69,${budgetPulse})`,
+                      boxShadow: `0 0 ${8 * budgetPulse}px #ff9c4533`,
+                    }
+                  : undefined
             }
           >
             <Wallet size={19} aria-hidden="true" />
@@ -324,13 +336,25 @@ export function StockHUD({
             </div>
             <span
               className="ninja-pending"
+              data-feedback={quotePulse?.kind}
+              style={
+                quotePulse
+                  ? { color: quoteColor, opacity: 1 - quotePulse.progress * 0.25 }
+                  : undefined
+              }
               aria-label={`$${self?.reservedSpend ?? 0} pending quotes`}
             >
               ${self?.reservedSpend ?? 0}
               <small>PENDING</small>
             </span>
           </div>
-          <p role="status" className="ninja-status" title={notice}>
+          <p
+            role="status"
+            className="ninja-status"
+            title={notice}
+            data-feedback={quotePulse?.kind}
+            style={quotePulse ? { color: quoteColor } : undefined}
+          >
             {notice || 'LIVE QUOTES · SIMULATED FILLS · NO REAL FUNDS'}
           </p>
         </div>

@@ -122,7 +122,7 @@ describe('bounded non-replaying contact sound', () => {
     expect(f.stopped).toEqual([1])
     expect([...f.playing.values()]).toContain('credited')
     expect(f.volumes[1]).toBeLessThan(f.volumes[0])
-    expect(f.volumes.every((v) => v <= 0.25)).toBe(true)
+    expect(f.volumes.every((v) => v <= 0.42)).toBe(true)
     f.playing.delete(2)
     f.s.ended(2)
     expect(f.s.play('failed', 100)).not.toBeNull()
