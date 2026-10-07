@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef } from 'react'
-import { captureDisc, DerezRenderer, type DiscSnapshot } from './derez-renderer'
+import { stockAsset } from '../shared/assets'
+import type { ContactKind } from './contact-feedback'
 import { COIN_CONFIG } from '@/platform/game-engine/visuals/tron-disc'
 import {
   BLADE_CONFIG,
@@ -86,46 +86,91 @@ export function StockBlade({
     </svg>
   )
 }
-/** Transient Canvas2D surface, advanced by the existing match clock. It never
- * owns an idle animation loop or creates a DOM node for each fragment.
- */
-export function StockDeRez({
+/** A compact arcade snap; pending never shows a success mark. Advanced by the
+ * existing match clock, with no particle canvas, own RAF or delayed animation. */
+export function StockContact({
   progress,
-  symbol = 'NVDA',
+  kind,
+  symbol,
   rotation = 0,
-  sliceAngle = 0,
-  source,
+  angle = 0,
+  reducedMotion = false,
 }: {
   progress: number
-  symbol?: string
+  kind: ContactKind
+  symbol: string
   rotation?: number
-  sliceAngle?: number
-  source?: DiscSnapshot
+  angle?: number
+  reducedMotion?: boolean
 }) {
-  const canvas = useRef<HTMLCanvasElement>(null),
-    renderer = useRef<DerezRenderer | null>(null),
-    current = useRef(progress)
-  current.current = progress
-  useLayoutEffect(() => {
-    if (!canvas.current) return
-    const disc = source ?? captureDisc(symbol, null, rotation)
-    const effect = new DerezRenderer(canvas.current, disc, sliceAngle)
-    renderer.current = effect
-    const loaded = () => {
-      effect.repaintFront()
-      if (!document.hidden) effect.draw(current.current)
-    }
-    if (!disc.image.complete) disc.image.addEventListener('load', loaded)
-    effect.draw(current.current)
-    return () => {
-      disc.image.removeEventListener('load', loaded)
-      effect.dispose()
-      renderer.current = null
-    }
-  }, [source, symbol, rotation, sliceAngle])
-  useLayoutEffect(() => {
-    renderer.current?.draw(progress)
-  }, [progress])
-  return <canvas ref={canvas} className="ninja-derez" aria-hidden="true" />
+  const p = Math.max(0, Math.min(1, progress))
+  const opacity = 1 - p * p
+  const pending = kind === 'pending'
+  const positive = kind === 'credited'
+  const color = pending ? energy : positive ? '#a3fff1' : '#ff9c45'
+  const scale = reducedMotion
+    ? 1
+    : pending
+      ? 1 + Math.sin(p * Math.PI) * 0.055
+      : 0.93 + Math.sin(p * Math.PI) * 0.09
+  return (
+    <div
+      className={`ninja-contact ninja-contact-${kind}`}
+      data-contact={kind}
+      style={{ opacity, transform: `scale(${scale})` }}
+    >
+      {pending && !reducedMotion && (
+        <div className="ninja-contact-disc" style={{ opacity: Math.max(0, 1 - p / 0.8) }}>
+          <div style={{ position: 'absolute', inset: 0, transform: `rotate(${rotation}rad)` }}>
+            <StockDiscRim />
+          </div>
+          <span className="arcade-disc-face">
+            <span className="ninja-disc-logo">
+              <img src={stockAsset(symbol)!.logo} alt="" />
+            </span>
+            <span className="ninja-disc-label">
+              <span className="ninja-disc-symbol">{symbol}</span>
+            </span>
+          </span>
+        </div>
+      )}
+      <svg className="ninja-contact-mark" viewBox="-36 -36 72 72" aria-hidden="true">
+        <circle
+          r={pending ? 29 : 17}
+          fill="none"
+          stroke={color}
+          strokeWidth={pending ? 1.8 : 1}
+          opacity={reducedMotion ? 0.8 : 0.9 * (1 - p)}
+        />
+        {pending ? (
+          <g transform={`rotate(${(angle * 180) / Math.PI})`}>
+            <path
+              d="M-26 0h52"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={reducedMotion ? 0.65 : 1.2}
+              opacity={Math.max(0, 1 - p * 3)}
+            />
+            <path
+              d="M-23 -4h10m26 8h10"
+              stroke={energy}
+              strokeWidth="1"
+              fill="none"
+              opacity={1 - p}
+            />
+          </g>
+        ) : (
+          <path
+            d={positive ? 'M-7 0l5 5 9-10' : 'M-5-5l10 10m0-10L-5 5'}
+            fill="none"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+      </svg>
+    </div>
+  )
 }
 export const STOCK_BLADE_COLOR = BLADE_CONFIG.color

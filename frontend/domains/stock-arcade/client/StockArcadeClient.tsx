@@ -10,8 +10,13 @@ import {
 } from './StockGameUI'
 import { GameCanvasBackground } from '@/platform/ui/GameCanvasBackground'
 import './stock-game.css'
-import { StockDiscRim, StockBlade, StockDeRez } from './StockEffects'
-import { captureDisc, type DiscSnapshot } from './derez-renderer'
+import { StockDiscRim, StockBlade, StockContact } from './StockEffects'
+import {
+  ContactFeedback,
+  CONTACT_MS,
+  type ContactKind,
+  type ContactAnchor,
+} from './contact-feedback'
 const GridScanBackground = clientLazy(() =>
   import('@/platform/ui/GridScanBackground').then((m) => m.GridScanBackground)
 )
@@ -22,14 +27,10 @@ import { type ArcadeState, type StockDrop } from '../shared/types'
 import { stockAsset } from '../shared/assets'
 import { ClaimBudget } from './claim-budget'
 import { useStockMusic } from './use-stock-music'
-import { dropPoint, segmentHitsDisc, discDiameter, SLICE_EFFECT_MS } from './motion'
-interface PendingVisual {
-  drop: StockDrop
-  caughtAt: number
-  sliceAngle: number
-  source: DiscSnapshot
-  x: number
-  y: number
+import { dropPoint, segmentHitsDisc, discDiameter } from './motion'
+interface ContactVisual extends ContactAnchor {
+  kind: ContactKind
+  at: number
 }
 export function StockArcadeClient() {
   const navigate = useNavigate()
@@ -54,12 +55,15 @@ export function StockArcadeClient() {
   const stateRef = useRef<ArcadeState | null>(null)
   const claimed = useRef(new Set<string>())
   const claimBudget = useRef(new ClaimBudget())
+  const feedback = useRef(new ContactFeedback())
   const offset = useRef(0)
   const [game, setGame] = useState<ArcadeState | null>(null)
   const [connected, setConnected] = useState(false)
   const [waiting, setWaiting] = useState(false)
   const [now, setNow] = useState(Date.now())
-  const [caught, setCaught] = useState<PendingVisual[]>([])
+  const [caught, setCaught] = useState<ContactVisual[]>([])
+  const [creditPulse, setCreditPulse] = useState<{ dropId: string; at: number } | null>(null)
+  const [rejectedAt, setRejectedAt] = useState(-Infinity)
   const [notice, setNotice] = useState('')
   const [reducedMotion, setReducedMotion] = useState(false)
   const [trail, setTrail] = useState<Array<{ x: number; y: number; time: number }>>([])
@@ -70,6 +74,13 @@ export function StockArcadeClient() {
   const music = useStockMusic(
     connected && game?.status === 'playing' && now >= game.startedAt && now < game.cutoffAt
   )
+  const showContact = (anchor: ContactAnchor, kind: ContactKind) => {
+    const at = Date.now() + offset.current
+    setCaught((old) =>
+      [...old.filter((v) => at - v.at < CONTACT_MS[v.kind]), { ...anchor, kind, at }].slice(-9)
+    )
+    music.feedback(kind)
+  }
   useEffect(() => {
     if (!game || !dock.current || !top.current) return
     const measure = () => {
@@ -109,6 +120,9 @@ export function StockArcadeClient() {
       setConnected(false)
       setWaiting(false)
       claimBudget.current.reset()
+      feedback.current.reset()
+      setCaught([])
+      setCreditPulse(null)
       setNotice('Connection lost. The prototype match is cancelled; reconnect starts fresh.')
     })
     client.on('error', (raw: unknown) => {
@@ -158,6 +172,9 @@ export function StockArcadeClient() {
         claimed.current.clear()
         claimBudget.current.reset()
         setCaught([])
+        setCreditPulse(null)
+        setRejectedAt(-Infinity)
+        feedback.current.reset(next.matchId)
         client.emit('scene_ready')
       }
       if (next.status === 'completed' || next.status === 'cancelled') claimBudget.current.reset()
@@ -168,11 +185,25 @@ export function StockArcadeClient() {
       const claim = raw as { playerId: string; dropId: string; status: string; reason?: string }
       if (claim.playerId !== client.id) return
       claimBudget.current.acknowledge(claim.dropId)
-      if (claim.status === 'credited' || claim.status === 'failed') {
+      const state = stateRef.current
+      if (
+        !state ||
+        client.roomId !== state.matchId ||
+        state.status !== 'playing' ||
+        Date.now() + offset.current >= state.cutoffAt ||
+        (claim.status !== 'credited' && claim.status !== 'failed')
+      )
+        return
+      const contact = feedback.current.settle(state.matchId, claim.dropId, claim.status)
+      if (!contact) return
+      if (claim.status === 'credited') {
+        setCreditPulse({ dropId: claim.dropId, at: Date.now() + offset.current })
+        showContact(contact, 'credited')
+        setNotice('Quote received. $1 simulated catch added to your bag.')
+      } else {
+        showContact(contact, 'failed')
         setNotice(
-          claim.status === 'credited'
-            ? 'Quote received. $1 simulated catch added to your bag.'
-            : claim.reason || 'Quote failed. No spend or credit.'
+          `${claim.reason || 'Quote unavailable'} · $1 reservation released. No spend or credit.`
         )
       }
     })
@@ -194,28 +225,24 @@ export function StockArcadeClient() {
     const bag = state.bags.find((b) => b.playerId === socket.current?.id)
     if (!bag || !claimBudget.current.reserve(drop.id, bag)) {
       setNotice('Budget spent or reserved by pending quotes. No further simulated spend.')
+      if (feedback.current.reject(state.matchId, drop.id)) {
+        setRejectedAt(Date.now() + offset.current)
+        music.feedback('rejected')
+      }
       return
     }
     claimed.current.add(drop.id)
-    const point = dropPoint(drop, now),
-      nextPoint = dropPoint(drop, now + 16)
-    const width = arena.current?.clientWidth ?? window.innerWidth,
-      height = arena.current?.clientHeight ?? window.innerHeight
-    const button = Array.from(
-      arena.current?.querySelectorAll<HTMLButtonElement>('button.arcade-disc') ?? []
-    ).find((el) => el.dataset.dropId === drop.id)
-    const scale = discDiameter(width) / 66
-    const source = captureDisc(
-      drop.symbol,
-      button,
-      point.rotation,
-      ((((nextPoint.x - point.x) * width) / 16) * 1000) / scale,
-      ((((nextPoint.y - point.y) * height) / 16) * 1000) / scale
-    )
-    setCaught((old) => [
-      ...old.filter((v) => Date.now() + offset.current - v.caughtAt < SLICE_EFFECT_MS),
-      { drop, caughtAt: Date.now() + offset.current, sliceAngle, source, x: point.x, y: point.y },
-    ])
+    const point = dropPoint(drop, now)
+    const anchor: ContactAnchor = {
+      dropId: drop.id,
+      symbol: drop.symbol,
+      x: point.x,
+      y: point.y,
+      rotation: point.rotation,
+      angle: sliceAngle,
+      diameter: discDiameter(arena.current?.clientWidth ?? window.innerWidth),
+    }
+    if (feedback.current.begin(state.matchId, anchor)) showContact(anchor, 'pending')
     setNotice('Quote pending. No credit until the quote arrives.')
     socket.current?.emit('catch_stock', { dropId: drop.id })
   }
@@ -262,6 +289,9 @@ export function StockArcadeClient() {
     setGame(null)
     stateRef.current = null
     claimBudget.current.reset()
+    feedback.current.reset()
+    setCreditPulse(null)
+    setRejectedAt(-Infinity)
     claimed.current.clear()
     setWaiting(true)
     setNotice('Finding another player…')
@@ -276,6 +306,9 @@ export function StockArcadeClient() {
     setGame(null)
     stateRef.current = null
     claimBudget.current.reset()
+    feedback.current.reset()
+    setCreditPulse(null)
+    setRejectedAt(-Infinity)
     setTrail([])
     setCaught([])
     claimed.current.clear()
@@ -431,25 +464,26 @@ export function StockArcadeClient() {
             {!terminal &&
               game.status === 'playing' &&
               now < game.cutoffAt &&
-              !reducedMotion &&
               caught
-                .filter((v) => now - v.caughtAt < SLICE_EFFECT_MS)
-                .map(({ drop, caughtAt, sliceAngle, source, x, y }) => (
+                .filter((v) => now - v.at < CONTACT_MS[v.kind])
+                .map((v) => (
                   <div
-                    key={drop.id}
+                    key={`${v.dropId}:${v.kind}`}
                     className="ninja-catch"
                     style={{
-                      left: `${x * 100}%`,
-                      top: `${y * 100}%`,
-                      width: source.diameter,
-                      height: source.diameter,
+                      left: `${v.x * 100}%`,
+                      top: `${v.y * 100}%`,
+                      width: v.diameter,
+                      height: v.diameter,
                     }}
                   >
-                    <StockDeRez
-                      progress={(now - caughtAt) / SLICE_EFFECT_MS}
-                      symbol={drop.symbol}
-                      sliceAngle={sliceAngle}
-                      source={source}
+                    <StockContact
+                      progress={(now - v.at) / CONTACT_MS[v.kind]}
+                      kind={v.kind}
+                      symbol={v.symbol}
+                      angle={v.angle}
+                      rotation={v.rotation}
+                      reducedMotion={reducedMotion}
                     />
                   </div>
                 ))}
@@ -474,6 +508,15 @@ export function StockArcadeClient() {
             notice={notice}
             dockRef={dock}
             topRef={top}
+            creditPulse={
+              creditPulse && now - creditPulse.at < 360
+                ? {
+                    dropId: creditPulse.dropId,
+                    progress: Math.max(0, (now - creditPulse.at) / 360),
+                  }
+                : undefined
+            }
+            budgetPulse={Math.max(0, 1 - (now - rejectedAt) / 250)}
             muted={music.muted}
             onToggleSound={music.toggle}
             onExit={() => socket.current?.emit('end_game')}

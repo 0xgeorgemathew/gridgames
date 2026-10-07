@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { StockMusic } from './music'
+import { StockAudio } from './howler-audio'
+import type { ContactKind } from './contact-feedback'
 
 const PREFERENCE = 'stockNinja_soundMuted'
 export function useStockMusic(active: boolean) {
-  const music = useRef<StockMusic | null>(null)
+  const music = useRef<StockAudio | null>(null)
   const [muted, setMuted] = useState(false)
   useEffect(() => {
-    const audio = new Audio('/audio/digital_dividend.mp3')
-    audio.preload = 'none'
-    const instance = new StockMusic(audio, () => !document.hidden)
+    const instance = new StockAudio(() => !document.hidden)
     music.current = instance
     let preference = false
     try {
@@ -28,8 +27,6 @@ export function useStockMusic(active: boolean) {
       document.removeEventListener('keydown', unlock)
       document.removeEventListener('visibilitychange', visibility)
       instance.dispose()
-      audio.removeAttribute('src')
-      audio.load()
       music.current = null
     }
   }, [])
@@ -45,5 +42,10 @@ export function useStockMusic(active: boolean) {
       /* Keep the in-memory preference when storage is unavailable. */
     }
   }
-  return { muted, toggle, prepare: () => music.current?.unlock(true) }
+  return {
+    muted,
+    toggle,
+    prepare: () => music.current?.unlock(true),
+    feedback: (kind: ContactKind) => music.current?.feedback(kind),
+  }
 }

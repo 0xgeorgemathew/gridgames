@@ -165,6 +165,8 @@ export function StockHUD({
   dockRef,
   topRef,
   muted,
+  creditPulse,
+  budgetPulse = 0,
   onToggleSound,
   onExit,
   onHelp,
@@ -177,6 +179,8 @@ export function StockHUD({
   dockRef: RefObject<HTMLDivElement | null>
   topRef: RefObject<HTMLDivElement | null>
   muted: boolean
+  creditPulse?: { dropId: string; progress: number }
+  budgetPulse?: number
   onToggleSound: () => void
   onExit: () => void
   onHelp: () => void
@@ -250,6 +254,15 @@ export function StockHUD({
             className="ninja-pill ninja-trade-indicator"
             role="group"
             aria-label={`$${budgetLeft} available simulated game balance`}
+            data-feedback={budgetPulse > 0 ? 'rejected' : undefined}
+            style={
+              budgetPulse > 0
+                ? {
+                    borderColor: `rgba(255,156,69,${budgetPulse})`,
+                    boxShadow: `0 0 ${8 * budgetPulse}px #ff9c4533`,
+                  }
+                : undefined
+            }
           >
             <Wallet size={19} aria-hidden="true" />
             <div>
@@ -292,6 +305,15 @@ export function StockHUD({
               {self?.assets.map((a) => (
                 <span
                   key={a.dropId}
+                  data-feedback={creditPulse?.dropId === a.dropId ? 'credited' : undefined}
+                  style={
+                    creditPulse?.dropId === a.dropId
+                      ? {
+                          borderColor: `rgba(163,255,241,${1 - creditPulse.progress})`,
+                          boxShadow: `inset 0 0 ${9 * (1 - creditPulse.progress)}px #a3fff144`,
+                        }
+                      : undefined
+                  }
                   title={`${a.symbol}: ${(Number(a.amount) / 1e18).toPrecision(3)} simulated units`}
                 >
                   <img src={stockAsset(a.symbol)!.logo} alt="" />

@@ -1,4 +1,6 @@
-# Stock Ninja circular artwork, dock and de-rez
+# Stock Ninja circular artwork, dock and de-rez (historical)
+
+Superseded on2026-10-07 at George's request. Current game-fit arcade feedback is documented in [stock-ninja-contact.md](stock-ninja-contact.md); the film-style renderer and geometry are removed. The research below records the earlier direction, not the current runtime.
 
 ## Current presentation
 
