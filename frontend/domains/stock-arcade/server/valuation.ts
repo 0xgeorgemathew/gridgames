@@ -8,6 +8,7 @@ import {
 } from 'viem'
 import { stockAsset, USDG, V4_STATE_VIEW } from '../shared/assets'
 import type { ArcadeResult, Bag } from '../shared/types'
+import { ValuationError } from './valuation-error'
 const poolAbi = parseAbi([
   'function token0() view returns (address)',
   'function token1() view returns (address)',
@@ -23,6 +24,7 @@ export async function valueBags(
   cutoffAt: number,
   rpcUrl: string
 ): Promise<ArcadeResult> {
+  console.info(JSON.stringify({ event: 'valuation_started', source: new URL(rpcUrl).hostname }))
   const deadline = Date.now() + 20000
   // One finite read budget. Honor Retry-After; never retry sooner than requested.
   // A long provider backoff fails conservatively instead of stranding the results UI.
@@ -81,6 +83,13 @@ export async function valueBags(
     cutoffAt - Number(cutoff.timestamp) * 1000 > 30000
   )
     throw new Error('No recent cutoff block')
+  console.info(
+    JSON.stringify({
+      event: 'valuation_block_selected',
+      source: new URL(rpcUrl).hostname,
+      block: cutoff.number.toString(),
+    })
+  )
   const pools = new Map<string, `0x${string}`>()
   for (const bag of bags)
     for (const asset of bag.assets) {
@@ -180,7 +189,8 @@ export async function valueBags(
       tied = false
     } else if (value === best) tied = true
   }
-  if (tied || best <= 0n) throw new Error('Tie or empty bags: settlement deferred')
+  if (best <= 0n) throw new ValuationError('empty_bags')
+  if (tied) throw new ValuationError('tie')
   return {
     block: cutoff.number.toString(),
     values,

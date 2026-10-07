@@ -1,3 +1,4 @@
+import { ValuationError } from './valuation-error'
 import { STOCK_ASSETS } from '../shared/assets'
 import {
   CATCH_CAP,
@@ -192,14 +193,22 @@ export class StockMatch {
           this.services.terminal()
         })
         .catch((error: unknown) => {
+          const reason = error instanceof ValuationError ? error.reason : 'valuation_unavailable'
+          const message =
+            error instanceof Error
+              ? 'shortMessage' in error && typeof error.shortMessage === 'string'
+                ? error.shortMessage
+                : error.message
+              : 'Unavailable'
           console.error(
             JSON.stringify({
               event: 'valuation_failed',
+              reason,
               name: error instanceof Error ? error.name : 'Unknown',
-              message: error instanceof Error ? error.message.slice(0, 1000) : 'Unavailable',
+              message: message.slice(0, 250),
             })
           )
-          this.cancel('valuation_unavailable_or_tied')
+          this.cancel(reason)
         })
     )
   }

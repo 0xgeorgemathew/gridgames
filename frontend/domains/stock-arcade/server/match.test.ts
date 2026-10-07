@@ -1,9 +1,13 @@
 import { expect, test } from 'bun:test'
 import { StockMatch } from './match'
+import { ValuationError } from './valuation-error'
 import { STOCK_ASSETS } from '../shared/assets'
 import type { ArcadeResult, QuoteCredit } from '../shared/types'
 import type { RoomProvision } from '@/worker/session'
-function fixture(quote?: (symbol: string, request: string) => Promise<QuoteCredit>) {
+function fixture(
+  quote?: (symbol: string, request: string) => Promise<QuoteCredit>,
+  value?: () => Promise<ArcadeResult>
+) {
   let now = 1000000
   const tasks: Promise<unknown>[] = [],
     terminals: Array<string | undefined> = [],
@@ -41,7 +45,7 @@ function fixture(quote?: (symbol: string, request: string) => Promise<QuoteCredi
             quoteId: id,
           }
     },
-    value: async () => result,
+    value: value ?? (async () => result),
     emit: () => {},
     waitUntil: (p) => tasks.push(p),
     terminal: (reason) => terminals.push(reason),
@@ -190,5 +194,29 @@ test('completed score is fixed; leave/disconnect cancels active match without se
     expect(c.match.state.result).toBeUndefined()
   } finally {
     c.match.cleanup()
+  }
+})
+
+test('tie, empty acquisitions and infrastructure failures keep distinct terminal reasons', async () => {
+  for (const [error, reason] of [
+    [new ValuationError('tie'), 'tie'],
+    [new ValuationError('empty_bags'), 'empty_bags'],
+    [new Error('RPC unavailable'), 'valuation_unavailable'],
+  ] as const) {
+    const f = fixture(undefined, async () => {
+      throw error
+    })
+    try {
+      f.start()
+      f.setNow(f.match.state.cutoffAt)
+      f.match.tick()
+      await f.drain()
+      expect(f.match.state.status).toBe('cancelled')
+      expect(f.match.state.reason).toBe(reason)
+      expect(f.terminals).toEqual([reason])
+      expect(f.match.state.result).toBeUndefined()
+    } finally {
+      f.match.cleanup()
+    }
   }
 })
