@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { m } from 'framer-motion'
+import { MatchResultOverlay } from '@/platform/ui/MatchResultOverlay'
 import { useTradingStore } from '@/domains/tap-dancer/client/state/trading.store'
 import { cn } from '@/platform/utils/classNames.utils'
 import { PlayerName } from '@/platform/ui/PlayerName'
@@ -47,104 +47,53 @@ export const GameOverModal = React.memo(function GameOverModal() {
   const resultStyle = getResultStyle()
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-end justify-center pb-6 px-4"
+    <MatchResultOverlay
+      title={resultStyle.text}
+      accent={isWinner ? 'cyan' : 'orange'}
+      onPlayAgain={playAgain}
+      subtitle={
+        <>
+          {' '}
+          <PlayerName
+            username={
+              !gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
+            }
+            address={gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined}
+            className="text-white/70"
+            enableGlow={false}
+          />
+          <span>WINS</span>
+        </>
+      }
     >
-      <m.div
-        initial={{ y: 60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-        className="glass-panel-vibrant rounded-2xl p-5 w-full max-w-sm text-center"
-      >
-        <m.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.15, type: 'spring', stiffness: 400 }}
-          className="mb-4"
-        >
-          <h2
-            className={cn(
-              'font-[family-name:var(--font-orbitron)] text-3xl font-black tracking-[0.15em]',
-              resultStyle.colorClass
-            )}
-          >
-            {resultStyle.text}
-          </h2>
-          <div className="text-white/50 mt-1 text-[10px] tracking-[0.2em] flex items-center justify-center gap-1.5">
+      <PlayerRow
+        label="YOU"
+        pnl={localTotalPnl}
+        balance={localFinalBalance}
+        positions={localPositionCount}
+        isHighlight={isWinner}
+        highlightColor="cyan"
+      />
+      <PlayerRow
+        label={
+          opponent?.name ? (
             <PlayerName
-              username={
-                !gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
-              }
-              address={
-                gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
-              }
-              className="text-white/70"
+              username={!opponent.name.startsWith('0x') ? opponent.name : undefined}
+              address={opponent.name.startsWith('0x') ? opponent.name : undefined}
+              className={cn('text-[10px]', !isWinner ? 'text-cyan-400/80' : 'text-orange-400/80')}
               enableGlow={false}
             />
-            <span>WINS</span>
-          </div>
-        </m.div>
-
-        <m.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mb-4 space-y-2"
-        >
-          <PlayerRow
-            label="YOU"
-            pnl={localTotalPnl}
-            balance={localFinalBalance}
-            positions={localPositionCount}
-            isHighlight={isWinner}
-            highlightColor="cyan"
-          />
-          <PlayerRow
-            label={
-              opponent?.name ? (
-                <PlayerName
-                  username={!opponent.name.startsWith('0x') ? opponent.name : undefined}
-                  address={opponent.name.startsWith('0x') ? opponent.name : undefined}
-                  className={cn(
-                    'text-[10px]',
-                    !isWinner ? 'text-cyan-400/80' : 'text-orange-400/80'
-                  )}
-                  enableGlow={false}
-                />
-              ) : (
-                'OPP'
-              )
-            }
-            pnl={opponentTotalPnl}
-            balance={opponentFinalBalance}
-            positions={opponentPositionCount}
-            isHighlight={!isWinner}
-            highlightColor="cyan"
-          />
-        </m.div>
-
-        <m.button
-          whileTap={{ scale: 0.95 }}
-          onClick={playAgain}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="w-full relative group"
-        >
-          <m.div
-            className="absolute inset-0 rounded-lg"
-            style={{ boxShadow: '0 0 40px rgba(0,217,255,0.5)' }}
-          />
-          <div className="relative py-3 bg-black/40 backdrop-blur-md border border-cyan-400/30 rounded-lg">
-            <span className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.2em] font-medium text-tron-cyan">
-              PLAY AGAIN
-            </span>
-          </div>
-        </m.button>
-      </m.div>
-    </m.div>
+          ) : (
+            'OPP'
+          )
+        }
+        pnl={opponentTotalPnl}
+        balance={opponentFinalBalance}
+        positions={opponentPositionCount}
+        isHighlight={!isWinner}
+        highlightColor="cyan"
+      />
+    </MatchResultOverlay>
   )
 })
 

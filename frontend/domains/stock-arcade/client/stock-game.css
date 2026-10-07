@@ -1,7 +1,7 @@
 /* Only added stock gameplay geometry; existing TRON theme/layout lives in shared UI. */
 .arcade-arena {
   position: absolute;
-  inset: 70px 0 170px;
+  inset: 54px 0 var(--stock-hud-height, 160px);
   overflow: hidden;
   touch-action: none;
   user-select: none;
@@ -84,12 +84,28 @@
   font-size: 14px;
   letter-spacing: 0.1em;
 }
+/* Original game grid framing, without a financial graph or an idle loop. */
+.arcade-playfield-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 188, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 188, 255, 0.1) 1px, transparent 1px),
+    radial-gradient(ellipse at center, rgba(0, 188, 255, 0.04), transparent 70%);
+  background-size:
+    clamp(42px, 11.1vw, 72px) clamp(30px, 7.14vh, 56px),
+    clamp(42px, 11.1vw, 72px) clamp(30px, 7.14vh, 56px),
+    100% 100%;
+}
 .arcade-holdings {
   display: flex;
   gap: 7px;
-  min-height: 36px;
+  height: 34px;
   padding: 4px 16px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
 }
 .arcade-holdings > span {
   display: flex;
@@ -100,31 +116,15 @@
   border-radius: 2px;
   font-size: 10px;
   color: var(--color-tron-cyan);
+  flex-shrink: 0;
 }
 .arcade-holdings img {
   width: 18px;
   height: 18px;
 }
-.arcade-holdings small,
 .arcade-holdings p {
   color: var(--color-tron-white-dim);
   font-size: 10px;
-}
-.arcade-bottom {
-  display: flex;
-  gap: 14px;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 16px;
-}
-.arcade-bottom p {
-  font-size: 10px;
-  color: var(--color-tron-white-dim);
-  flex: 1;
-  line-height: 1.5;
-}
-.arcade-bottom button {
-  flex-shrink: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .arcade-trail {
