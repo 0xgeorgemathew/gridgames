@@ -4,7 +4,7 @@
 
 **Status:** Agreed prototype and Cloudflare architecture direction; venue research and unresolved design decisions recorded below.
 
-**Scope:** Documentation only. This spec does not authorize live-money implementation or deployment.
+**Scope:** Pivot platform migration and isolated deployment are authorized. The temporary stock prototype uses real quotes and simulated fills/settlement only. This does not authorize live-money execution.
 
 ## Product direction and relationship to existing plans
 
@@ -43,15 +43,14 @@ The winner rule uses absolute acquired-bag value, not best percentage return. It
 equal-value starting escrow or create a fixed monetary pot. For example, one player may acquire
 seven tokens and the other ten: compare the values of their actual acquired assets at the agreed
 cutoff, then award their combined acquired assets to the winner. Unspent wallet money is outside
-both the comparison and the prize. No automatic liquidation into cash has been agreed.
+both the comparison and the prize. The latest direction is USDG in and USDG out: determine the winner first from acquired bags at a common cutoff block, then convert acquired assets and pay later without changing that winner. Live conversion/payout remains unimplemented.
 
 George reported seeing about 100 Uniswap token listings. That is a user observation, not an
 independently vetted inventory or evidence that every listed token is suitable for the game.
 
 ## Intended player flow
 
-1. The player funds an embedded wallet once. Privy and Dynamic are candidates, not a settled provider
-   choice. The funding asset, network, and any reservation or escrow of spending funds remain open.
+1. The player funds an embedded wallet once. Privy is the current provider. The production direction is USDG in and USDG out on Robinhood Chain. Reservation or escrow of spending funds remains open.
 2. Before play, establish bounded session permissions so routine swipes do not require a wallet popup
    each time. The concrete session or relayed-authorization mechanism remains open.
 3. A caught token triggers a $1 spot-purchase attempt. Quotes may be hidden from the ordinary game UI,
@@ -158,8 +157,9 @@ local swipe → match DO validation → Worker / authorized wallet provider / RP
 
 The DO validates the participant, match phase, drop/catch window, unique action, and remaining player
 budget. It coordinates immediate submission through the Worker, authorized wallet provider, and RPC;
-ordinary catches should not first wait on a background queue. The exact provider/session mechanism
-and signing topology remain open. The game contract executes the Uniswap integration, receives and
+ordinary catches should not first wait on a background queue. Privy is the chosen wallet provider and
+a Privy-managed server wallet is the intended settlement signer. Per-catch session authority,
+submission signing and nonce topology remain open. The game contract executes the Uniswap integration, receives and
 holds acquired tokens, and records actual quantities using the accounting model above.
 
 Persist action identity and pending submission state before external submission. Enforce unique
@@ -275,7 +275,7 @@ research is not an implementation dependency or evidence of a completed venue co
 
 | Area                        | Decisions still needed                                                                                                                                                                                                  |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Valuation and cutoff        | Price/oracle source, common cutoff, stale or unavailable prices, token decimals, manipulation resistance, and which settlement stage makes an acquisition eligible.                                                     |
+| Valuation and cutoff        | Designated pool prices at a common cutoff block are selected. Production manipulation resistance, stale-price policy and acquisition finality/eligibility still need design.                                                     |
 | Match outcomes              | Ties, no catches, failed swaps, disconnects, abandonment, cancellation, and pending or late fills.                                                                                                                      |
 | Spend enforcement           | Authoritative enforcement of both $10 actual purchase spending and ten successful paid catches; concurrent attempts, duplicate actions, retries, and guarantees that funding remains available.                         |
 | Authorization               | Embedded-wallet choice; session/relayed mechanism; permitted contracts, assets, calls, amounts, match binding, expiry, revocation, and replay protection.                                                               |
@@ -288,3 +288,11 @@ research is not an implementation dependency or evidence of a completed venue co
 These questions are deliberately unresolved. The next design work should answer them while
 preserving the agreed arcade loop, token variety, $1 catches, prototype spending cap, and acquired-asset
 winner rule. This documentation commit contains no live-money code or authorization to execute funds.
+
+## Implemented Pivot direction and remaining live work (7 October)
+
+The migration and additive stock arcade are described in [Cloudflare runtime notes](../cloudflare-migration.md). The short prototype period uses live per-catch quotes with simulated fills; quotes are estimates, not actual token receipts. Immediate local motion targets responsive visual feedback (100 ms target, not a measured or guaranteed quote time); the bag remains pending for the roughly one-second quote path and credits only after a valid response. Fresh-quote-at-100-ms timing is unresolved. Failed quote means no catch/no spend.
+
+Production direction: contract custody records acquired tokens; a single Privy-managed server wallet signs the settlement result. Trusted server scoring is an accepted starting point, with a path to stronger production guarantees. Value acquired bags at the common cutoff block using designated pool prices, fix winner first, then sell/convert to USDG and pay later. Unspent wallet cash stays outside scoring and the prize. George reports gas sponsorship and intends the platform to cover gas for now; pool trading fees are separate. This work creates no paymaster, credentials, persistent grants, custody contract or live signer.
+
+Curated ten-asset coverage is bounded and timestamped in the runtime notes; canonical identity does not guarantee every designated pool returns a fresh $1 quote. The demo currently uses shared deterministic opportunities to preserve the existing shared-drop model, not a settled final random-sequence rule. Conservative demo cancellation avoids inventing live economics for ties, pending cutoff actions, disconnected acquired bags and failed valuation. Slippage defaults and real token restrictions/finality remain open for live use.

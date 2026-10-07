@@ -1,5 +1,58 @@
 # Cloudflare migration
 
+## Pivot: TanStack Start and simulated stock arcade (7 October 2026)
+
+The current `Pivot` branch uses TanStack Start/Router and the official Cloudflare Vite plugin. Next/Vinext/RSC dependencies and obsolete Railway build scripts are removed. Existing React/Zustand clients, Phaser engines, swipe handling, Tron styling, Privy and Farcaster integrations remain. The standalone advisory agent and Solidity contracts are unchanged; no advisory HTTP service existed, so none is invented.
+
+The verified deployed version is `914e0554-b3ec-477b-bb1a-3ee924ad8f2b`. The isolated preview is https://pivot.gridgames.space, Worker `grid-games-pivot`, account `a22fe9411b81705409eb7cdf9be367e3` (George Mathew). Source config routes only that custom hostname. Its Lobby, GameRoom and QuoteGate bindings are local to that separate Worker: no production namespace IDs, D1, R2, Queues, data migration or live funds. Main production remains `grid-games` at `gridgames.space`. No main/remote branch push is part of this work.
+
+`src/routes/` owns page and HTTP routing, including the hidden `/.well-known/farcaster.json` route. `worker/index.ts` intercepts native WebSocket endpoints and delegates other requests to TanStack Start. Browser-only lazy loaders prevent Phaser/WebGL hydration on the server. Fonts are bundled as local static assets. TypeScript is strict.
+
+`/stock-arcade` is an additive prototype alongside both retained games. A room DO hosts `StockMatch`, with common readiness/start/cutoff and deterministic shared stock opportunities. The client renders readable tossed discs and swipe trails locally, snaps a caught disc toward the bag immediately, then shows a pending marker until the live quote returns. One attempt per player/drop; each player may catch the same shared opportunity. Every successful estimate credits simulated output units and spends $1, capped at ten credits and $10 per player; pending reservations count against capacity. Failure releases capacity without debit or credit. IDs and timing come from the server, not client position/price claims.
+
+All matches use one `QuoteGate` DO for this API key. It admits at most six requests in a sliding second, persists request deduplication, backs off on 429/server errors, and strips permit/transaction payloads. It calls only `/v1/quote`, never `/swap`, `/order`, approvals or signing. API quotes may select alternate, split or multi-hop routes between the canonical USDG and stock endpoints. Route continuity, chain, protocol, amounts and complete V4 keys are validated. Actual quote pools are retained separately from the designated scoring pool, which alone sets cutoff marks. The response uses the official ClassicQuote `slippage` field; malformed estimates fail without spend. V3 and V4 protocols are selected per designated pool, not all forced through V3. The API's `autoSlippage: DEFAULT` is an estimate-only API requirement, not an agreed live-money slippage policy.
+
+Read-only pool calls are batched through verified Multicall3 at one fixed block. Valuation has a twenty-second read budget, bounded retries and respects Retry-After without changing that block. Public RPC capacity can still cancel valuation; no quote/fill or mark is fabricated on failure. Robinhood explicitly rate-limits its public endpoint and recommends a provider for production. The preview now uses the documented credential-free public endpoint `https://robinhood.drpc.org` after the official public RPC returned 429 during ten-asset valuation. This is one configured provider, not an automatic provider switch: selected-block reads and retries remain on the same block. No new provider account, credentials or paid plan are created. Diagnostics record the RPC hostname and selected block; distinct terminal reasons identify `tie`, `empty_bags` and `valuation_unavailable`, with bounded error messages. Bag marks use integer base-unit arithmetic from designated V3 `slot0` or V4 `StateView.getSlot0` at one chain block at or before the common cutoff. V4 pool IDs are hashes of verified full keys (currencies, fee, tick spacing, zero hooks), not contract addresses. Unspent wallet cash is excluded. The winner is fixed before a simulated USDG prize record is emitted. That record is the summed mark value; it is not a claim of executable exit proceeds after fees/slippage. There are no actual swaps, custody deposits, signer keys, contract deployment or payouts. Contract custody and a Privy-managed settlement signer remain future adapters.
+
+Demo-only conservative outcomes: quotes must finish before cutoff; a pending quote at cutoff cancels settlement, as do disconnect/leave, ties/empty bags or unavailable/stale pool reads. Real acquired-bag disposition and pending-fill eligibility are unresolved. A restarted active object is interrupted rather than resumed; intentional room/lobby handoff preserves session identity, transport failure creates a fresh one.
+
+The curated ten assets are META, NVDA, CRCL, SPCX, MSTR, MU, HIMS, RDDT, GOOGL and TSLA. Canonical addresses were checked against the official Robinhood registry; designated pools come from a bounded first-120 direct-USDG-pool ranking at 2026-10-07 01:27:59 UTC. This is not an exhaustive chain-wide top-ten claim. No venue-wide latency benchmark was run. Sources: [issuer registry](https://api.robinhood.com/rhj/assets), [issuer contract guidance](https://docs.robinhood.com/chain/contracts/), [pool dataset](https://api.geckoterminal.com/api/v2/networks/robinhood/tokens/0x5fc5360d0400a0fd4f2af552add042d716f1d168/pools), [Uniswap deployed contracts](https://github.com/Uniswap/contracts/blob/main/deployments/4663.md).
+
+### Idle rendering and verification
+
+Pre-game waiting and result screens retain the TRON layout/glow with static title and profile styles. Stock animation clocks run only during play; lobby and results have no RAF loop. GridScan draws its actual shader once for each viewport/theme, caches at most four rasters, then disposes and releases WebGL. Active scans use a capped 24fps renderer and unmount while hidden/offscreen or under reduced motion. Graphics failure has a static grid fallback rather than breaking navigation/authentication.
+
+The final deployed stock lobby and landing each measured zero GL draws, zero RAF callbacks and zero mounted canvases over five seconds at 1200×900 DPR2. The harness checked active animation, unchanged renderer count on rerender, reduced motion, hidden tabs, unmount cleanup, missing WebGL and context loss. These are route-specific measurements, not a guarantee of device temperature or total Chrome GPU usage.
+
+Validation includes strict types, lint, 35 frontend tests/233 assertions and the advisory package's 41 tests/125 assertions. Native Workers local preview served all page routes without hydration exceptions or 390×844 horizontal overflow. Live protocol checks cover both retained games, room isolation, rejected/replayed tickets, partial handoff timeout, disconnect and fresh rematch. An own-key stock protocol match credited all ten assets with no duplicate debit, reached $10/10 credits and fixed a winner at cutoff block 82151998. Both actual authenticated Chrome profiles also completed a stock match with normal swipe input and agreed on common block 82135435 and simulated payout 2.0038 USDG. On the final deployed version, native authenticated clicks reached all ten token catches/$10, showed `10/10 · Bag locked until cutoff` while both clocks continued, and completed at block 82153246. Both profiles agreed on George as winner and 10.0051 USDG simulated prize. Subsequent rematches reset both bags to zero. Close cancelled both views with `player_left` and no payout; the in-game Back link returned George home and cancelled Monica with `player_disconnected`; reconnecting the same authenticated profile started another fresh match. Both authenticated retained-game UIs also launched and completed consistently; Tap Dancer normal long/short buttons produced one position per player. Hyper Swiper positions were validated through the shared protocol check, while its native UI run verified launch, synchronized market/clock and results. Existing Privy sessions stayed authenticated through routing and reload; fresh OTP/login and signed Farcaster publication were not exercised.
+
+### Preview operations
+
+From `frontend/`:
+
+```sh
+bun install --frozen-lockfile
+bun run cf:types
+bun run types
+bun run lint
+bun run test
+bun run build
+bunx wrangler deploy --dry-run --config dist/server/wrangler.json
+bunx wrangler deploy --config dist/server/wrangler.json
+```
+
+User enters the existing key through Wrangler's stdin prompt, never chat or command arguments:
+
+```sh
+bunx wrangler secret put UNISWAP_API_KEY --name grid-games-pivot --config wrangler.jsonc
+```
+
+Only public `NEXT_PUBLIC_` settings are compiled into the client. `.env.local`, `.dev.vars`, local profiles and generated assets stay ignored. No unused Privy/Gelato credentials are uploaded. Original Privy/Farcaster auth remains. Guest-mode exploration was removed; testing uses George and Monica’s existing authenticated Chrome profiles. A preview Farcaster signed account association is separately needed if registering the preview as a published Mini App; the apex's signed association is not reused for the different hostname.
+
+Official integration references: [Cloudflare TanStack Start guide](https://developers.cloudflare.com/workers/framework-guides/web-apps/tanstack-start/), [TanStack server routes](https://tanstack.com/start/latest/docs/framework/react/guide/server-routes), [Uniswap quote API](https://developers.uniswap.org/docs/api-reference/aggregator_quote), [Robinhood RPC settings](https://docs.robinhood.com/chain/connecting/), [dRPC public Robinhood endpoint](https://drpc.org/chainlist/robinhood-mainnet-rpc).
+
+## Earlier production history (preserved; not the Pivot deployment target)
+
 The frontend runs on Cloudflare Workers with vinext, Vite and a native WebSocket
 multiplayer Durable Object. The worker is `grid-games` in the George Mathew account
 (`a22fe9411b81705409eb7cdf9be367e3`). Contracts and the standalone `ai-agent`
@@ -239,3 +292,9 @@ References: [vinext migration skill](https://github.com/cloudflare/vinext/blob/m
 [DO alarms](https://developers.cloudflare.com/durable-objects/api/alarms/),
 [Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/),
 [Vite SSR conditions](https://vite.dev/config/ssr-options.html#ssr-resolve-conditions).
+
+### Visual continuity on Pivot
+
+The existing TRON theme, original game cards, grid background, lobby headings, profile/back controls, full-screen arena, and bottom HUD remain the presentation baseline. Stock Arcade uses those same patterns; only stock discs/logos, pending snap feedback, bags and catch caps are added. An initial separate centered stock layout and custom launch card were removed before the final preview. Legacy Hyper Swiper and Tap Dancer visuals and Phaser engines are retained.
+
+Quote execution routes and scoring pools are distinct. Real CLASSIC quotes may use other pools or multi-hop routes, with exact canonical endpoints, chain 4663, allowed V3/V4 protocols, route continuity, bounded raw output and auto-slippage estimates validated. Scoring still reads the designated pools at one common cutoff block. No transaction payloads are retained. Fixed-block valuation aggregates public RPC reads through the verified Multicall3 deployment to avoid per-call request bursts. The preview rejects quote slippage estimates above 5%; this technical guard is not an agreed live-trading default. A missing quote, stale/unavailable cutoff price, tie or unresolved pending claim cancels the prototype payout.

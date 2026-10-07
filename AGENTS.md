@@ -1,10 +1,11 @@
 # AGENTS.md
+
 Shared project memory for Grid Games. Keep this file global. Load the nearest
 path-scoped `AGENTS.md` for area-specific rules before editing code there.
 
 ## Repo Shape
 
-- `frontend/`: Next.js + Phaser multiplayer mini app. Most product work happens here.
+- `frontend/`: TanStack Start + Phaser multiplayer mini app (Pivot). Most product work happens here.
 - `ai-agent/`: Bun + LangChain package for the in-game advisory agent.
 - `contracts/`: Solidity / Foundry code.
 - `docs/`: plans plus committed agent-memory docs for this repo.

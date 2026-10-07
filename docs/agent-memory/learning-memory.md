@@ -46,3 +46,19 @@ written upfront as policy.
 - Rollback commands plan by default. Source rollback is a forward Git revert;
   Worker rollback changes production only and never restores SQLite records.
   Keep DO classes and bindings compatible. See docs/cloudflare-migration.md.
+
+### TanStack Pivot migration
+
+- App route discovery must include hidden `.well-known` directories; `rg --files` without `--hidden` misses Farcaster's manifest route.
+- TanStack Router requires strict null checks. Pivot enables full strict TypeScript and retains explicit runtime validation.
+- Use Cloudflare's Vite `ssr` environment with TanStack Start and a custom Worker entry for DO exports. Deploy the generated server config to the separate preview Worker.
+- Do not feed V4 bytes32 pool IDs to V3 contract calls. Verify full key hashes and read through the chain's deployed StateView at the same cutoff block used for every bag.
+- Prototype quote latency and immediate local feedback are distinct: pending art cannot imply quote-backed credit or actual executed tokens.
+
+- Idle GPU work and idle DOM repaint work require separate checks. Zero shader draw calls do not prove a complete idle route is cheap: repeated title/profile text-shadow animation can still drive paint/compositing. Preserve the visual glow with static styles in idle screens and reserve animation loops for live gameplay. Verify a newly deployed build in the real authenticated tabs; a normal reload may not reproduce a fresh-browser result.
+
+- Idle decorative WebGL can be cached as its real shader raster and have its context released. Keep viewport/theme cache bounded, retain active scan animation separately, and handle absent/lost WebGL without breaking page interaction. Match clocks must stop on lobby/results, not only when the background stops.
+- Uniswap ClassicQuote uses `slippage`, not `slippageTolerance`. Validate against the official schema and a real preview quote before accepting compile/test success. Quote routes may differ from the designated common-cutoff scoring pool; keep those records separate.
+
+- A successful ten-asset quote path does not prove the cutoff RPC path. Batch designated-pool reads at one selected block, honor Retry-After within a finite read budget, and require completed common-block settlement in live validation. Public provider capacity remains an external dependency. Distinguish tie and empty-acquisition outcomes from infrastructure failure.
+- Protocol replay checks must await the actual room handshake before replaying its consumed ticket. A fixed 200 ms sleep can test a still-active lobby WebSocket instead, giving a false acceptance result.
