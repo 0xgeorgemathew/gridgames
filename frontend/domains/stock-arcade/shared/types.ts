@@ -64,3 +64,4 @@ export const CATCH_COST = 1
 export const CATCH_CAP = 10
 export const DROP_WINDOW_MS = 2800
 export const DROP_INTERVAL_MS = 1500
+export const DROP_BATCH_SIZE = 2

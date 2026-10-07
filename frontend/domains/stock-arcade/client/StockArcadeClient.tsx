@@ -109,6 +109,20 @@ export function StockArcadeClient() {
         )
       setRefreshing(false)
     })
+    client.on('lobby_updated', (raw: unknown) => {
+      const players = (raw as { players?: unknown })?.players
+      if (Array.isArray(players))
+        setLobbyPlayers(
+          players.filter(
+            (p): p is LobbyPlayer =>
+              p?.socketId !== client.id &&
+              typeof p?.socketId === 'string' &&
+              typeof p?.name === 'string' &&
+              p?.gameSlug === 'stock-arcade' &&
+              p?.gameDuration === 60000
+          )
+        )
+    })
     client.on('arcade_state', (raw: unknown) => {
       const next = raw as ArcadeState
       if (!next || next.simulation !== true || !Array.isArray(next.bags)) return

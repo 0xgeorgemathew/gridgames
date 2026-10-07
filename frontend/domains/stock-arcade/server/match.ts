@@ -3,6 +3,7 @@ import { STOCK_ASSETS } from '../shared/assets'
 import {
   CATCH_CAP,
   DROP_INTERVAL_MS,
+  DROP_BATCH_SIZE,
   DROP_WINDOW_MS,
   type Acquisition,
   type ArcadeResult,
@@ -155,24 +156,30 @@ export class StockMatch {
       return
     }
     this.state.drops = this.state.drops.filter((d) => d.expiresAt > now)
-    if (now >= this.state.startedAt + this.nextDrop * DROP_INTERVAL_MS) {
-      const i = this.nextDrop++
-      // Shared deterministic opportunities; no random asset preference between players.
-      const asset = STOCK_ASSETS[i % STOCK_ASSETS.length]
-      const spawnedAt = this.state.startedAt + i * DROP_INTERVAL_MS
-      const drop: StockDrop = {
-        id: `${this.config.roomId}:${i}`,
-        symbol: asset.symbol,
-        spawnedAt,
-        expiresAt: Math.min(spawnedAt + DROP_WINDOW_MS, this.state.cutoffAt),
-        lane: 0.2 + (i % 4) * 0.2,
-        drift: i % 2 ? -0.12 : 0.12,
-        rotation: i % 2 ? -0.35 : 0.35,
+    const batch = Math.floor(this.nextDrop / DROP_BATCH_SIZE)
+    if (now >= this.state.startedAt + batch * DROP_INTERVAL_MS) {
+      // Shared paired opportunities keep two to four choices alive, not a refill
+      // triggered by catches. The same ten-asset sequence and caps remain authoritative.
+      const spawnedAt = this.state.startedAt + batch * DROP_INTERVAL_MS
+      for (let n = 0; n < DROP_BATCH_SIZE; n++) {
+        const i = this.nextDrop++
+        const asset = STOCK_ASSETS[i % STOCK_ASSETS.length]
+        const drop: StockDrop = {
+          id: `${this.config.roomId}:${i}`,
+          symbol: asset.symbol,
+          spawnedAt,
+          expiresAt: Math.min(spawnedAt + DROP_WINDOW_MS, this.state.cutoffAt),
+          // Alternating widely spaced pairs; fixed columns stay separate on mobile.
+          lane: [0.16, 0.63, 0.39, 0.86][i % 4],
+          drift: 0,
+          rotation: i % 2 ? -0.35 : 0.35,
+        }
+        this.state.drops.push(drop)
       }
-      this.state.drops.push(drop)
       this.publish()
     }
   }
+
   private cutoff() {
     this.cleanup()
     const ambiguous = this.state.bags.some((b) => b.pending > 0)

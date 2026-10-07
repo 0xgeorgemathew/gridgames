@@ -1,4 +1,5 @@
 import { RealtimeSocket } from '../platform/multiplayer/client'
+import { dropPoint } from '../domains/stock-arcade/client/motion'
 import type { ArcadeState } from '../domains/stock-arcade/shared/types'
 const base = process.argv[2] || 'http://127.0.0.1:4173'
 const requireCompleted = process.argv.includes('--require-completed')
@@ -8,9 +9,11 @@ class Peer {
   state: ArcadeState | null = null
   claims: Array<{ dropId: string; status: string; reason?: string }> = []
   terminal = false
+  serverOffset = 0
   constructor() {
     this.socket.on('arcade_state', (raw: unknown) => {
       this.state = raw as ArcadeState
+      this.serverOffset = this.state.serverTime - Date.now()
       if (this.state.status === 'ready') this.socket.emit('scene_ready')
       if (['cancelled', 'completed'].includes(this.state.status)) this.terminal = true
     })
@@ -51,8 +54,27 @@ try {
   if (a.state!.matchId !== b.state!.matchId || a.state!.cutoffAt !== b.state!.cutoffAt)
     throw new Error('Room/clock mismatch')
   const attempted = new Set<string>()
+  const visibleCounts: number[] = []
+  const batches = new Map<number, Set<string>>()
   const deadline = Date.now() + 19000
   while (Date.now() < deadline && !a.terminal) {
+    // Observe the uncaught opponent's actual authoritative stream and render geometry.
+    const time = Date.now() + b.serverOffset
+    if (
+      b.state?.status === 'playing' &&
+      time >= b.state.startedAt + 200 &&
+      time < b.state.cutoffAt - 200
+    ) {
+      const visible = b.state.drops.filter(
+        (d) => time >= d.spawnedAt && time < d.expiresAt && dropPoint(d, time).y <= 1
+      )
+      visibleCounts.push(visible.length)
+      for (const drop of b.state.drops) {
+        const ids = batches.get(drop.spawnedAt) ?? new Set<string>()
+        ids.add(drop.id)
+        batches.set(drop.spawnedAt, ids)
+      }
+    }
     for (const drop of a.state!.drops)
       if (!attempted.has(drop.id) && Date.now() < drop.expiresAt) {
         attempted.add(drop.id)
@@ -69,6 +91,13 @@ try {
     new Set(bag.assets.map((x) => x.dropId)).size !== bag.assets.length
   )
     throw new Error('Ledger/cap invariant')
+  if (
+    !visibleCounts.length ||
+    Math.min(...visibleCounts) < 2 ||
+    Math.max(...visibleCounts) > 4 ||
+    [...batches.values()].some((ids) => ids.size !== 2)
+  )
+    throw new Error('Expected paired spawns and two to four concurrent visible choices')
   console.log(
     JSON.stringify(
       {
@@ -79,6 +108,12 @@ try {
         attempts: attempted.size,
         credits: bag.spent,
         ledgerDedup: true,
+        concurrentVisibleChoices: {
+          min: Math.min(...visibleCounts),
+          max: Math.max(...visibleCounts),
+          samples: visibleCounts.length,
+        },
+        pairedSpawns: [...batches.values()].every((ids) => ids.size === 2),
         status: a.state!.status,
         reason: a.state!.reason,
         result: a.state!.result,

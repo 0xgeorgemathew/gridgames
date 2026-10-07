@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import { StockMatch } from './match'
 import { ValuationError } from './valuation-error'
+import { dropPoint } from '../client/motion'
 import { STOCK_ASSETS } from '../shared/assets'
 import type { ArcadeResult, QuoteCredit } from '../shared/types'
 import type { RoomProvision } from '@/worker/session'
@@ -218,5 +219,39 @@ test('tie, empty acquisitions and infrastructure failures keep distinct terminal
     } finally {
       f.match.cleanup()
     }
+  }
+})
+
+test('paired shared opportunities offer two to four distinct, separated mobile choices through play', () => {
+  const f = fixture()
+  try {
+    f.start()
+    const symbols = new Set<string>()
+    for (let elapsed = 200; elapsed < 60000; elapsed += 100) {
+      const now = f.match.state.startedAt + elapsed
+      f.setNow(now)
+      f.match.tick()
+      const drops = f.match.state.drops
+      expect(drops.length).toBeGreaterThanOrEqual(2)
+      expect(drops.length).toBeLessThanOrEqual(4)
+      expect(new Set(drops.map((d) => d.id)).size).toBe(drops.length)
+      const visible = drops.filter((d) => dropPoint(d, now).y <= 1)
+      expect(visible.length).toBeGreaterThanOrEqual(2)
+      for (const drop of drops) symbols.add(drop.symbol)
+      for (const width of [320, 390, 900]) {
+        const points = visible.map((d) => dropPoint(d, now))
+        for (let i = 0; i < points.length; i++) {
+          expect(points[i].x * width).toBeGreaterThan(33)
+          expect(points[i].x * width).toBeLessThan(width - 33)
+          for (let j = i + 1; j < points.length; j++)
+            expect(Math.abs(points[i].x - points[j].x) * width).toBeGreaterThan(66)
+        }
+      }
+    }
+    expect(symbols.size).toBe(10)
+    expect(f.requests).toHaveLength(0)
+    expect(f.match.state.bags.map((b) => b.spent)).toEqual([0, 0])
+  } finally {
+    f.match.cleanup()
   }
 })
