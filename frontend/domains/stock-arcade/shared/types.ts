@@ -66,6 +66,7 @@ export interface QuoteCredit {
 }
 export const CATCH_COST = 1
 export const MATCH_BUDGET = 10
-export const DROP_WINDOW_MS = 2800
-export const DROP_INTERVAL_MS = 2700
+// Keep client motion and authoritative catch expiry on the same 75% speed clock.
+export const DROP_WINDOW_MS = 2800 / 0.75
+export const DROP_INTERVAL_MS = 2700 / 0.75
 export const DROP_BATCH_SIZE = 3

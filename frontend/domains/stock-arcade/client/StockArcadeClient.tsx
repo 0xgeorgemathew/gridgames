@@ -419,7 +419,11 @@ export function StockArcadeClient() {
                       className="ninja-catch"
                       style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
                     >
-                      <StockDeRez progress={(now - caughtAt) / SLICE_EFFECT_MS} />
+                      <StockDeRez
+                        progress={(now - caughtAt) / SLICE_EFFECT_MS}
+                        symbol={drop.symbol}
+                        rotation={point.rotation}
+                      />
                     </div>
                   )
                 })}

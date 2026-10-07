@@ -1,3 +1,5 @@
+import { useId } from 'react'
+import { stockAsset } from '../shared/assets'
 import { COIN_CONFIG } from '@/platform/game-engine/visuals/tron-disc'
 import {
   BLADE_CONFIG,
@@ -7,9 +9,9 @@ import {
 const hex = (color: number) => '#' + color.toString(16).padStart(6, '0')
 const energy = hex(COIN_CONFIG.long.color)
 /** The original sculpted disc rim: eight separated energy cells and a dark core. */
-export function StockDiscRim() {
+function DiscArtwork() {
   return (
-    <svg className="ninja-disc-rim" viewBox="-36 -36 72 72" aria-hidden="true">
+    <>
       {[6, 5, 4, 3, 2, 1].map((i) => (
         <circle key={i} r="30" fill="none" stroke={energy} strokeWidth={i} opacity="0.018" />
       ))}
@@ -34,7 +36,14 @@ export function StockDiscRim() {
           />
         )
       })}
-      <circle r="18" fill="none" stroke={energy} strokeWidth="0.55" opacity="0.45" />
+      <circle r="22" fill="none" stroke={energy} strokeWidth="0.55" opacity="0.45" />
+    </>
+  )
+}
+export function StockDiscRim() {
+  return (
+    <svg className="ninja-disc-rim" viewBox="-36 -36 72 72" aria-hidden="true">
+      <DiscArtwork />
     </svg>
   )
 }
@@ -77,30 +86,127 @@ export function StockBlade({
     </svg>
   )
 }
-/** Short de-resolution: original cyan triangular/voxel shards with white cores. */
-export function StockDeRez({ progress }: { progress: number }) {
-  const p = Math.max(0, Math.min(1, progress)),
-    distance = 6 + 12 * p
+// A tessellated disc, not independent confetti: each fragment retains its part
+// of the logo/core/rim, exposes a luminous cut edge, then rapidly derezzes.
+const fragments = Array.from({ length: 16 }, (_, cell) => {
+  const x = (cell % 4) * 16 - 32,
+    y = Math.floor(cell / 4) * 16 - 32
+  return [
+    [
+      [x, y],
+      [x + 16, y],
+      [x, y + 16],
+    ],
+    [
+      [x + 16, y],
+      [x + 16, y + 16],
+      [x, y + 16],
+    ],
+  ]
+})
+  .flat()
+  .map((vertices, i) => ({
+    points: vertices.map(([x, y]) => `${x},${y}`).join(' '),
+    x: vertices.reduce((sum, p) => sum + p[0], 0) / 3,
+    y: vertices.reduce((sum, p) => sum + p[1], 0) / 3,
+    life: 0.58 + ((i * 7) % 11) * 0.038,
+  }))
+export function StockDeRez({
+  progress,
+  symbol = 'NVDA',
+  rotation = 0,
+}: {
+  progress: number
+  symbol?: string
+  rotation?: number
+}) {
+  const id = useId().replace(/:/g, ''),
+    p = Math.max(0, Math.min(1, progress))
+  const spread = Math.min(1, p / 0.45)
   return (
-    <svg
-      className="ninja-derez"
-      viewBox="-70 -70 140 140"
-      aria-hidden="true"
-      style={{ opacity: 1 - p }}
-    >
-      {Array.from({ length: 8 }, (_, i) => {
-        const angle = (i * Math.PI) / 4
+    <svg className="ninja-derez" viewBox="-33 -33 66 66" aria-hidden="true">
+      <defs>
+        <clipPath id={`${id}-disc`}>
+          <circle r="30" />
+        </clipPath>
+        {fragments.map((f, i) => (
+          <clipPath key={i} id={`${id}-${i}`}>
+            <polygon points={f.points} />
+          </clipPath>
+        ))}
+        <g id={`${id}-face`}>
+          <g transform={`rotate(${(rotation * 180) / Math.PI})`}>
+            <DiscArtwork />
+          </g>
+          <rect x="-20" y="-17" width="40" height="23" rx="4" fill="#f4f6f8" />
+          <image
+            href={stockAsset(symbol)?.logo}
+            x="-17"
+            y="-15"
+            width="34"
+            height="19"
+            preserveAspectRatio="xMidYMid meet"
+          />
+          <text
+            y="15"
+            textAnchor="middle"
+            fill="white"
+            fontSize="6"
+            fontFamily="Orbitron, sans-serif"
+            fontWeight="800"
+          >
+            {symbol}
+          </text>
+        </g>
+      </defs>
+      {fragments.map((f, i) => {
+        const dissolve = Math.max(0, (p - 0.2) / (f.life - 0.2))
+        if (dissolve >= 1) return null
+        const shrink = 1 - Math.pow(dissolve, 3) * 0.9
+        const dx = (f.x / 32) * spread * 6,
+          dy = (f.y / 32) * spread * 5 - spread * 2
         return (
           <g
             key={i}
-            transform={`translate(${Math.cos(angle) * distance},${Math.sin(angle) * distance}) rotate(${i * 45}) scale(${1 - p * 0.6})`}
+            data-fragment="disc"
+            opacity={Math.min(1, (1 - dissolve) * 2)}
+            transform={`translate(${f.x + dx},${f.y + dy}) rotate(${(i % 2 ? 1 : -1) * spread * 12}) scale(${shrink}) translate(${-f.x},${-f.y})`}
           >
-            {i % 2 ? (
-              <path d="M-5,-5 H5 V5 H-5Z" fill={energy} opacity="0.8" />
-            ) : (
-              <path d="M0,-7 L6,4 L-6,4Z" fill={energy} opacity="0.8" />
-            )}
-            <path d="M0,-2 L2,1 L-2,1Z" fill="white" opacity="0.9" />
+            <g
+              transform={`translate(${spread * 1.4},${spread * 1.8})`}
+              clipPath={`url(#${id}-${i})`}
+            >
+              <g clipPath={`url(#${id}-disc)`}>
+                <polygon
+                  points={f.points}
+                  fill="#103844"
+                  stroke={energy}
+                  strokeWidth="0.65"
+                  opacity={spread * 0.8}
+                />
+              </g>
+            </g>
+            <g clipPath={`url(#${id}-${i})`}>
+              <g clipPath={`url(#${id}-disc)`}>
+                <use href={`#${id}-face`} />
+                <polygon
+                  points={f.points}
+                  fill="none"
+                  stroke={energy}
+                  strokeWidth={p < 0.3 ? 1.4 : 0.7}
+                  opacity={Math.min(1, p * 12)}
+                />
+                {p < 0.22 && (
+                  <polygon
+                    points={f.points}
+                    fill="none"
+                    stroke="white"
+                    strokeWidth="0.4"
+                    opacity={Math.min(1, p * 16)}
+                  />
+                )}
+              </g>
+            </g>
           </g>
         )
       })}

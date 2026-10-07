@@ -384,3 +384,34 @@ References: [vinext migration skill](https://github.com/cloudflare/vinext/blob/m
 The existing TRON theme, original game cards, grid background, lobby headings, profile/back controls, full-screen arena, and bottom HUD remain the presentation baseline. Stock Ninja uses those same patterns with stock identifiers, quote-pending feedback, bags and dollar budgets. The final stock mode reuses the actual legacy matchmaking panel, score row and result overlay rather than only their fonts and colors. Legacy Hyper Swiper and Tap Dancer visuals and Phaser engines are retained.
 
 Quote execution routes and scoring pools are distinct. Real CLASSIC quotes may use other pools or multi-hop routes, with exact canonical endpoints, chain 4663, allowed V3/V4 protocols, route continuity, bounded raw output and auto-slippage estimates validated. Scoring still reads the designated pools at one common cutoff block. No transaction payloads are retained. Fixed-block valuation aggregates public RPC reads through the verified Multicall3 deployment to avoid per-call request bursts. The preview rejects quote slippage estimates above 5%; this technical guard is not an agreed live-trading default. A missing quote, stale/unavailable cutoff price, tie or unresolved pending claim cancels the prototype payout.
+
+## Slower tosses and original artwork refinement
+
+The approved follow-up keeps the shared three-stock batches, $1 simulated catches,
+$10 per-player cap, scoring cutoff, HUD and original music. Toss speed is now 75%
+of the previous speed: full flight 2800→3733⅓ms; launch interval 2700→3600ms.
+The same shared duration drives client trajectory and server expiry. The arc,
+launch height, angular travel and lane separation are unchanged. A late cutoff
+clips the flight rather than compressing its motion.
+
+Stock logos no longer pass through the CSS brightness/invert filter that made
+every mark white. The original source colors and gradients are retained in
+scalable SVG artwork; genuine black marks sit on a neutral pale chamber. NVIDIA
+uses a viewBox crop of its original green symbol for readability. See
+[artwork provenance](stock-ninja-logos.md) for all twenty sources.
+
+The slice now lasts at most360ms rather than180ms and fractures the actual disc
+core, segmented rim and original logo into32 bounded angular prism fragments.
+Edges briefly illuminate, fragments separate locally (under14CSSpx even on a
+112px disc), and staggered shrink/dissolve removes them. No debris travels through
+the arena; no separate idle animation or GPU renderer is introduced. The original
+Phaser glass blade and disc palette remain shared.
+
+Visual references inspected: the film's disc-arena disintegration frame (the blue
+program breaks into hard geometric fragments, with bright cut edges and dark
+reflective interiors), [Digital Domain's original film frames and credits](https://digitaldomain.com/work/tron-legacy/),
+and Disney's [2010 official trailer](https://www.youtube.com/watch?v=Wxjtr5dfl3Q).
+The [reference frame](https://images3.alphacoders.com/967/thumb-1920-96795.jpg)
+is film imagery used for visual review only; it is not included in the game.
+This is an original lightweight2D interpretation for coin feedback, not copied
+film animation.

@@ -313,3 +313,23 @@ test('in-flight quotes reserve dollars before awaiting and never exceed either p
     f.match.cleanup()
   }
 })
+
+test('slower authoritative window accepts the extended flight and rejects its exact expiry', async () => {
+  const f = fixture()
+  try {
+    f.start()
+    const drop = f.match.state.drops[0]
+    expect(drop.expiresAt - drop.spawnedAt).toBeCloseTo(2800 / 0.75, 6)
+    f.setNow(drop.spawnedAt + 3000)
+    f.match.handle('a', 'catch_stock', { dropId: drop.id })
+    await f.drain()
+    expect(f.match.state.bags[0].spent).toBe(1)
+    f.setNow(drop.expiresAt)
+    f.match.handle('b', 'catch_stock', { dropId: drop.id })
+    await f.drain()
+    expect(f.match.state.bags[1].spent).toBe(0)
+    expect(f.requests).toHaveLength(1)
+  } finally {
+    f.match.cleanup()
+  }
+})

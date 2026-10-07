@@ -24,8 +24,10 @@
 .arcade-disc img {
   width: 100%;
   height: clamp(30px, 8vw, 38px);
+  padding: 4px 5px;
+  border-radius: 7px;
+  background: #f4f6f8;
   object-fit: contain;
-  filter: brightness(0) invert(1);
   pointer-events: none;
 }
 .arcade-trail {
@@ -96,8 +98,10 @@
 .arcade-holdings img {
   width: 18px;
   height: 18px;
+  padding: 2px;
+  border-radius: 3px;
+  background: #f4f6f8;
   object-fit: contain;
-  filter: brightness(0) invert(1);
 }
 .arcade-holdings p {
   white-space: nowrap;
@@ -130,16 +134,15 @@
 }
 .ninja-catch {
   position: absolute;
-  width: 88px;
-  height: 88px;
+  width: clamp(88px, 22vw, 112px);
+  height: clamp(88px, 22vw, 112px);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
 .ninja-derez {
-  width: 88px;
-  height: 88px;
+  width: clamp(88px, 22vw, 112px);
+  height: clamp(88px, 22vw, 112px);
   overflow: visible;
-  mix-blend-mode: screen;
 }
 
 .arcade-disc .ninja-disc-symbol {

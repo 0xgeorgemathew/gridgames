@@ -72,7 +72,7 @@ bun run format
 - `domains/stock-arcade/` owns Stock Ninja (stable `stock-arcade` URL/slug), shared clock/drop contracts, dollar budget ledger, fixed-block pricing and local motion.
 - Stock has twenty verified assets, one server-shuffled deck shared by both players, three independent opportunities per launch and no position-slot state. Reserve pending dollar cost before quoting; never exceed the $10 budget.
 - `platform/ui/MatchmakingAuthPanel`, `MatchScoreRow`, `MatchResultOverlay` are the original game presenters shared with stock. Preserve their established layout.
-- `platform/game-engine/visuals/` owns the shared original TRON disc palette and glass-ribbon geometry. Stock keeps diagonal ballistic tosses, genuine SVG brand marks, segmented energy rims, a local 180ms slice and no financial graph. Stock music reuses the original loop, stops outside play/hidden tabs, and retains a per-game mute preference.
+- `platform/game-engine/visuals/` owns the shared original TRON disc palette and glass-ribbon geometry. Stock keeps diagonal ballistic tosses, untinted original-color SVG brand marks in neutral logo chambers, segmented energy rims, a local 360ms disc-fracture slice and no financial graph. Stock music reuses the original loop, stops outside play/hidden tabs, and retains a per-game mute preference.
 - `worker/quote-gate.ts` owns one aggregate API-key admission gate across all match objects.
 - Source `wrangler.jsonc` targets `grid-games-pivot` at `pivot.gridgames.space`; its namespaces are separate from `grid-games`.
 - No guest/auth bypass is enabled. Privy/Farcaster clients are retained.

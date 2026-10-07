@@ -1,6 +1,6 @@
 import { DROP_WINDOW_MS, type StockDrop } from '../shared/types'
 
-export const SLICE_EFFECT_MS = 180
+export const SLICE_EFFECT_MS = 360
 export const discDiameter = (width: number) => Math.max(88, Math.min(112, width * 0.22))
 export function dropPoint(drop: StockDrop, now: number) {
   const progress = Math.max(0, Math.min(1, (now - drop.spawnedAt) / DROP_WINDOW_MS))

@@ -13,9 +13,11 @@ const drop = {
 }
 test('toss carries horizontal and angular momentum while gravity reverses vertical velocity', () => {
   expect(dropPoint(drop, 0).y).toBeGreaterThan(1)
-  expect(dropPoint(drop, 1200).y).toBeLessThan(0.4)
+  expect(dropPoint(drop, DROP_WINDOW_MS * 0.4).y).toBeLessThan(0.4)
   expect(dropPoint(drop, DROP_WINDOW_MS).y).toBeGreaterThan(1.5)
-  const points = [0, 700, 1400, 2100, 2800].map((t) => dropPoint(drop, t))
+  const points = [0, 0.25, 0.5, 0.75, 1]
+    .map((p) => p * DROP_WINDOW_MS)
+    .map((t) => dropPoint(drop, t))
   for (let i = 1; i < points.length; i++) {
     expect(points[i].x).toBeGreaterThan(points[i - 1].x)
     expect(points[i].rotation).toBeGreaterThan(points[i - 1].rotation)
@@ -34,4 +36,15 @@ test('swipe collision uses the enlarged responsive disc diameter between samples
   }
   expect(discDiameter(320)).toBe(88)
   expect(discDiameter(900)).toBe(112)
+})
+
+test('75% toss speed preserves the whole arc and spin on the longer server window', () => {
+  expect(DROP_WINDOW_MS / 2800).toBeCloseTo(4 / 3, 10)
+  for (let oldTime = 0; oldTime <= 2800; oldTime += 100) {
+    const p = oldTime / 2800
+    const point = dropPoint(drop, oldTime / 0.75)
+    expect(point.x).toBeCloseTo(drop.lane + drop.drift * p, 10)
+    expect(point.y).toBeCloseTo(1.14 - 3.7 * p + 4.6 * p * p, 10)
+    expect(point.rotation).toBeCloseTo(drop.rotation * p, 10)
+  }
 })
