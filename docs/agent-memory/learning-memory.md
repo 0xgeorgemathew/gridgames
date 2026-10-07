@@ -100,3 +100,8 @@ written upfront as policy.
   successively smaller digital fragments, then collapse the pixels locally. Keep
   authoritative outcomes in the HUD; inspect timed phases and normal-speed playback
   at desktop/mobile sizes as well as ownership/accounting tests.
+
+- Cached shader time and active shader time must share an intentional phase. Switching
+  an idle raster at time zero to page uptime can jump animation state at launch.
+  Keep GridScan geometry rigid, start its sweep locally, and inspect cold/cache/active
+  transitions as well as zero idle draw counts.

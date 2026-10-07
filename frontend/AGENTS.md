@@ -83,5 +83,6 @@ bun run format
 ## Idle visual workload
 
 - `GridScanBackground` caches at most four shader rasters for idle viewport/theme combinations and releases the renderer/context after capture. Active scans own one renderer/composer per mounted canvas; update primitive uniforms rather than recreating resources for inline arrays.
+- GridScan tunnel lines stay rigid: only the scan illumination moves. Active scans use a local zero-based clock rather than page uptime; the menu's 500ms entry has zero scan delay.
 - A hidden scan renders the grid on demand. Active scans pause offscreen, in hidden tabs and for reduced motion; dispose timers, observers and GPU resources on unmount.
 - Stock lobby/results use static TRON glow and no animation-clock or audio loop; live stock matches retain local animation. Measure both HUD boundaries; keep the bag touch-scrollable. Local unacknowledged claim reservations prevent optimistic budget over-catching, while the ordered server ledger/ack remains authoritative. Verify authenticated idle routes as well as public landing pages before claiming idle load is resolved.
