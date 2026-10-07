@@ -43,7 +43,6 @@ uniform float uScanDelay;
 uniform vec2 uScanRange;
 varying vec2 vUv;
 
-const int MAX_SCANS = 8;
 
 float smoother01(float a, float b, float x){
   float t = clamp((x - a) / max(1e-5, (b - a)), 0.0, 1.0);
@@ -203,15 +202,16 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
 
     float fade = exp(-dist * fadeStrength);
 
+    float combinedPulse = 0.0;
+    float combinedAura = 0.0;
+    // Hidden scans do no pulse/aura work.
+    if (uScanOpacity > 0.0) {
     float dur = max(0.05, uScanDuration);
     float del = max(0.0, uScanDelay);
     float scanZMax = 2.0;
     float widthScale = max(0.1, uScanGlow);
     float sigma = max(0.001, 0.18 * widthScale * uScanSoftness);
     float sigmaA = sigma * 2.0;
-
-    float combinedPulse = 0.0;
-    float combinedAura = 0.0;
 
     float cycle = dur + del;
     float tCycle = mod(iTime, cycle);
@@ -241,6 +241,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord)
     combinedPulse += pulseBase * clamp(uScanOpacity, 0.0, 1.0);
     float auraBand = exp(-0.5 * (dz * dz) / max(0.001, (currentSigmaA * currentSigmaA)));
     combinedAura += (auraBand * 0.25) * phaseWindow * clamp(uScanOpacity, 0.0, 1.0);
+    }
 
   float lineVis = lineMask;
   vec3 gridCol = uLinesColor * lineVis * fade;
@@ -293,171 +294,79 @@ interface GridScanProps {
   maxFps?: number
 }
 
-function smoothDampVec2(
-  current: THREE.Vector2,
-  target: THREE.Vector2,
-  currentVelocity: THREE.Vector2,
-  smoothTime: number,
-  maxSpeed: number,
-  deltaTime: number
-): THREE.Vector2 {
-  smoothTime = Math.max(0.0001, smoothTime)
-  const omega = 2 / smoothTime
-  const x = omega * deltaTime
-  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
-
-  let change = current.clone().sub(target)
-  const originalTo = target.clone()
-
-  const maxChange = maxSpeed * smoothTime
-  if (change.length() > maxChange) change.setLength(maxChange)
-
-  target = current.clone().sub(change)
-  const temp = currentVelocity.clone().addScaledVector(change, omega).multiplyScalar(deltaTime)
-  currentVelocity.sub(temp.clone().multiplyScalar(omega))
-  currentVelocity.multiplyScalar(exp)
-
-  const out = target.clone().add(change.add(temp).multiplyScalar(exp))
-
-  const origMinusCurrent = originalTo.clone().sub(current)
-  const outMinusOrig = out.clone().sub(originalTo)
-  if (origMinusCurrent.dot(outMinusOrig) > 0) {
-    out.copy(originalTo)
-    currentVelocity.set(0, 0)
-  }
-  return out
-}
-
-function smoothDampFloat(
-  current: number,
-  target: number,
-  velRef: { v: number },
-  smoothTime: number,
-  maxSpeed: number,
-  deltaTime: number
-): { value: number; v: number } {
-  smoothTime = Math.max(0.0001, smoothTime)
-  const omega = 2 / smoothTime
-  const x = omega * deltaTime
-  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x)
-
-  let change = current - target
-  const originalTo = target
-
-  const maxChange = maxSpeed * smoothTime
-  change = Math.sign(change) * Math.min(Math.abs(change), maxChange)
-
-  target = current - change
-  const temp = (velRef.v + omega * change) * deltaTime
-  velRef.v = (velRef.v - omega * temp) * exp
-
-  let out = target + (change + temp) * exp
-
-  const origMinusCurrent = originalTo - current
-  const outMinusOrig = out - originalTo
-  if (origMinusCurrent * outMinusOrig > 0) {
-    out = originalTo
-    velRef.v = 0
-  }
-  return { value: out, v: velRef.v }
-}
-
 function srgbColor(hex: string): THREE.Color {
   const c = new THREE.Color(hex)
   return c.convertSRGBToLinear()
 }
 
-function useGridScanEffect(containerRef: React.RefObject<HTMLDivElement>, props: GridScanProps) {
-  const params = {
-    linesColor: '#00d9ff',
-    scanColor: '#00ffff',
-    lineThickness: 1,
-    gridScale: 0.08,
-    scanOpacity: 0.5,
-    scanGlow: 0.7,
-    scanSoftness: 2,
-    scanDuration: 2.0,
-    scanDelay: 2.0,
-    scanDirection: 2,
-    scanRange: [0.0, 2.0] as [number, number],
-    chromaticAberration: 0.003,
-    noiseIntensity: 0.008,
-    bloomIntensity: 0.5,
-    sensitivity: 0.55,
-    maxFps: 30,
-    ...props,
-  }
+const defaults = {
+  linesColor: '#00d9ff',
+  scanColor: '#00ffff',
+  lineThickness: 1,
+  gridScale: 0.08,
+  scanOpacity: 0.5,
+  scanGlow: 0.7,
+  scanSoftness: 2,
+  scanDuration: 2,
+  scanDelay: 2,
+  scanDirection: 2,
+  scanRange: [0, 2] as [number, number],
+  chromaticAberration: 0.003,
+  noiseIntensity: 0.008,
+  bloomIntensity: 0.5,
+  sensitivity: 0.55,
+  maxFps: 30,
+}
+type Settings = typeof defaults
 
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
-  const materialRef = useRef<THREE.ShaderMaterial | null>(null)
-  const composerRef = useRef<EffectComposer | null>(null)
-  const bloomRef = useRef<BloomEffect | null>(null)
-  const chromaRef = useRef<ChromaticAberrationEffect | null>(null)
-  const rafRef = useRef<number | undefined>(undefined)
+function useGridScanEffect(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  props: GridScanProps
+) {
+  const params = { ...defaults, ...props }
+  const settingsRef = useRef(params)
+  const updateRef = useRef<((settings: Settings) => void) | null>(null)
 
-  const lookCurrent = useRef(new THREE.Vector2(0, 0))
-  const lookVel = useRef(new THREE.Vector2(0, 0))
-  const tiltCurrent = useRef(0)
-  const tiltVel = useRef({ v: 0 })
-  const yawCurrent = useRef(0)
-  const yawVel = useRef({ v: 0 })
-
-  const s = THREE.MathUtils.clamp(params.sensitivity, 0, 1)
-  const skewScale = THREE.MathUtils.lerp(0.06, 0.2, s)
-  const tiltScale = THREE.MathUtils.lerp(0.12, 0.3, s)
-  const yawScale = THREE.MathUtils.lerp(0.1, 0.28, s)
-  const smoothTime = THREE.MathUtils.lerp(0.45, 0.12, s)
-  const maxSpeed = Infinity
-  const yBoost = THREE.MathUtils.lerp(1.2, 1.6, s)
-
+  // GPU resources belong to the mounted canvas, never to changing prop/array identities.
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-
+    const initial = settingsRef.current
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: false,
       alpha: false,
-      powerPreference: 'high-performance',
+      powerPreference: 'low-power',
     })
-    rendererRef.current = renderer
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
-    renderer.setSize(container.clientWidth, container.clientHeight)
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.NoToneMapping
     renderer.autoClear = false
     renderer.setClearColor(0x000000, 1)
+    renderer.domElement.setAttribute('aria-hidden', 'true')
+    renderer.domElement.dataset.gridBackground = 'true'
     container.appendChild(renderer.domElement)
-
     const uniforms = {
-      iResolution: {
-        value: new THREE.Vector3(
-          container.clientWidth,
-          container.clientHeight,
-          renderer.getPixelRatio()
-        ),
-      },
+      iResolution: { value: new THREE.Vector3() },
       iTime: { value: 0 },
-      uSkew: { value: new THREE.Vector2(0, 0) },
+      uSkew: { value: new THREE.Vector2() },
       uTilt: { value: 0 },
       uYaw: { value: 0 },
-      uLineThickness: { value: params.lineThickness },
-      uLinesColor: { value: srgbColor(params.linesColor) },
-      uScanColor: { value: srgbColor(params.scanColor) },
-      uGridScale: { value: params.gridScale },
+      uLineThickness: { value: initial.lineThickness },
+      uLinesColor: { value: srgbColor(initial.linesColor) },
+      uScanColor: { value: srgbColor(initial.scanColor) },
+      uGridScale: { value: initial.gridScale },
       uLineStyle: { value: 0 },
-      uLineJitter: { value: Math.max(0, Math.min(1, 0.1)) },
-      uScanOpacity: { value: params.scanOpacity },
-      uNoise: { value: params.noiseIntensity },
-      uBloomOpacity: { value: params.bloomIntensity },
-      uScanGlow: { value: params.scanGlow },
-      uScanSoftness: { value: params.scanSoftness },
+      uLineJitter: { value: 0.1 },
+      uScanOpacity: { value: initial.scanOpacity },
+      uNoise: { value: initial.noiseIntensity },
+      uBloomOpacity: { value: initial.bloomIntensity },
+      uScanGlow: { value: initial.scanGlow },
+      uScanSoftness: { value: initial.scanSoftness },
       uPhaseTaper: { value: 0.9 },
-      uScanDuration: { value: params.scanDuration },
-      uScanDelay: { value: params.scanDelay },
-      uScanDirection: { value: params.scanDirection },
-      uScanRange: { value: new THREE.Vector2(params.scanRange[0], params.scanRange[1]) },
+      uScanDuration: { value: initial.scanDuration },
+      uScanDelay: { value: initial.scanDelay },
+      uScanDirection: { value: initial.scanDirection },
+      uScanRange: { value: new THREE.Vector2(...initial.scanRange) },
     }
-
     const material = new THREE.ShaderMaterial({
       uniforms,
       vertexShader: vert,
@@ -466,154 +375,136 @@ function useGridScanEffect(containerRef: React.RefObject<HTMLDivElement>, props:
       depthWrite: false,
       depthTest: false,
     })
-    materialRef.current = material
-
     const scene = new THREE.Scene()
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
-    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material)
-    scene.add(quad)
-
-    // Post-processing
+    const geometry = new THREE.PlaneGeometry(2, 2)
+    scene.add(new THREE.Mesh(geometry, material))
     const composer = new EffectComposer(renderer)
-    composerRef.current = composer
-
-    const renderPass = new RenderPass(scene, camera)
-    composer.addPass(renderPass)
-
+    composer.addPass(new RenderPass(scene, camera))
     const bloom = new BloomEffect({
-      intensity: 1.0,
+      intensity: 1,
       luminanceThreshold: 0,
       luminanceSmoothing: 0,
+      resolutionScale: 0.5,
     })
-    bloom.blendMode.opacity.value = Math.max(0, params.bloomIntensity)
-    bloomRef.current = bloom
-
     const chroma = new ChromaticAberrationEffect({
-      offset: new THREE.Vector2(params.chromaticAberration, params.chromaticAberration),
+      offset: new THREE.Vector2(initial.chromaticAberration, initial.chromaticAberration),
       radialModulation: true,
-      modulationOffset: 0.0,
+      modulationOffset: 0,
     })
-    chromaRef.current = chroma
-
     const effectPass = new EffectPass(camera, bloom, chroma)
     effectPass.renderToScreen = true
     composer.addPass(effectPass)
 
-    const onResize = () => {
-      renderer.setSize(container.clientWidth, container.clientHeight)
-      material.uniforms.iResolution.value.set(
-        container.clientWidth,
-        container.clientHeight,
-        renderer.getPixelRatio()
-      )
-      composer.setSize(container.clientWidth, container.clientHeight)
+    let disposed = false,
+      visible = true
+    let frame: number | null = null
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const media = matchMedia('(prefers-reduced-motion: reduce)')
+    const canRender = () => !disposed && visible && !document.hidden
+    const animated = () => settingsRef.current.scanOpacity > 0 && !media.matches
+    const stop = () => {
+      if (frame !== null) cancelAnimationFrame(frame)
+      if (timer !== null) clearTimeout(timer)
+      frame = null
+      timer = null
     }
-    window.addEventListener('resize', onResize)
-
-    let isVisible = true
-    let last = performance.now()
-    let lastRenderTime = 0
-    const frameInterval = 1000 / params.maxFps
-
+    const render = () => {
+      if (!canRender()) return
+      // The hidden-scan landing view is a static grid. Preserve its look without
+      // continuously animating imperceptible grain/jitter and running postprocessing.
+      uniforms.iTime.value = animated() ? performance.now() / 1000 : 0
+      renderer.clear(true, true, true)
+      composer.render()
+    }
+    const schedule = () => {
+      if (!canRender() || !animated() || timer !== null || frame !== null) return
+      timer = setTimeout(
+        () => {
+          timer = null
+          if (!canRender() || !animated()) return
+          frame = requestAnimationFrame(() => {
+            frame = null
+            render()
+            schedule()
+          })
+        },
+        1000 / Math.max(1, Math.min(24, settingsRef.current.maxFps))
+      )
+    }
+    const refresh = () => {
+      stop()
+      render()
+      schedule()
+    }
+    const update = (settings: Settings) => {
+      settingsRef.current = settings
+      uniforms.uLineThickness.value = settings.lineThickness
+      uniforms.uLinesColor.value.copy(srgbColor(settings.linesColor))
+      uniforms.uScanColor.value.copy(srgbColor(settings.scanColor))
+      uniforms.uGridScale.value = settings.gridScale
+      uniforms.uScanOpacity.value = settings.scanOpacity
+      uniforms.uNoise.value = settings.noiseIntensity
+      uniforms.uBloomOpacity.value = settings.bloomIntensity
+      uniforms.uScanGlow.value = settings.scanGlow
+      uniforms.uScanSoftness.value = settings.scanSoftness
+      uniforms.uScanDuration.value = settings.scanDuration
+      uniforms.uScanDelay.value = settings.scanDelay
+      uniforms.uScanDirection.value = settings.scanDirection
+      uniforms.uScanRange.value.set(...settings.scanRange)
+      bloom.blendMode.opacity.value = Math.max(0, settings.bloomIntensity)
+      chroma.offset.set(settings.chromaticAberration, settings.chromaticAberration)
+      refresh()
+    }
+    updateRef.current = update
+    const resize = () => {
+      const width = Math.max(1, container.clientWidth),
+        height = Math.max(1, container.clientHeight)
+      // At most one device pixel per CSS pixel and 1.5M background pixels total.
+      // Shader derivative antialiasing and half-resolution bloom retain the grid/glow.
+      renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio || 1, 1, Math.sqrt(1500000 / (width * height)))
+      )
+      renderer.setSize(width, height)
+      composer.setSize(width, height)
+      uniforms.iResolution.value.set(width, height, renderer.getPixelRatio())
+      refresh()
+    }
+    const resizeObserver = new ResizeObserver(resize)
+    resizeObserver.observe(container)
     const observer = new IntersectionObserver(
       (entries) => {
-        isVisible = entries[0].isIntersecting
-        if (isVisible && !rafRef.current) {
-          last = performance.now()
-          tick()
-        } else if (!isVisible && rafRef.current) {
-          cancelAnimationFrame(rafRef.current)
-          rafRef.current = undefined
-        }
+        visible = entries[0].isIntersecting
+        refresh()
       },
       { threshold: 0 }
     )
     observer.observe(container)
-
-    const tick = () => {
-      if (!isVisible) return
-
-      rafRef.current = requestAnimationFrame(tick)
-
-      const now = performance.now()
-      const elapsed = now - lastRenderTime
-
-      if (elapsed < frameInterval) return
-
-      const dt = Math.max(0, Math.min(0.1, (now - last) / 1000))
-      last = now
-      lastRenderTime = now - (elapsed % frameInterval)
-
-      // Smooth damp to center (no mouse input)
-      lookCurrent.current.copy(
-        smoothDampVec2(
-          lookCurrent.current,
-          new THREE.Vector2(0, 0),
-          lookVel.current,
-          smoothTime,
-          maxSpeed,
-          dt
-        )
-      )
-
-      const tiltVelObj = { v: tiltVel.current.v }
-      const tiltSm = smoothDampFloat(tiltCurrent.current, 0, tiltVelObj, smoothTime, maxSpeed, dt)
-      tiltCurrent.current = tiltSm.value
-      tiltVel.current.v = tiltSm.v
-
-      const yawVelObj = { v: yawVel.current.v }
-      const yawSm = smoothDampFloat(yawCurrent.current, 0, yawVelObj, smoothTime, maxSpeed, dt)
-      yawCurrent.current = yawSm.value
-      yawVel.current.v = yawSm.v
-
-      const skew = new THREE.Vector2(
-        lookCurrent.current.x * skewScale,
-        -lookCurrent.current.y * yBoost * skewScale
-      )
-      material.uniforms.uSkew.value.set(skew.x, skew.y)
-      material.uniforms.uTilt.value = tiltCurrent.current * tiltScale
-      material.uniforms.uYaw.value = THREE.MathUtils.clamp(yawCurrent.current * yawScale, -0.6, 0.6)
-
-      material.uniforms.iTime.value = now / 1000
-      renderer.clear(true, true, true)
-      composer.render(dt)
-      material.uniforms.uLineThickness.value = params.lineThickness
-      material.uniforms.uLinesColor.value = srgbColor(params.linesColor)
-      material.uniforms.uScanColor.value = srgbColor(params.scanColor)
-      material.uniforms.uGridScale.value = params.gridScale
-      material.uniforms.uScanOpacity.value = params.scanOpacity
-      material.uniforms.uNoise.value = params.noiseIntensity
-      material.uniforms.uBloomOpacity.value = params.bloomIntensity
-      material.uniforms.uScanGlow.value = params.scanGlow
-      material.uniforms.uScanSoftness.value = params.scanSoftness
-      material.uniforms.uScanDuration.value = params.scanDuration
-      material.uniforms.uScanDelay.value = params.scanDelay
-      material.uniforms.uScanDirection.value = params.scanDirection
-      material.uniforms.uScanRange.value.set(params.scanRange[0], params.scanRange[1])
-
-      if (bloomRef.current) {
-        bloomRef.current.blendMode.opacity.value = Math.max(0, params.bloomIntensity)
-      }
-      if (chromaRef.current) {
-        chromaRef.current.offset.set(params.chromaticAberration, params.chromaticAberration)
-      }
-    }
-
-    // Initial start; observer will handle pausing/resuming
-    rafRef.current = requestAnimationFrame(tick)
-
+    document.addEventListener('visibilitychange', refresh)
+    media.addEventListener('change', refresh)
+    update(initial)
+    resize()
     return () => {
+      disposed = true
+      stop()
+      if (updateRef.current === update) updateRef.current = null
       observer.disconnect()
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      window.removeEventListener('resize', onResize)
+      resizeObserver.disconnect()
+      document.removeEventListener('visibilitychange', refresh)
+      media.removeEventListener('change', refresh)
       material.dispose()
-      quad.geometry.dispose()
+      geometry.dispose()
       composer.dispose()
       renderer.dispose()
-      container.removeChild(renderer.domElement)
+      renderer.domElement.remove()
     }
+  }, [containerRef])
+
+  // Numeric scan endpoints prevent fresh inline arrays from retriggering GPU setup.
+  useEffect(() => {
+    settingsRef.current = params
+    updateRef.current?.(params)
   }, [
-    params.sensitivity,
     params.lineThickness,
     params.linesColor,
     params.scanColor,
@@ -624,16 +515,11 @@ function useGridScanEffect(containerRef: React.RefObject<HTMLDivElement>, props:
     params.scanDuration,
     params.scanDelay,
     params.scanDirection,
-    params.scanRange,
+    params.scanRange[0],
+    params.scanRange[1],
     params.chromaticAberration,
     params.noiseIntensity,
     params.bloomIntensity,
-    skewScale,
-    tiltScale,
-    yawScale,
-    smoothTime,
-    maxSpeed,
-    yBoost,
     params.maxFps,
   ])
 }
