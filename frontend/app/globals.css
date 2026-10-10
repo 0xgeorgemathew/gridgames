@@ -1179,8 +1179,32 @@ body {
 }
 
 :root {
+  --pivot-grid-field:
+    radial-gradient(ellipse at 50% 42%, #123c4c 0%, #0b2434 42%, transparent 82%),
+    linear-gradient(180deg, #06131e, #071b29 70%, #06131c);
   --font-geist-sans: 'Geist', system-ui, sans-serif;
   --font-geist-mono: 'Geist Mono', monospace;
   --font-orbitron: 'Orbitron', sans-serif;
   --font-jetbrains: 'JetBrains Mono', monospace;
+}
+
+/* Share the live grid's navy light field with Pivot's landing screens while
+   retaining the cached tunnel raster and its existing entry scan. */
+.pivot-grid-palette {
+  background: var(--pivot-grid-field);
+}
+.pivot-grid-palette .grid-background {
+  isolation: isolate;
+}
+.pivot-grid-palette .grid-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--pivot-grid-field);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.pivot-login-button {
+  background: #081b2abf;
 }

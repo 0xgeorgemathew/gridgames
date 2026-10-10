@@ -92,8 +92,9 @@ export function GameSelectionScreen() {
 
   if (miniAppAuthenticating) {
     return (
-      <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
+      <div className="pivot-grid-palette min-h-screen relative flex items-center justify-center overflow-hidden">
         <GridScanBackground
+          linesColor="#69deff"
           scanDirection={0}
           scanRange={[2.0, 2.0]}
           scanOpacity={0.0}
@@ -111,8 +112,9 @@ export function GameSelectionScreen() {
   }
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
+    <div className="pivot-grid-palette min-h-screen relative flex items-center justify-center overflow-hidden">
       <GridScanBackground
+        linesColor="#69deff"
         scanDirection={isEntering ? 1 : 0}
         scanRange={isEntering ? [0.0, 2.0] : [2.0, 2.0]}
         scanOpacity={isEntering ? 0.8 : 0.0}
@@ -178,7 +180,7 @@ export function GameSelectionScreen() {
             >
               <m.button
                 onClick={login}
-                className="relative w-full px-8 py-3 bg-tron-black/60 backdrop-blur-sm border border-tron-cyan/50 rounded-sm overflow-hidden"
+                className="pivot-login-button relative w-full px-8 py-3 backdrop-blur-sm border border-tron-cyan/50 rounded-sm overflow-hidden"
                 whileTap={{ scale: 0.98 }}
               >
                 <m.div
@@ -210,7 +212,7 @@ export function GameSelectionScreen() {
                   <div
                     className="absolute inset-0 rounded border backdrop-blur-md transition-colors duration-200"
                     style={{
-                      backgroundColor: 'rgba(10, 10, 10, 0.6)',
+                      backgroundColor: 'rgba(8, 27, 42, 0.75)',
                       borderColor: 'rgba(0, 243, 255, 0.25)',
                     }}
                   />

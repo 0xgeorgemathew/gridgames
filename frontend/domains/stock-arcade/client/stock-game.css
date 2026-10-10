@@ -80,9 +80,7 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse at 50% 42%, #123c4c 0%, #0b2434 42%, transparent 82%),
-    linear-gradient(180deg, #06131e, #071b29 70%, #06131c);
+  background: var(--pivot-grid-field);
 }
 .ninja-grid-plane {
   position: absolute;
@@ -531,25 +529,13 @@
     0 0 12px #00dfff0c;
   pointer-events: auto;
 }
-.ninja-funds-pill > span {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.ninja-funds-pill small {
-  font-family: var(--font-orbitron);
-  font-size: 7px;
-  letter-spacing: 0.08em;
-  color: #95cbd8;
-}
 .ninja-funds-pill strong {
   font-family: var(--font-geist-mono);
   font-size: 14px;
   line-height: 17px;
   font-variant-numeric: tabular-nums;
 }
-.ninja-bet-pill:hover,
-.ninja-bet-pill[aria-expanded='true'] {
+.ninja-bet-pill:hover:not(:disabled) {
   border-color: #b4faff;
   background: #123a4d;
 }
@@ -558,38 +544,6 @@
 }
 .ninja-bet-pill[aria-busy='true'] {
   border-color: #ffc68b;
-}
-.ninja-wallet-pill {
-  min-width: 122px;
-  justify-content: center;
-}
-.ninja-bet-options {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
-  padding: 0 14px 12px;
-}
-.ninja-bet-options > button {
-  min-height: 46px;
-  border: 1px solid #00f3ff40;
-  border-radius: 12px;
-  color: #bafaff;
-  background: #103041;
-  font-family: var(--font-geist-mono);
-  font-size: 13px;
-}
-.ninja-bet-options > button[aria-pressed='true'] {
-  color: #041822;
-  background: #8decfa;
-  border-color: #c4faff;
-}
-.ninja-bet-options > button:disabled {
-  opacity: 0.45;
-}
-.ninja-bet-confirmation {
-  padding: 0 14px 8px;
-  color: #bafaff;
-  font-size: 11px;
 }
 .ninja-score-row {
   display: grid;

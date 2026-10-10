@@ -12,8 +12,13 @@ charge per entire swipe. Funds and acquired units remain simulated.
 
 ## Implemented behavior
 
-- Floating left bet pill with $0.25/$0.50/$1/$2 options; right wallet pill shows
-  available simulated USDG with a wallet icon. Both reserve space above the dock.
+- Floating left wallet pill shows available simulated USDG; right bet pill cycles
+  $0.25/$0.50/$1/$2 and wraps. Both show only their icon and amount, reserve space
+  above the dock, and retain accessible labels. The bet is disabled while pending.
+- Landing screens share the grid's navy light field and ice-blue line color. A
+  static scoped wash retains the cached tunnel geometry and existing entry scan;
+  landing cards and login controls use navy glass. No additional animation clock
+  or GPU context is introduced.
 - `set_catch_cost` is validated by the room, publishes the bag, then acknowledges
   the request through `arcade_bet`. The displayed amount stays server-confirmed.
   Catches pause during confirmation. A five-second timeout releases the local UI
@@ -55,6 +60,16 @@ size alone is an investment amount, not a multiplier. No scoring change ships in
 this update.
 
 ## Verification
+
+The follow-up color/control update passes all 86 existing tests, TypeScript,
+focused ESLint, formatting, production build and Worker deployment dry run. The
+collaborative preview connection failed during verification, so native Chrome
+checked the real client/HUD/grid and local `StockMatch` fixture. The full bet
+cycle and wrap confirm through the server; a $2 simulated catch reduces the
+wallet from $10 to $8 with one confirmed asset. At a 320×568 emulated viewport,
+wallet is left and bet right with only one icon and amount each. The Stock Ninja
+landing retains its tunnel geometry with the shared navy field. Fixture auth,
+transport and quote responses remain local stubs; no bypass is shipped.
 
 Types, native test suite, production build, formatting and deployment dry run are
 required before release. Tests cover variable quote input/validation, immutable

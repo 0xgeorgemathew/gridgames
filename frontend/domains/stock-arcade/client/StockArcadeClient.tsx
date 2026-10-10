@@ -409,7 +409,7 @@ export function StockArcadeClient() {
       className={
         game
           ? 'fixed inset-0 bg-tron-black overflow-hidden overscroll-none'
-          : 'relative min-h-[100dvh] bg-black overflow-x-hidden'
+          : 'pivot-grid-palette relative min-h-[100dvh] overflow-x-hidden'
       }
       style={
         {
@@ -420,6 +420,7 @@ export function StockArcadeClient() {
     >
       {!game ? (
         <GridScanBackground
+          linesColor="#69deff"
           scanDirection={0}
           scanRange={[2, 2]}
           scanOpacity={0}
