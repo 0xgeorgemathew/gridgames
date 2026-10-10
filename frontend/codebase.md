@@ -21,6 +21,8 @@ TanStack Start route → Game Client (Zustand + native WebSocket) → Phaser Sce
               Server: app/api/socket/multiplayer/ (room registry, game loop, settlement)
 ```
 
+The public landing menu paints from the root server/ClientOnly fallback before lazy auth providers load. `platform/ui/GameSelectionScreen.tsx` is its auth-independent presenter; `GameSelectionAuth.tsx` supplies the existing Privy/Farcaster state and navigation after readiness. `LandingGridBackground.tsx` ships portrait/landscape tunnel captures, loading the original WebGL scan only on game-entry intent. See `../docs/landing-performance-2026-10-10.md` for the loading audit.
+
 ## Folder Structure
 
 | Folder                        | Purpose                                                            |

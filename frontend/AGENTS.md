@@ -86,6 +86,8 @@ bun run format
 
 ## Idle visual workload
 
+- The public landing menu renders in the root's server/ClientOnly fallback before auth SDKs load. `GameSelectionScreen` takes presentation/auth props; `GameSelectionAuth` owns Privy/Farcaster hooks and router navigation. Keep login and game entry disabled while auth is pending.
+- `LandingGridBackground` uses committed portrait/landscape captures of the original tunnel for idle landing visits. Do not import or initialize WebGL on initial landing load. Warm the original entry scan only on Play focus/pointer intent, and keep its decorative failures from blocking navigation. Apply the palette wash once per visible background.
 - `GridScanBackground` caches at most four shader rasters for idle viewport/theme combinations and releases the renderer/context after capture. Active scans own one renderer/composer per mounted canvas; update primitive uniforms rather than recreating resources for inline arrays.
 - GridScan tunnel lines stay rigid: only the scan illumination moves. Active scans use a local zero-based clock rather than page uptime; the menu's 500ms entry has zero scan delay.
 - A hidden scan renders the grid on demand. Active scans pause offscreen, in hidden tabs and for reduced motion; dispose timers, observers and GPU resources on unmount.

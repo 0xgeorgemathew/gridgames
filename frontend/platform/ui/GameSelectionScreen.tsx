@@ -1,12 +1,8 @@
 'use client'
 
-import { useNavigate } from '@tanstack/react-router'
 import { clientLazy } from '@/platform/ui/client-lazy'
 import { m, AnimatePresence, type Variants } from 'framer-motion'
-
-const GridScanBackground = clientLazy(() =>
-  import('@/platform/ui/GridScanBackground').then((mod) => mod.GridScanBackground)
-)
+import { LandingGridBackground, preloadLandingScan } from '@/platform/ui/LandingGridBackground'
 
 const HyperSwiperOnboarding = clientLazy(() =>
   import('@/domains/hyper-swiper/client/components/modals/OnboardingModal').then(
@@ -21,11 +17,9 @@ const TapDancerOnboarding = clientLazy(() =>
 )
 
 import { games } from '@/domains'
-import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
-import { useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Zap, Sparkles, ChevronRight, Info } from 'lucide-react'
-import { usePrivy } from '@privy-io/react-auth'
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -50,57 +44,44 @@ const itemVariants: Variants = {
   },
 }
 
-export function GameSelectionScreen() {
-  const navigate = useNavigate()
-  const { authenticated, login, logout, user } = usePrivy()
-  const {
-    isInMiniApp,
-    user: miniAppUser,
-    walletAddress: miniAppWallet,
-    isAuthenticating: miniAppAuthenticating,
-  } = useBaseMiniAppAuth()
+interface GameSelectionProps {
+  authPending?: boolean
+  authState?: 'login' | 'ready'
+  isInMiniApp?: boolean
+  miniAppAuthenticating?: boolean
+  displayName?: string | null
+  pfpUrl?: string | null
+  onLogin?: () => void
+  onLogout?: () => void
+  onNavigate?: (slug: string) => void
+}
 
-  const getDisplayName = useCallback(() => {
-    if (isInMiniApp) {
-      if (miniAppUser?.username) return miniAppUser.username
-      if (miniAppUser?.fid) return `fid:${miniAppUser.fid}`
-      if (miniAppWallet) return 'Grid Runner'
-      return null
-    }
-
-    const googleName = (user as { google?: { name?: string } } | null)?.google?.name
-    if (googleName) return googleName
-    if (user?.wallet?.address) return 'Grid Runner'
-    return null
-  }, [isInMiniApp, miniAppUser, miniAppWallet, user])
-
-  const displayName = getDisplayName()
-
+// The public menu can paint before the wallet/auth SDKs are available.
+export function GameSelectionScreen({
+  authPending = false,
+  authState = 'login',
+  isInMiniApp = false,
+  miniAppAuthenticating = false,
+  displayName,
+  pfpUrl,
+  onLogin,
+  onLogout,
+  onNavigate,
+}: GameSelectionProps) {
   const [isEntering, setIsEntering] = useState(false)
   const [onboardingGame, setOnboardingGame] = useState<string | null>(null)
-
-  const authState = useMemo(() => {
-    if (isInMiniApp) {
-      return 'ready'
-    }
-
-    if (authenticated && user?.wallet) {
-      return 'ready'
-    }
-    return 'login'
-  }, [isInMiniApp, authenticated, user?.wallet])
+  const navigationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (navigationTimer.current !== null) clearTimeout(navigationTimer.current)
+    },
+    []
+  )
 
   if (miniAppAuthenticating) {
     return (
       <div className="pivot-grid-palette min-h-screen relative flex items-center justify-center overflow-hidden">
-        <GridScanBackground
-          linesColor="#69deff"
-          scanDirection={0}
-          scanRange={[2.0, 2.0]}
-          scanOpacity={0.0}
-          scanDuration={4.0}
-          scanGlow={0.0}
-        />
+        <LandingGridBackground />
         <m.p
           className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan text-sm tracking-[0.25em] font-medium drop-shadow-[0_0_8px_var(--color-tron-cyan)]"
           style={{ opacity: 1 }}
@@ -113,15 +94,7 @@ export function GameSelectionScreen() {
 
   return (
     <div className="pivot-grid-palette min-h-screen relative flex items-center justify-center overflow-hidden">
-      <GridScanBackground
-        linesColor="#69deff"
-        scanDirection={isEntering ? 1 : 0}
-        scanRange={isEntering ? [0.0, 2.0] : [2.0, 2.0]}
-        scanOpacity={isEntering ? 0.8 : 0.0}
-        scanDuration={isEntering ? 0.8 : 4.0}
-        scanDelay={isEntering ? 0 : 2}
-        scanGlow={isEntering ? 1.0 : 0.0}
-      />
+      <LandingGridBackground active={isEntering} />
 
       <div className="fixed inset-0 pointer-events-none z-10 opacity-10">
         <m.div
@@ -142,7 +115,7 @@ export function GameSelectionScreen() {
           >
             <UserProfileBadge
               displayName={displayName}
-              pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
+              pfpUrl={pfpUrl}
               compact={true}
               animateIdle={false}
             />
@@ -152,7 +125,7 @@ export function GameSelectionScreen() {
 
       <m.div
         className="relative z-20 flex flex-col items-center gap-4 py-6 px-4 w-full max-w-lg"
-        initial="hidden"
+        initial={false}
         animate="visible"
         variants={containerVariants}
       >
@@ -171,7 +144,7 @@ export function GameSelectionScreen() {
         <AnimatePresence mode="popLayout">
           {authState === 'login' && !isInMiniApp && (
             <m.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
@@ -179,7 +152,9 @@ export function GameSelectionScreen() {
               variants={itemVariants}
             >
               <m.button
-                onClick={login}
+                onClick={onLogin}
+                disabled={authPending || !onLogin}
+                aria-busy={authPending}
                 className="pivot-login-button relative w-full px-8 py-3 backdrop-blur-sm border border-tron-cyan/50 rounded-sm overflow-hidden"
                 whileTap={{ scale: 0.98 }}
               >
@@ -200,7 +175,7 @@ export function GameSelectionScreen() {
 
         <div className="flex flex-col gap-2.5 sm:gap-3 w-full max-w-sm">
           {games.map((game) => {
-            const isAvailable = game.status === 'available' && authState === 'ready'
+            const isAvailable = game.status === 'available' && authState === 'ready' && !authPending
 
             return (
               <m.div key={game.slug} variants={itemVariants}>
@@ -281,6 +256,11 @@ export function GameSelectionScreen() {
                         </button>
                       )}
                       <button
+                        disabled={!isAvailable || isEntering}
+                        aria-label={`Play ${game.name}`}
+                        onPointerEnter={isAvailable ? preloadLandingScan : undefined}
+                        onPointerDown={isAvailable ? preloadLandingScan : undefined}
+                        onFocus={isAvailable ? preloadLandingScan : undefined}
                         onClick={(e) => {
                           if (!isAvailable) {
                             e.preventDefault()
@@ -289,15 +269,8 @@ export function GameSelectionScreen() {
                             e.preventDefault()
                             e.stopPropagation()
                             setIsEntering(true)
-                            setTimeout(() => {
-                              navigate({
-                                to:
-                                  game.slug === 'hyper-swiper'
-                                    ? '/hyper-swiper'
-                                    : game.slug === 'stock-arcade'
-                                      ? '/stock-arcade'
-                                      : '/tap-dancer',
-                              })
+                            navigationTimer.current = setTimeout(() => {
+                              onNavigate?.(game.slug)
                             }, 500)
                           }
                         }}
@@ -315,7 +288,7 @@ export function GameSelectionScreen() {
 
         {authState === 'ready' && !isInMiniApp && (
           <m.button
-            onClick={logout}
+            onClick={onLogout}
             className="text-[10px] text-tron-cyan/40 hover:text-tron-cyan transition-colors font-[family-name:var(--font-orbitron)] tracking-[0.15em]"
             whileTap={{ scale: 0.98 }}
           >

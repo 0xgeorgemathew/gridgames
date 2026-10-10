@@ -1,5 +1,15 @@
-import { createRootRoute, HeadContent, Outlet, Scripts, Link } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  Scripts,
+  Link,
+  ClientOnly,
+  useRouterState,
+} from '@tanstack/react-router'
 import { Suspense, lazy } from 'react'
+import { GameSelectionScreen } from '@/platform/ui/GameSelectionScreen'
+import { MotionProvider } from '@/platform/ui/MotionProvider'
 import css from '@/app/globals.css?url'
 import fonts from '@/platform/ui/fonts.css?url'
 const Providers = lazy(() => import('@/app/providers').then((m) => ({ default: m.Providers })))
@@ -43,13 +53,7 @@ export const Route = createRootRoute({
       { rel: 'icon', href: '/icon.svg' },
     ],
   }),
-  component: () => (
-    <Suspense fallback={<div className="p-8 text-tron-cyan">Loading Grid Games…</div>}>
-      <Providers>
-        <Outlet />
-      </Providers>
-    </Suspense>
-  ),
+  component: RootComponent,
   shellComponent: ({ children }) => (
     <html lang="en">
       <head>
@@ -68,3 +72,24 @@ export const Route = createRootRoute({
     </main>
   ),
 })
+
+function RootComponent() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const fallback =
+    pathname === '/' ? (
+      <MotionProvider>
+        <GameSelectionScreen authPending />
+      </MotionProvider>
+    ) : (
+      <div className="p-8 text-tron-cyan">Loading Grid Games…</div>
+    )
+  return (
+    <ClientOnly fallback={fallback}>
+      <Suspense fallback={fallback}>
+        <Providers>
+          <Outlet />
+        </Providers>
+      </Suspense>
+    </ClientOnly>
+  )
+}
