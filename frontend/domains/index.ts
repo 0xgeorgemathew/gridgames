@@ -1,10 +1,7 @@
 import type { GameConfig } from './types'
-import { hyperSwiperConfig } from './hyper-swiper/meta.config'
 import { tapDancerConfig } from './tap-dancer/meta.config'
 
 export const games: GameConfig[] = [
-  hyperSwiperConfig,
-  tapDancerConfig,
   {
     slug: 'stock-arcade',
     name: 'Stock Ninja',
@@ -14,4 +11,5 @@ export const games: GameConfig[] = [
     players: { min: 2, max: 2 },
     duration: '1 min',
   },
+  tapDancerConfig,
 ]
