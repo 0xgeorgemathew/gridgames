@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { DeRezCanvas } from './DeRezCanvas'
 import { deRezMotion, DEREZ_MS, FRACTURE_MS } from './derez-motion'
 import { stockAsset } from '../shared/assets'
@@ -42,13 +43,13 @@ function DiscArtwork() {
     </>
   )
 }
-export function StockDiscRim() {
+export const StockDiscRim = memo(function StockDiscRim() {
   return (
     <svg className="ninja-disc-rim" viewBox="-36 -36 72 72" aria-hidden="true">
       <DiscArtwork />
     </svg>
   )
-}
+})
 /** Same tapered glass ribbon polygons and crisp white edge cores as Hyper Swiper. */
 export function StockBlade({
   points,

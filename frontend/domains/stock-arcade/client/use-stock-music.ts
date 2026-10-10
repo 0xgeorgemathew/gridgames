@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { StockAudio } from './howler-audio'
 import type { ContactKind } from './contact-feedback'
 
@@ -31,7 +31,7 @@ export function useStockMusic(active: boolean) {
     }
   }, [])
   useEffect(() => music.current?.setActive(active), [active])
-  const toggle = () => {
+  const toggle = useCallback(() => {
     const next = !muted
     setMuted(next)
     music.current?.setMuted(next)
@@ -41,11 +41,13 @@ export function useStockMusic(active: boolean) {
     } catch {
       /* Keep the in-memory preference when storage is unavailable. */
     }
-  }
+  }, [muted])
+  const prepare = useCallback(() => music.current?.unlock(true), [])
+  const feedback = useCallback((kind: ContactKind) => music.current?.feedback(kind), [])
   return {
     muted,
     toggle,
-    prepare: () => music.current?.unlock(true),
-    feedback: (kind: ContactKind) => music.current?.feedback(kind),
+    prepare,
+    feedback,
   }
 }

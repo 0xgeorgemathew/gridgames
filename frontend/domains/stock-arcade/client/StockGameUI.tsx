@@ -1,9 +1,19 @@
-import { useState, type RefObject } from 'react'
+import { memo, useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Settings, LogOut, HelpCircle, Volume2, VolumeX, Wallet, Coins } from 'lucide-react'
+import {
+  Settings,
+  LogOut,
+  HelpCircle,
+  Volume2,
+  VolumeX,
+  Wallet,
+  Coins,
+  ShoppingBag,
+  Clock,
+  X,
+} from 'lucide-react'
 import { ActionButton } from '@/platform/ui/ActionButton'
 import { MatchmakingAuthPanel } from '@/platform/ui/MatchmakingAuthPanel'
-import { MatchScoreRow } from '@/platform/ui/MatchScoreRow'
 import { MatchResultOverlay } from '@/platform/ui/MatchResultOverlay'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { PlayerName } from '@/platform/ui/PlayerName'
@@ -156,7 +166,7 @@ function Corners() {
     </>
   )
 }
-export function StockHUD({
+export const StockHUD = memo(function StockHUD({
   game,
   self,
   other,
@@ -187,7 +197,30 @@ export function StockHUD({
   onExit: () => void
   onHelp: () => void
 }) {
-  const [menu, setMenu] = useState(false)
+  const [panel, setPanel] = useState<'bag' | 'settings' | null>(null)
+  const panelId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
+  const bagButton = useRef<HTMLButtonElement>(null)
+  const settingsButton = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!panel) return
+    // Let the newly mounted panel paint before focusing it. Containment keeps
+    // its layout independent of the arena; keyboard focus remains explicit.
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => panelRef.current?.focus({ preventScroll: true }))
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [panel])
+  const closePanel = useCallback(() => {
+    const trigger = panel === 'bag' ? bagButton : settingsButton
+    setPanel(null)
+    trigger.current?.focus({ preventScroll: true })
+  }, [panel])
+  const seconds = Math.ceil(Math.max(0, remaining) / 1000)
+  const timer =
+    game.status === 'valuing'
+      ? 'CUTOFF'
+      : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
   const budgetLeft = Math.max(0, MATCH_BUDGET - (self?.spent ?? 0) - (self?.reservedSpend ?? 0))
   const quoteColor =
     quotePulse?.kind === 'failed'
@@ -202,116 +235,169 @@ export function StockHUD({
           <strong>STOCK NINJA</strong>
           <span>SIMULATED MATCH</span>
         </div>
-        <div className="ninja-top-right">
-          <div className="ninja-pill ninja-opponent" title={other?.name || 'Opponent'}>
-            <span className="ninja-hud-caption">OPPONENT</span>
-            <strong>{other?.name || 'Connecting…'}</strong>
+      </div>
+      <div
+        ref={dockRef}
+        className="ninja-bottom-hud"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && panel) {
+            event.preventDefault()
+            closePanel()
+          }
+        }}
+      >
+        <div
+          className="ninja-match-bar"
+          role="group"
+          aria-label="Match controls and simulated funds"
+        >
+          <div
+            className="ninja-bar-value"
+            role="group"
+            aria-label={`$${budgetLeft} available simulated balance out of $${MATCH_BUDGET}`}
+            title={`Available simulated balance: $${budgetLeft} of $${MATCH_BUDGET}`}
+            data-feedback={budgetPulse > 0 ? 'rejected' : quotePulse?.kind}
+            style={
+              budgetPulse > 0 || quotePulse?.kind === 'failed' ? { color: '#ff9c45' } : undefined
+            }
+          >
+            <Wallet size={17} aria-hidden="true" />
+            <strong>${budgetLeft}</strong>
+          </div>
+          <div
+            className="ninja-bar-value"
+            role="group"
+            aria-label={`$${CATCH_COST} per successful simulated catch`}
+            title="$1 per successful simulated catch. A swipe may catch multiple discs."
+          >
+            <Coins size={17} aria-hidden="true" />
+            <strong>${CATCH_COST}</strong>
+          </div>
+          <div
+            className={cn('ninja-bar-timer', remaining <= 30000 && 'ninja-timer-low')}
+            role="timer"
+            aria-label="Match time remaining"
+          >
+            <Clock size={12} aria-hidden="true" />
+            <strong>{timer}</strong>
           </div>
           <button
-            onClick={() => setMenu(!menu)}
-            className="ninja-settings"
-            aria-label="Game settings"
-            aria-expanded={menu}
+            ref={bagButton}
+            className="ninja-bar-bag"
+            onClick={() => setPanel(panel === 'bag' ? null : 'bag')}
+            aria-label={`Your bag: ${self?.assets.length ?? 0} confirmed catches, $${self?.reservedSpend ?? 0} pending quotes`}
+            aria-expanded={panel === 'bag'}
+            aria-controls={panel === 'bag' ? panelId : undefined}
+            title="Your bag and match details"
+            data-feedback={quotePulse?.kind}
+            style={quotePulse ? { color: quoteColor } : undefined}
           >
-            <Settings size={18} />
+            <span>
+              <ShoppingBag size={17} aria-hidden="true" />
+              <strong>{self?.assets.length ?? 0}</strong>
+            </span>
+            {(self?.reservedSpend ?? 0) > 0 && <small>${self?.reservedSpend} pending</small>}
+          </button>
+          <button
+            ref={settingsButton}
+            onClick={() => setPanel(panel === 'settings' ? null : 'settings')}
+            aria-label="Game settings"
+            aria-expanded={panel === 'settings'}
+            aria-controls={panel === 'settings' ? panelId : undefined}
+            title="Game settings"
+          >
+            <Settings size={18} aria-hidden="true" />
           </button>
         </div>
-        {menu && (
+        <p className="ninja-announcement" role="status">
+          {notice}
+        </p>
+        {panel && (
           <>
             <button
-              className="fixed inset-0 z-10"
-              aria-label="Close settings"
-              onClick={() => setMenu(false)}
+              className="ninja-menu-backdrop"
+              aria-label="Close match panel"
+              onClick={closePanel}
             />
-            <div className="ninja-settings-menu">
-              <button
-                onClick={() => {
-                  onToggleSound()
-                  setMenu(false)
-                }}
-              >
-                {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                {muted ? 'Unmute' : 'Mute'}
-              </button>
-              <button
-                onClick={() => {
-                  setMenu(false)
-                  onHelp()
-                }}
-              >
-                <HelpCircle size={17} />
-                How to play
-              </button>
-              <button
-                onClick={() => {
-                  setMenu(false)
-                  onExit()
-                }}
-                aria-label="Exit match"
-              >
-                <LogOut size={17} />
-                Exit
-              </button>
+            <div
+              ref={panelRef}
+              id={panelId}
+              className={cn('ninja-match-panel', panel === 'settings' && 'ninja-settings-menu')}
+              role="region"
+              aria-label={panel === 'bag' ? 'Your bag and match details' : 'Game settings'}
+              tabIndex={-1}
+            >
+              <StockPanelContent
+                panel={panel}
+                self={self}
+                other={other}
+                notice={notice}
+                creditPulse={creditPulse}
+                quotePulse={quotePulse}
+                muted={muted}
+                closePanel={closePanel}
+                onToggleSound={onToggleSound}
+                onHelp={onHelp}
+                onExit={onExit}
+              />
             </div>
           </>
         )}
       </div>
-      <div ref={dockRef} className="ninja-bottom-hud">
-        <div className="ninja-trade-indicators">
-          <div
-            className="ninja-pill ninja-trade-indicator"
-            role="group"
-            aria-label={`$${budgetLeft} available simulated game balance`}
-            data-feedback={
-              budgetPulse > 0 ? 'rejected' : quotePulse?.kind === 'failed' ? 'failed' : undefined
-            }
-            style={
-              quotePulse?.kind === 'failed'
-                ? { borderColor: `rgba(255,156,69,${1 - quotePulse.progress})` }
-                : budgetPulse > 0
-                  ? {
-                      borderColor: `rgba(255,156,69,${budgetPulse})`,
-                      boxShadow: `0 0 ${8 * budgetPulse}px #ff9c4533`,
-                    }
-                  : undefined
-            }
-          >
-            <Wallet size={19} aria-hidden="true" />
-            <div>
-              <span className="ninja-hud-caption">SIM BALANCE</span>
-              <strong>
-                ${budgetLeft}
-                <small> / ${MATCH_BUDGET}</small>
-              </strong>
-            </div>
+    </>
+  )
+})
+
+const StockPanelContent = memo(function StockPanelContent({
+  panel,
+  self,
+  other,
+  notice,
+  creditPulse,
+  quotePulse,
+  muted,
+  closePanel,
+  onToggleSound,
+  onHelp,
+  onExit,
+}: {
+  panel: 'bag' | 'settings'
+  self?: Bag
+  other?: Bag
+  notice: string
+  creditPulse?: { dropId: string; progress: number }
+  quotePulse?: { kind: 'pending' | 'credited' | 'failed'; progress: number }
+  muted: boolean
+  closePanel: () => void
+  onToggleSound: () => void
+  onHelp: () => void
+  onExit: () => void
+}) {
+  const quoteColor =
+    quotePulse?.kind === 'failed'
+      ? '#ff9c45'
+      : quotePulse?.kind === 'credited'
+        ? '#a3fff1'
+        : '#00f3ff'
+  return (
+    <>
+      <div className="ninja-panel-heading">
+        <strong>{panel === 'bag' ? 'YOUR BAG' : 'SETTINGS'}</strong>
+        <button onClick={closePanel} aria-label="Close match panel">
+          <X size={16} />
+        </button>
+      </div>
+      {panel === 'bag' ? (
+        <>
+          <div className="ninja-spend-summary">
+            <span>
+              You <strong>${self?.spent ?? 0} spent</strong>
+            </span>
+            <span title={other?.name}>
+              <span>{other?.name || 'Opponent'}</span>
+              <strong>${other?.spent ?? 0} spent</strong>
+            </span>
           </div>
-          <div
-            className="ninja-pill ninja-trade-indicator"
-            role="group"
-            aria-label={`$${CATCH_COST} per successful simulated catch`}
-            title="$1 per successful catch. A swipe may catch multiple discs."
-          >
-            <div>
-              <span className="ninja-hud-caption">TRADE AMOUNT</span>
-              <strong>${CATCH_COST}</strong>
-            </div>
-            <Coins size={19} aria-hidden="true" />
-          </div>
-        </div>
-        <div className="ninja-dock">
-          <MatchScoreRow
-            variant="stock"
-            gameTimeRemaining={remaining}
-            isGameReady
-            playerBalance={self?.spent ?? 0}
-            opponentBalance={other?.spent ?? 0}
-            playerName={self?.name}
-            opponentName={other?.name}
-            compareValues={false}
-            playerDetail="SPENT"
-            opponentDetail="SPENT"
-            timerLabel={game.status === 'valuing' ? 'CUTOFF' : undefined}
-          />
           <div className="ninja-bag-row">
             <div className="arcade-holdings" aria-label="Confirmed acquired assets" tabIndex={0}>
               {self?.assets.map((a) => (
@@ -349,7 +435,6 @@ export function StockHUD({
             </span>
           </div>
           <p
-            role="status"
             className="ninja-status"
             title={notice}
             data-feedback={quotePulse?.kind}
@@ -357,11 +442,44 @@ export function StockHUD({
           >
             {notice || 'LIVE QUOTES · SIMULATED FILLS · NO REAL FUNDS'}
           </p>
-        </div>
-      </div>
+
+          <p className="ninja-panel-disclosure">
+            ${MATCH_BUDGET} budget · Simulated fills · No real funds
+          </p>
+        </>
+      ) : (
+        <>
+          <button
+            onClick={onToggleSound}
+            aria-label={muted ? 'Unmute sound' : 'Mute sound'}
+            aria-pressed={muted}
+          >
+            {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+            {muted ? 'Unmute' : 'Mute'}
+          </button>
+          <button
+            onClick={() => {
+              closePanel()
+              onHelp()
+            }}
+          >
+            <HelpCircle size={17} /> How to play
+          </button>
+          <button
+            onClick={() => {
+              closePanel()
+              onExit()
+            }}
+            aria-label="Exit match"
+          >
+            <LogOut size={17} /> Exit
+          </button>
+        </>
+      )}
     </>
   )
-}
+})
+
 export function StockResult({
   game,
   self,
@@ -386,6 +504,7 @@ export function StockResult({
     pending_at_cutoff: 'A quote was still pending at cutoff.',
     player_left: 'A player left the match.',
     player_disconnected: 'A player disconnected.',
+    connection_lost: 'Connection lost. Return to the lobby to start a fresh match.',
   }
   return (
     <MatchResultOverlay

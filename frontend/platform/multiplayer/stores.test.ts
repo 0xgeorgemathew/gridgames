@@ -16,6 +16,56 @@ class Socket extends EventTarget {
   }
 }
 test.each(['hyper-swiper', 'tap-dancer'] as const)(
+  '%s price packets publish health and accepted price atomically; throttled packets keep health fresh',
+  async (game) => {
+    const previousWS = globalThis.WebSocket,
+      previousWindow = globalThis.window,
+      previousStorage = globalThis.localStorage,
+      dateNow = Date.now
+    globalThis.WebSocket = Socket as unknown as typeof WebSocket
+    globalThis.window = { location: { origin: 'https://example.com' } } as any
+    globalThis.localStorage = { getItem: () => null, setItem: () => {} } as any
+    const { useTradingStore: store } =
+      game === 'hyper-swiper'
+        ? await import('@/domains/hyper-swiper/client/state/slices')
+        : await import('@/domains/tap-dancer/client/state/slices')
+    let unsubscribe = () => {}
+    try {
+      store.getState().connect()
+      const ws = Socket.all.at(-1)!
+      ws.frame('connect', { id: 'seat' })
+      let now = 10000,
+        notifications = 0
+      Date.now = () => now
+      unsubscribe = store.subscribe(() => notifications++)
+      for (let i = 0; i < 10; i++) {
+        now += 100
+        ws.frame('btc_price', {
+          price: 100 + i / 100,
+          change: i / 100,
+          changePercent: i / 100,
+          timestamp: now,
+        })
+      }
+      expect(notifications).toBe(10)
+      const price = store.getState().priceData
+      now += 10
+      ws.frame('btc_price', { price: 100.091, change: 0.091, changePercent: 0.091, timestamp: now })
+      expect(notifications).toBe(11)
+      expect(store.getState().priceData).toBe(price)
+      expect(store.getState().lastPriceUpdate).toBe(now)
+      expect(store.getState().isPriceConnected).toBe(true)
+    } finally {
+      unsubscribe()
+      Date.now = dateNow
+      store.getState().disconnect()
+      globalThis.WebSocket = previousWS
+      globalThis.window = previousWindow
+      globalThis.localStorage = previousStorage
+    }
+  }
+)
+test.each(['hyper-swiper', 'tap-dancer'] as const)(
   '%s store clears partial abort and failure, protects completed and newer matches',
   async (game) => {
     const previousWS = globalThis.WebSocket,

@@ -8,6 +8,8 @@
 }
 .arcade-disc {
   position: absolute;
+  left: 0;
+  top: 0;
   width: clamp(88px, 22vw, 112px);
   height: clamp(88px, 22vw, 112px);
   border: 0;
@@ -19,7 +21,7 @@
   justify-content: center;
   cursor: crosshair;
   touch-action: none;
-  will-change: transform, top, left;
+  will-change: transform;
 }
 .ninja-disc-logo {
   display: grid;
@@ -206,28 +208,11 @@
   padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 8px;
   pointer-events: none;
 }
-.ninja-pill,
-.ninja-settings {
-  border: 1px solid #00f3ff40;
-  background: #080d12ed;
-  box-shadow:
-    0 4px 18px #0009,
-    inset 0 0 14px #00f3ff05;
-  backdrop-filter: blur(12px);
-  border-radius: 22px;
-}
-.ninja-pill {
-  padding: 8px 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
 .ninja-hud-caption {
   font-family: var(--font-orbitron);
   font-size: 7px;
   letter-spacing: 0.1em;
-  color: #00f3ff88;
+  color: #82b7be;
 }
 .ninja-match-label {
   display: flex;
@@ -244,47 +229,172 @@
   color: #00f3ff66;
   font-size: 6px;
 }
-.ninja-top-right {
+/* One measured rail; expanded panels overlay the arena without resizing it. */
+.ninja-match-bar {
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) minmax(44px, 1fr) 64px minmax(44px, 1fr) minmax(
+      44px,
+      1fr
+    );
+  align-items: center;
+  height: 58px;
+  padding: 0 6px;
+  border: 1px solid #00f3ff40;
+  border-radius: 30px;
+  background: #080d12ed;
+  box-shadow:
+    0 4px 18px #0009,
+    inset 0 1px 0 #00f3ff12;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+.ninja-match-bar > button,
+.ninja-bar-value {
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  color: #9ec9cf;
+}
+.ninja-match-bar > button {
+  border-radius: 22px;
+  transition:
+    color 150ms,
+    background-color 150ms;
+}
+.ninja-match-bar > button:hover,
+.ninja-match-bar > button[aria-expanded='true'] {
+  color: #bafaff;
+  background: #00f3ff12;
+}
+.ninja-bar-value strong,
+.ninja-bar-bag strong {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: inherit;
+}
+.ninja-bar-bag > span {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  gap: 4px;
 }
-.ninja-opponent {
-  max-width: min(38vw, 200px);
-}
-.ninja-opponent strong {
-  color: #ddfaff;
-  font-size: 11px;
-  line-height: 24px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.ninja-bar-bag small {
+  font-size: 8px;
+  line-height: 12px;
   white-space: nowrap;
 }
-.ninja-settings {
+.ninja-bar-timer {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  align-self: start;
+  margin-top: -9px;
+  border: 1px solid #00f3ff66;
+  border-radius: 50%;
+  background: #09191d;
+  color: #00f3ff;
+  box-shadow: 0 0 18px #00f3ff18;
+}
+.ninja-bar-timer strong {
+  font-family: var(--font-geist-mono);
+  font-size: 16px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.ninja-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ninja-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+  z-index: 10;
+  pointer-events: auto;
+}
+.ninja-match-panel {
+  contain: layout style;
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
+  inset-inline: 12px;
+  z-index: 30;
+  border: 1px solid #00f3ff40;
+  border-radius: 20px;
+  background: #080d12fa;
+  box-shadow: 0 8px 28px #0009;
+  max-height: min(60dvh, 360px);
+  overflow-y: auto;
+  pointer-events: auto;
+}
+.ninja-settings-menu {
+  left: auto;
+  min-width: 180px;
+}
+.ninja-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 14px;
+  color: #bafaff;
+  font-family: var(--font-orbitron);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.ninja-panel-heading > button {
   width: 44px;
   height: 44px;
   display: grid;
   place-items: center;
-  color: #00f3ffbb;
-  flex-shrink: 0;
-  pointer-events: auto;
-  position: relative;
-  z-index: 20;
+  color: #9ec9cf;
 }
-.ninja-settings-menu {
-  position: absolute;
-  top: calc(100% - 2px);
-  right: 12px;
-  z-index: 30;
-  min-width: 140px;
-  border: 1px solid #00f3ff40;
-  border-radius: 16px;
-  background: #080d12f5;
+.ninja-spend-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0 14px 12px;
+  color: #8fa9ad;
+  font-size: 11px;
+}
+.ninja-spend-summary > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ninja-spend-summary > span:last-child {
+  text-align: right;
+}
+.ninja-spend-summary span span {
   overflow: hidden;
-  pointer-events: auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.ninja-settings-menu button {
+.ninja-spend-summary strong {
+  color: #ddfaff;
+  font-size: 13px;
+}
+.ninja-panel-disclosure {
+  padding: 8px 12px 12px;
+  color: #8fa9ad;
+  font-size: 9px;
+}
+.ninja-settings-menu > button {
   width: 100%;
   min-height: 44px;
   padding: 10px 14px;
@@ -294,78 +404,28 @@
   font-size: 13px;
   color: #00f3ffbb;
 }
-.ninja-settings-menu button:last-child {
+.ninja-settings-menu > button:last-child {
   color: #ff6b00bb;
   border-top: 1px solid #00f3ff20;
 }
-.ninja-settings-menu button:hover,
-.ninja-settings:hover {
+.ninja-settings-menu button:hover {
   background: #00f3ff15;
-}
-.ninja-top-hud > button {
-  pointer-events: auto;
 }
 .ninja-bottom-hud {
   position: fixed;
   bottom: 0;
   inset-inline: 0;
   z-index: 30;
-  padding: 8px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
   pointer-events: none;
-}
-.ninja-trade-indicators {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 10px;
-  pointer-events: auto;
-}
-.ninja-trade-indicator {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  color: #00f3ffbb;
-  padding: 9px 13px;
-  min-height: 52px;
-}
-.ninja-trade-indicator > div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.ninja-trade-indicator strong {
-  font-family: var(--font-geist-mono);
-  color: #ddfaff;
-  font-size: 20px;
-  line-height: 22px;
-}
-.ninja-trade-indicator small {
-  color: #00f3ff66;
-  font-size: 10px;
-}
-.ninja-trade-indicator:last-child {
-  text-align: right;
-}
-.ninja-dock {
-  border: 1px solid #00f3ff40;
-  border-radius: 24px;
-  background: #080d12f5;
-  box-shadow:
-    0 -3px 20px #00f3ff0b,
-    0 10px 24px #0009;
-  backdrop-filter: blur(16px);
-  overflow: hidden;
-  pointer-events: auto;
 }
 .ninja-score-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  min-height: 102px;
-  padding: 10px 10px 2px;
+  min-height: 66px;
+  padding: 6px 10px 0;
 }
 .ninja-spend {
   display: flex;
@@ -377,8 +437,8 @@
 .ninja-spend strong {
   font-family: var(--font-geist-mono);
   color: #ccfaff;
-  font-size: 22px;
-  line-height: 26px;
+  font-size: 18px;
+  line-height: 22px;
 }
 .ninja-spend small {
   font-size: 8px;
@@ -393,8 +453,8 @@
   white-space: nowrap;
 }
 .ninja-timer {
-  width: 84px;
-  height: 84px;
+  width: 60px;
+  height: 60px;
   border: 1px solid #00f3ff66;
   border-radius: 50%;
   display: flex;
@@ -407,13 +467,13 @@
   box-shadow:
     0 0 18px #00f3ff18,
     inset 0 0 12px #00f3ff0a;
-  transform: translateY(-7px);
+  transform: translateY(-3px);
 }
 .ninja-timer strong {
   font-family: var(--font-geist-mono);
   font-weight: 800;
-  font-size: 22px;
-  line-height: 26px;
+  font-size: 18px;
+  line-height: 22px;
   font-variant-numeric: tabular-nums;
 }
 .ninja-timer small {
@@ -453,19 +513,45 @@
   letter-spacing: 0.1em;
 }
 .ninja-status {
-  height: 25px;
-  line-height: 25px;
-  padding: 0 12px;
+  min-height: 20px;
+  line-height: 16px;
+  padding: 4px 12px;
   margin: 0;
-  color: #b8d1d177;
-  font-size: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #8fa9ad;
+  font-size: 10px;
 }
-.ninja-settings:focus-visible,
+.ninja-match-bar > button:focus-visible,
+.ninja-match-panel:focus-visible,
+.ninja-match-panel button:focus-visible,
 .ninja-settings-menu button:focus-visible,
 .arcade-holdings:focus-visible {
   outline: 2px solid #00f3ff;
   outline-offset: -2px;
+}
+
+/* Feedback fades on the compositor without a React frame clock. */
+.ninja-bar-bag[data-feedback],
+.ninja-bar-value[data-feedback='rejected'] {
+  animation: ninja-hud-feedback 600ms ease-out both;
+}
+.arcade-holdings > span[data-feedback='credited'] {
+  animation: ninja-credit-feedback 600ms ease-out both;
+}
+@keyframes ninja-hud-feedback {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+@keyframes ninja-credit-feedback {
+  from {
+    border-color: #a3fff1;
+    box-shadow: inset 0 0 9px #a3fff144;
+  }
+  to {
+    border-color: #00f3ff30;
+    box-shadow: inset 0 0 0 transparent;
+  }
 }

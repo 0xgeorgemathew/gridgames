@@ -26,6 +26,9 @@ export class Token extends GameObjects.Container {
   private breatheTween?: Tweens.Tween
   private glowGraphics?: GameObjects.Graphics
 
+  private motionStartedAt = 0
+  private motionOriginX = 0
+  private motionOriginY = 0
   private velocityX: number = 0
   private velocityY: number = 0
   private gravity: number = 40
@@ -113,9 +116,9 @@ export class Token extends GameObjects.Container {
     this.setData('spawnTime', this.scene.time.now)
     this.setData('baseScale', scale)
 
-    // Store initial position for incremental spatial grid updates
-    this.setData('oldX', x)
-    this.setData('oldY', y)
+    this.motionStartedAt = performance.now()
+    this.motionOriginX = x
+    this.motionOriginY = y
 
     // Store velocities for manual delta-based movement
     this.velocityX = velocityX
@@ -156,31 +159,23 @@ export class Token extends GameObjects.Container {
     this.playSpawnAnimation(scale)
   }
 
-  preUpdate(_time: number, delta: number): void {
+  preUpdate(_time: number, _delta: number): void {
     if (!this.active) return
 
-    const clampedDelta = Math.max(4, Math.min(50, delta))
-    const deltaSeconds = clampedDelta / 1000
-
-    this.velocityY += this.gravity * deltaSeconds
-
-    this.x += this.velocityX * deltaSeconds
-    this.y += this.velocityY * deltaSeconds
-
-    this.angle += this.angularVelocity * deltaSeconds
-    const life = this.getData('lifetimeMs') as number | undefined
-    if (life && life > 0) {
-      const age = this.scene.time.now - this.getData('spawnTime')
-      const fade = Math.max(0.25, 1 - Math.max(0, age / life - 0.8) * 3.75)
-      this.setAlpha((this.getData('claimPending') ? 0.65 : 1) * fade)
+    const age = Math.max(0, performance.now() - this.motionStartedAt)
+    const life = (this.getData('lifetimeMs') as number | undefined) ?? 5000
+    // Hidden tabs can skip seconds. Hide elapsed art rather than running a huge
+    // catch-up step; only the server expiry message consumes the coin identity.
+    if (age >= life) {
+      this.setVisible(false)
+      return
     }
-    // A short downward exhaust, drawn in the pooled graphics rather than allocating particles.
-    if (this.glowGraphics) {
-      this.glowGraphics.clear()
-      this.glowGraphics.lineStyle(4, this.config.color, 0.12)
-      this.glowGraphics.lineBetween(-12, 44, -12, 74)
-      this.glowGraphics.lineBetween(12, 44, 12, 74)
-    }
+    const seconds = age / 1000
+    this.x = this.motionOriginX + this.velocityX * seconds
+    this.y = this.motionOriginY + this.velocityY * seconds + 0.5 * this.gravity * seconds * seconds
+    this.angle = this.angularVelocity * seconds
+    const fade = Math.max(0.25, 1 - Math.max(0, age / life - 0.8) * 3.75)
+    this.setAlpha((this.getData('claimPending') ? 0.65 : 1) * fade)
 
     if (this.body) {
       this.body.position.x = this.x - this.body.width / 2
@@ -202,17 +197,10 @@ export class Token extends GameObjects.Container {
     this.glowGraphics.setVisible(true)
     this.glowGraphics.setAlpha(1)
 
-    // Tron-style glow: sharper, more digital falloff
-    const glowRadius = config.radius * 4 * 1.35 // Larger glow for more presence
-    const steps = 10
-    for (let i = steps; i > 0; i--) {
-      const t = i / steps
-      const r = glowRadius * t
-      // Exponential falloff for that digital Tron look
-      const opacity = 0.12 * Math.pow(1 - t, 2.5)
-      this.glowGraphics.fillStyle(config.glowColor ?? config.color, opacity)
-      this.glowGraphics.fillCircle(0, 0, r)
-    }
+    // Static local exhaust follows the parent transform. Draw only on spawn.
+    this.glowGraphics.lineStyle(4, config.color, 0.12)
+    this.glowGraphics.lineBetween(-12, 44, -12, 74)
+    this.glowGraphics.lineBetween(12, 44, 12, 74)
   }
 
   private cleanupTweens(): void {

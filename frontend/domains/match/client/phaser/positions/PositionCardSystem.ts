@@ -111,10 +111,23 @@ export class SharedPositionCardSystem {
   }
 
   private subscribeToStore(): void {
-    let prevPositions: Map<string, Position> = new Map()
+    let prevPositions: Map<string, Position> | undefined
+    let prevClosing: Map<string, PositionClosingState> | undefined
+    let prevPlayer: string | null | undefined
 
     this.unsubscribeStore = this.store.subscribe((state) => {
       if (this.isShutdown) return
+      if (
+        state.openPositions === prevPositions &&
+        state.closingPositions === prevClosing &&
+        state.localPlayerId === prevPlayer
+      )
+        return
+      const identityChanged = prevPlayer !== undefined && prevPlayer !== state.localPlayerId
+      if (identityChanged) {
+        this.cards.forEach((card) => card.destroy())
+        this.cards.clear()
+      }
 
       const currentPositions = state.openPositions
       const localPlayerId = state.localPlayerId
@@ -123,31 +136,34 @@ export class SharedPositionCardSystem {
         if (position.playerId !== localPlayerId) return
         if (position.status !== 'open') return
 
-        if (!prevPositions.has(id) && !this.cards.has(id)) {
+        if ((identityChanged || !prevPositions?.has(id)) && !this.cards.has(id)) {
           this.createCard(position)
         }
       })
 
-      prevPositions.forEach((_, id) => {
-        if (!currentPositions.has(id) && this.cards.has(id)) {
-          const card = this.cards.get(id)
-          if (card && !card.getIsClosing()) {
-            this.destroyCard(id)
+      if (!identityChanged)
+        prevPositions?.forEach((_, id) => {
+          if (!currentPositions.has(id) && this.cards.has(id)) {
+            const card = this.cards.get(id)
+            if (card && !card.getIsClosing()) {
+              this.destroyCard(id)
+            }
           }
-        }
-      })
+        })
 
       state.closingPositions.forEach((closingState: PositionClosingState, positionId: string) => {
         const card = this.cards.get(positionId)
         if (card && !card.getIsClosing()) {
           card.setClosing(closingState.reason, closingState.realizedPnl)
           this.scene.time.delayedCall(1200, () => {
-            this.destroyCard(positionId)
+            if (this.cards.get(positionId) === card) this.destroyCard(positionId)
           })
         }
       })
 
-      prevPositions = new Map(currentPositions)
+      prevPositions = currentPositions
+      prevClosing = state.closingPositions
+      prevPlayer = localPlayerId
     })
   }
 

@@ -7,34 +7,6 @@ const TRADING_DIMENSIONS = {
   height: 800,
 } as const
 
-function getTargetFrameRate(): number {
-  if (typeof window === 'undefined') return 90
-
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (prefersReducedMotion) return 60
-
-  const cores = navigator.hardwareConcurrency ?? 4
-  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4
-  const isMobile =
-    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
-    window.matchMedia('(pointer: coarse)').matches
-
-  if (isMobile && cores >= 8 && memory >= 6) return 120
-  if (isMobile && cores >= 6 && memory >= 4) return 90
-  return 60
-}
-
-// Common physics config (zero gravity for top-down games)
-const PHYSICS_CONFIG_BASE = {
-  default: 'arcade',
-  arcade: {
-    gravity: { x: 0, y: 0 },
-    fps: 60,
-    fixedStep: true,
-    timeScale: 1,
-  },
-} as const
-
 interface PhaserConfigOptions {
   scene: Phaser.Types.Scenes.SceneType
   width: number
@@ -44,7 +16,6 @@ interface PhaserConfigOptions {
 
 function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.GameConfig {
   const { scene, width, height, fitToScreen = false } = options
-  const targetFrameRate = getTargetFrameRate()
 
   const inputConfig = {
     mouse: { target: document.getElementById('phaser-game') },
@@ -60,9 +31,10 @@ function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.Gam
     pixelArt: false, // Smooth scaling (not pixelated)
     antialias: true, // Anti-aliased rendering
     fps: {
-      target: 60, // Fixed 60 FPS for consistent gameplay
-      forceSetTimeOut: true, // Use setTimeout for more consistent timing
-      smoothStep: false, // Disable smooth step to prevent time accumulation
+      target: 60,
+      limit: 0, // Follow native refresh; effects use elapsed time and physics stays fixed at 60.
+      forceSetTimeOut: false, // Align rendering with the display via RAF.
+      smoothStep: false, // Preserve actual elapsed time, including stalled frames.
     },
     physics: {
       default: 'arcade',

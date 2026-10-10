@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "types": "tsc --noEmit",
-    "test": "bun test platform/multiplayer domains/stock-arcade",
+    "test": "bun test platform/multiplayer domains/stock-arcade platform/game-engine/gameplay-performance.test.ts",
     "deploy": "bun run build && wrangler deploy --config dist/server/wrangler.json",
     "cf:types": "wrangler types"
   },

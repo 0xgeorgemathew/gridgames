@@ -1148,6 +1148,19 @@ body {
 /* Bottom nav container - allows pointer events only on children */
 .bottom-nav-container {
   pointer-events: none;
+  padding: 0 8px 8px;
+}
+
+.game-hud-dock {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #00f3ff30;
+  border-radius: 24px;
+  background: #080d12f2;
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 4px 20px #0008,
+    inset 0 1px 0 #00f3ff0d;
 }
 
 .bottom-nav-container > * {
