@@ -1,7 +1,13 @@
 import { DurableObject } from 'cloudflare:workers'
 import { encodeAbiParameters, keccak256 } from 'viem'
 import { stockAsset, USDG, ROBINHOOD_CHAIN_ID } from '@/domains/stock-arcade/shared/assets'
-import type { QuoteCredit } from '@/domains/stock-arcade/shared/types'
+import {
+  CATCH_COST,
+  isCatchCost,
+  catchInputAmount,
+  type CatchCost,
+  type QuoteCredit,
+} from '@/domains/stock-arcade/shared/types'
 export class QuoteGate extends DurableObject<Cloudflare.Env> {
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
     super(ctx, env)
@@ -12,12 +18,18 @@ export class QuoteGate extends DurableObject<Cloudflare.Env> {
       'CREATE TABLE IF NOT EXISTS backoff (id INTEGER PRIMARY KEY, until_ms INTEGER NOT NULL)'
     )
   }
-  async quote(symbol: string, requestId: string, swapper?: string): Promise<QuoteCredit> {
+  async quote(
+    symbol: string,
+    requestId: string,
+    swapper?: string,
+    cost: CatchCost = CATCH_COST
+  ): Promise<QuoteCredit> {
     const asset = stockAsset(symbol)
     if (!asset || !this.env.UNISWAP_API_KEY)
       throw new Error('Live quotes are not configured; no simulated spend')
     if (!swapper || !/^0x[0-9a-fA-F]{40}$/.test(swapper))
       throw new Error('Connect a wallet for quotes')
+    if (!isCatchCost(cost)) throw new Error('Invalid simulated catch amount')
     if (requestId.length > 200) throw new Error('Invalid quote request')
     const now = Date.now()
     this.ctx.storage.sql.exec('DELETE FROM attempts WHERE started < ?', now - 120000)
@@ -46,7 +58,7 @@ export class QuoteGate extends DurableObject<Cloudflare.Env> {
       headers: { 'Content-Type': 'application/json', 'x-api-key': this.env.UNISWAP_API_KEY },
       body: JSON.stringify({
         type: 'EXACT_INPUT',
-        amount: '1000000',
+        amount: catchInputAmount(cost),
         tokenInChainId: ROBINHOOD_CHAIN_ID,
         tokenOutChainId: ROBINHOOD_CHAIN_ID,
         tokenIn: USDG,
@@ -65,7 +77,7 @@ export class QuoteGate extends DurableObject<Cloudflare.Env> {
       )
     }
     if (!response.ok) throw new Error(`Quote unavailable (${response.status}); no spend`)
-    const result = validatedQuote(await response.json(), asset)
+    const result = validatedQuote(await response.json(), asset, cost)
     this.ctx.storage.sql.exec(
       'UPDATE attempts SET result=? WHERE id=?',
       JSON.stringify(result),
@@ -91,7 +103,8 @@ interface QuotePool {
 }
 export function validatedQuote(
   raw: unknown,
-  asset: NonNullable<ReturnType<typeof stockAsset>>
+  asset: NonNullable<ReturnType<typeof stockAsset>>,
+  cost: CatchCost = CATCH_COST
 ): QuoteCredit {
   const body = raw as {
     routing?: string
@@ -159,7 +172,8 @@ export function validatedQuote(
     !quote.quoteId ||
     quote.quoteId.length > 200 ||
     (quote.chainId !== undefined && quote.chainId !== ROBINHOOD_CHAIN_ID) ||
-    quote.input?.amount !== '1000000' ||
+    !isCatchCost(cost) ||
+    quote.input?.amount !== catchInputAmount(cost) ||
     quote.input.token?.toLowerCase() !== USDG.toLowerCase() ||
     quote.output?.token?.toLowerCase() !== asset.address.toLowerCase() ||
     typeof amount !== 'string' ||

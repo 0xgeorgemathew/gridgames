@@ -65,14 +65,17 @@ test('one gate enforces shared six-per-second admissions, dedups quote IDs and b
   }
   const prior = globalThis.fetch
   let calls = 0
+  let expectedInput = '1000000'
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     expect(String(input)).toBe('https://trade-api.gateway.uniswap.org/v1/quote')
     const body = JSON.parse(String(init?.body))
     expect(body.protocols).toEqual(['V3'])
     expect(body.routingPreference).toBeUndefined()
-    expect(body.amount).toBe('1000000')
+    expect(body.amount).toBe(expectedInput)
     calls++
-    return Response.json(response())
+    const result = response()
+    result.quote.input.amount = expectedInput
+    return Response.json(result)
   }) as typeof fetch
   try {
     const gate = new QuoteGate(
@@ -83,7 +86,12 @@ test('one gate enforces shared six-per-second admissions, dedups quote IDs and b
     await gate.quote('NVDA', 'a', swapper)
     await gate.quote('NVDA', 'a', swapper)
     expect(calls).toBe(1)
-    for (let i = 0; i < 5; i++) await gate.quote('NVDA', `room-${i}`, swapper)
+    expectedInput = '250000'
+    await gate.quote('NVDA', 'quarter', swapper, 0.25)
+    expectedInput = '2000000'
+    await gate.quote('NVDA', 'two-dollars', swapper, 2)
+    expectedInput = '1000000'
+    for (let i = 0; i < 3; i++) await gate.quote('NVDA', `room-${i}`, swapper)
     await expect(gate.quote('NVDA', 'seventh', swapper)).rejects.toThrow('busy')
     expect(calls).toBe(6)
     db.query('DELETE FROM attempts').run()
@@ -97,6 +105,14 @@ test('one gate enforces shared six-per-second admissions, dedups quote IDs and b
     globalThis.fetch = prior
     db.close()
   }
+})
+
+test('quote validation verifies the captured stake input rather than always accepting a dollar', () => {
+  const quarter = response()
+  quarter.quote.input.amount = '250000'
+  expect(validatedQuote(quarter, STOCK_ASSETS[1], 0.25).amount).toBe('1000000000000000')
+  expect(() => validatedQuote(response(), STOCK_ASSETS[1], 0.25)).toThrow()
+  expect(() => validatedQuote(quarter, STOCK_ASSETS[1], 2)).toThrow()
 })
 
 test('multi-hop quote continuity, allowed protocol, slippage and raw amounts are checked', () => {

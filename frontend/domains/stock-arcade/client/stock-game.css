@@ -72,19 +72,113 @@
   font-size: 14px;
   letter-spacing: 0.1em;
 }
-/* Original game grid framing, without a financial graph or an idle loop. */
-.arcade-playfield-grid {
+/* Ice-blue light over deep navy keeps the TRON field legible. Only transforms
+   and opacity animate; the textured plane is painted once. */
+.ninja-grid-field {
+  --grid-cell: clamp(56px, 18vw, 88px);
   position: fixed;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 42%, #123c4c 0%, #0b2434 42%, transparent 82%),
+    linear-gradient(180deg, #06131e, #071b29 70%, #06131c);
+}
+.ninja-grid-plane {
+  position: absolute;
+  inset: calc(-1 * var(--grid-cell)) 0 0;
   background-image:
-    linear-gradient(rgba(0, 188, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 188, 255, 0.1) 1px, transparent 1px),
-    radial-gradient(ellipse at center, rgba(0, 188, 255, 0.04), transparent 70%);
-  background-size:
-    clamp(42px, 11.1vw, 72px) clamp(30px, 7.14vh, 56px),
-    clamp(42px, 11.1vw, 72px) clamp(30px, 7.14vh, 56px),
-    100% 100%;
+    radial-gradient(circle at center, #b0fcffb0 0 1px, #42e9ff33 1px 4px, transparent 5px),
+    linear-gradient(#69deff21 1px, transparent 1px),
+    linear-gradient(90deg, #69deff21 1px, transparent 1px);
+  background-size: var(--grid-cell) var(--grid-cell);
+  background-position:
+    calc(-0.5 * var(--grid-cell)) calc(-0.5 * var(--grid-cell)),
+    0 0,
+    0 0;
+  animation: ninja-grid-travel 14s linear infinite paused;
+}
+.ninja-grid-scan {
+  position: absolute;
+  top: -80px;
+  inset-inline: 0;
+  height: 80px;
+  background: linear-gradient(180deg, transparent, #58e8ff0c 90%, #a8f8ff40 99%, transparent);
+  animation: ninja-grid-scan 11s linear infinite paused;
+}
+.ninja-grid-sparks > span {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #c5fbff;
+  box-shadow: 0 0 7px 2px #44dfff55;
+  opacity: 0.3;
+  animation: ninja-grid-spark 7s ease-in-out infinite paused;
+}
+.ninja-grid-sparks > span:nth-child(1) {
+  left: 15%;
+  top: 22%;
+}
+.ninja-grid-sparks > span:nth-child(2) {
+  left: 72%;
+  top: 40%;
+  animation-delay: -2s;
+}
+.ninja-grid-sparks > span:nth-child(3) {
+  left: 38%;
+  top: 66%;
+  animation-delay: -4s;
+}
+.ninja-grid-sparks > span:nth-child(4) {
+  left: 88%;
+  top: 78%;
+  animation-delay: -6s;
+}
+.ninja-grid-field[data-moving='true'] .ninja-grid-plane,
+.ninja-grid-field[data-moving='true'] .ninja-grid-scan,
+.ninja-grid-field[data-moving='true'] .ninja-grid-sparks > span {
+  animation-play-state: running;
+}
+@keyframes ninja-grid-travel {
+  to {
+    transform: translateY(var(--grid-cell));
+  }
+}
+@keyframes ninja-grid-scan {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(calc(100dvh + 80px));
+    opacity: 0;
+  }
+}
+@keyframes ninja-grid-spark {
+  0%,
+  100% {
+    transform: translateY(-14px);
+    opacity: 0.15;
+  }
+  45% {
+    opacity: 0.65;
+  }
+  75% {
+    transform: translateY(18px);
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ninja-grid-field .ninja-grid-plane,
+  .ninja-grid-field .ninja-grid-scan,
+  .ninja-grid-field .ninja-grid-sparks > span {
+    animation: none;
+  }
 }
 .arcade-holdings {
   display: flex;
@@ -226,30 +320,26 @@
   font-size: 10px;
 }
 .ninja-match-label span {
-  color: #00f3ff66;
+  color: #90c9d7;
   font-size: 6px;
 }
 /* One measured rail; expanded panels overlay the arena without resizing it. */
 .ninja-match-bar {
   display: grid;
-  grid-template-columns: minmax(44px, 1fr) minmax(44px, 1fr) 64px minmax(44px, 1fr) minmax(
-      44px,
-      1fr
-    );
+  grid-template-columns: minmax(44px, 1fr) 64px minmax(44px, 1fr);
   align-items: center;
   height: 58px;
   padding: 0 6px;
   border: 1px solid #00f3ff40;
   border-radius: 30px;
-  background: #080d12ed;
+  background: #081d2aed;
   box-shadow:
     0 4px 18px #0009,
     inset 0 1px 0 #00f3ff12;
   backdrop-filter: blur(12px);
   pointer-events: auto;
 }
-.ninja-match-bar > button,
-.ninja-bar-value {
+.ninja-match-bar > button {
   min-width: 0;
   min-height: 44px;
   display: flex;
@@ -270,7 +360,6 @@
   color: #bafaff;
   background: #00f3ff12;
 }
-.ninja-bar-value strong,
 .ninja-bar-bag strong {
   font-family: var(--font-geist-mono);
   font-size: 12px;
@@ -332,12 +421,12 @@
 .ninja-match-panel {
   contain: layout style;
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
+  bottom: calc(100% + 8px);
   inset-inline: 12px;
   z-index: 30;
   border: 1px solid #00f3ff40;
   border-radius: 20px;
-  background: #080d12fa;
+  background: #091d2bfa;
   box-shadow: 0 8px 28px #0009;
   max-height: min(60dvh, 360px);
   overflow-y: auto;
@@ -418,6 +507,89 @@
   z-index: 30;
   padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
   pointer-events: none;
+}
+.ninja-floating-funds {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 18px;
+}
+.ninja-funds-pill {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 7px 13px;
+  border: 1px solid #75efff66;
+  border-radius: 26px;
+  color: #bcf8ff;
+  background: linear-gradient(160deg, #163c50ed, #081b2af5);
+  box-shadow:
+    0 4px 16px #0005,
+    inset 0 1px 0 #c5fbff22,
+    0 0 12px #00dfff0c;
+  pointer-events: auto;
+}
+.ninja-funds-pill > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ninja-funds-pill small {
+  font-family: var(--font-orbitron);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: #95cbd8;
+}
+.ninja-funds-pill strong {
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  line-height: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.ninja-bet-pill:hover,
+.ninja-bet-pill[aria-expanded='true'] {
+  border-color: #b4faff;
+  background: #123a4d;
+}
+.ninja-bet-pill:disabled {
+  opacity: 0.6;
+}
+.ninja-bet-pill[aria-busy='true'] {
+  border-color: #ffc68b;
+}
+.ninja-wallet-pill {
+  min-width: 122px;
+  justify-content: center;
+}
+.ninja-bet-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  padding: 0 14px 12px;
+}
+.ninja-bet-options > button {
+  min-height: 46px;
+  border: 1px solid #00f3ff40;
+  border-radius: 12px;
+  color: #bafaff;
+  background: #103041;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+}
+.ninja-bet-options > button[aria-pressed='true'] {
+  color: #041822;
+  background: #8decfa;
+  border-color: #c4faff;
+}
+.ninja-bet-options > button:disabled {
+  opacity: 0.45;
+}
+.ninja-bet-confirmation {
+  padding: 0 14px 8px;
+  color: #bafaff;
+  font-size: 11px;
 }
 .ninja-score-row {
   display: grid;
@@ -521,6 +693,7 @@
   font-size: 10px;
 }
 .ninja-match-bar > button:focus-visible,
+.ninja-bet-pill:focus-visible,
 .ninja-match-panel:focus-visible,
 .ninja-match-panel button:focus-visible,
 .ninja-settings-menu button:focus-visible,
@@ -531,7 +704,7 @@
 
 /* Feedback fades on the compositor without a React frame clock. */
 .ninja-bar-bag[data-feedback],
-.ninja-bar-value[data-feedback='rejected'] {
+.ninja-wallet-pill[data-feedback='rejected'] {
   animation: ninja-hud-feedback 600ms ease-out both;
 }
 .arcade-holdings > span[data-feedback='credited'] {

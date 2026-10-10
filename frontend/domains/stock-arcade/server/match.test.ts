@@ -13,12 +13,15 @@ import { discDiameter } from '../client/motion'
 import type { RoomProvision } from '@/worker/session'
 function fixture(
   quote?: (symbol: string, request: string) => Promise<QuoteCredit>,
-  value?: () => Promise<ArcadeResult>
+  value?: () => Promise<ArcadeResult>,
+  random?: () => number
 ) {
   let now = 1000000
   const tasks: Promise<unknown>[] = [],
     terminals: Array<string | undefined> = [],
     requests: string[] = []
+  const quoteCosts: Array<number | undefined> = []
+  const events: Array<{ event: string; payload: unknown }> = []
   const result: ArcadeResult = {
     block: '100',
     values: { a: '1000000', b: '0' },
@@ -42,8 +45,10 @@ function fixture(
   }
   const match = new StockMatch(config, {
     now: () => now,
-    quote: async (symbol, id) => {
+    random,
+    quote: async (symbol, id, _swapper, cost) => {
       requests.push(id)
+      quoteCosts.push(cost)
       return quote
         ? quote(symbol, id)
         : {
@@ -53,7 +58,7 @@ function fixture(
           }
     },
     value: value ?? (async () => result),
-    emit: () => {},
+    emit: (event, payload) => events.push({ event, payload }),
     waitUntil: (p) => tasks.push(p),
     terminal: (reason) => terminals.push(reason),
   })
@@ -71,12 +76,162 @@ function fixture(
     start,
     drain,
     requests,
+    quoteCosts,
+    events,
     terminals,
     setNow: (n: number) => {
       now = n
     },
   }
 }
+
+test('server-confirmed bet changes quote size; pending catches retain their captured cost', async () => {
+  let finish!: (quote: QuoteCredit) => void
+  const f = fixture(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      })
+  )
+  try {
+    f.start()
+    f.match.handle('a', 'set_catch_cost', { amount: 2, requestId: 'first' })
+    expect(f.match.state.bags[0].catchCost).toBe(2)
+    expect(f.match.state.bags[1].catchCost).toBe(1)
+    const drop = f.match.state.drops[0]
+    f.match.handle('a', 'catch_stock', { dropId: drop.id, catchCost: 2 })
+    expect(f.match.state.bags[0].reservedSpend).toBe(2)
+    expect(f.quoteCosts).toEqual([2])
+    f.match.handle('a', 'set_catch_cost', { amount: 0.25, requestId: 'second' })
+    expect(f.match.state.bags[0].catchCost).toBe(0.25)
+    finish({
+      amount: '123',
+      pool: STOCK_ASSETS.find((a) => a.symbol === drop.symbol)!.pool,
+      quoteId: 'q',
+    })
+    await f.drain()
+    expect(f.match.state.bags[0]).toMatchObject({ spent: 2, reservedSpend: 0 })
+    expect(f.match.state.bags[0].assets[0].cost).toBe(2)
+    expect(f.events.at(-2)?.event).toBe('arcade_state')
+  } finally {
+    f.match.cleanup()
+  }
+})
+
+test('invalid or late bet changes and stale-cost catches never mutate the ledger', async () => {
+  const f = fixture()
+  try {
+    f.start()
+    for (const amount of [0, -1, 3, '2', null, Infinity])
+      f.match.handle('a', 'set_catch_cost', { amount, requestId: 'invalid' })
+    f.match.handle('intruder', 'set_catch_cost', { amount: 2, requestId: 'unknown' })
+    expect(f.match.state.bags[0].catchCost).toBe(1)
+    f.match.handle('a', 'set_catch_cost', { amount: 2, requestId: 'valid' })
+    f.match.handle('a', 'catch_stock', { dropId: f.match.state.drops[0].id, catchCost: 1 })
+    await f.drain()
+    expect(f.requests).toHaveLength(0)
+    f.setNow(f.match.state.cutoffAt)
+    f.match.handle('a', 'set_catch_cost', { amount: 0.5, requestId: 'late' })
+    expect(f.match.state.bags[0].catchCost).toBe(2)
+    expect(f.events.at(-1)).toMatchObject({
+      event: 'arcade_bet',
+      payload: { accepted: false, requestId: 'late' },
+    })
+  } finally {
+    f.match.cleanup()
+  }
+})
+
+test('a failed quote releases its original fractional reservation after changing the bet', async () => {
+  let reject!: (reason: Error) => void
+  const f = fixture(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail
+      })
+  )
+  try {
+    f.start()
+    f.match.handle('a', 'set_catch_cost', { amount: 0.5, requestId: 'half' })
+    f.match.handle('a', 'catch_stock', { dropId: f.match.state.drops[0].id, catchCost: 0.5 })
+    expect(f.match.state.bags[0].reservedSpend).toBe(0.5)
+    f.match.handle('a', 'set_catch_cost', { amount: 2, requestId: 'two' })
+    reject(new Error('Unavailable'))
+    await f.drain()
+    expect(f.match.state.bags[0]).toMatchObject({ spent: 0, reservedSpend: 0, assets: [] })
+  } finally {
+    f.match.cleanup()
+  }
+})
+
+test('randomized launches vary the highest slot, drift, spin and release while retaining mobile clearance', () => {
+  let seed = 42
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
+    return seed / 4294967296
+  }
+  const f = fixture(undefined, undefined, random)
+  try {
+    f.start()
+    const highest = new Set<number>(),
+      spins = new Set<number>(),
+      drifts = new Set<number>()
+    for (let batch = 0; batch < 12; batch++) {
+      f.setNow(f.match.state.startedAt + batch * DROP_INTERVAL_MS)
+      f.match.tick()
+      const drops = f.match.state.drops.slice(-3)
+      const velocities = drops.map((d) => d.launchVelocity!)
+      highest.add(velocities.indexOf(Math.max(...velocities)))
+      for (const d of drops) {
+        spins.add(d.rotation)
+        drifts.add(d.drift)
+      }
+      expect(new Set(drops.map((d) => d.spawnedAt)).size).toBeGreaterThan(1)
+      for (let t = 0; t < 4700; t += 40) {
+        const points = drops.map((d) => dropPoint(d, drops[0].spawnedAt + t))
+        for (let i = 0; i < points.length; i++) {
+          expect(points[i].x * 320).toBeGreaterThanOrEqual(44)
+          expect(points[i].x * 320).toBeLessThanOrEqual(276)
+          for (let j = i + 1; j < points.length; j++)
+            expect((points[j].x - points[i].x) * 320).toBeGreaterThan(88)
+        }
+      }
+    }
+    expect([...highest].sort()).toEqual([0, 1, 2])
+    expect(spins.size).toBeGreaterThan(12)
+    expect(drifts.size).toBeGreaterThan(12)
+  } finally {
+    f.match.cleanup()
+  }
+})
+
+test('randomization extremes keep every full-flight disc inside the mobile lanes', () => {
+  for (const random of [
+    () => 0,
+    () => 0.999999999,
+    (() => {
+      let alternate = false
+      return () => ((alternate = !alternate) ? 0 : 0.999999999)
+    })(),
+  ]) {
+    const f = fixture(undefined, undefined, random)
+    try {
+      f.start()
+      const drops = f.match.state.drops
+      for (let elapsed = 0; elapsed <= 5300; elapsed += 25) {
+        const points = drops.map((drop) => dropPoint(drop, f.match.state.startedAt + elapsed))
+        for (let i = 0; i < 3; i++) {
+          expect(points[i].x * 320).toBeGreaterThanOrEqual(44)
+          expect(points[i].x * 320).toBeLessThanOrEqual(276)
+          for (let j = i + 1; j < 3; j++)
+            expect((points[j].x - points[i].x) * 320).toBeGreaterThan(88)
+        }
+      }
+    } finally {
+      f.match.cleanup()
+    }
+  }
+})
 test('two ready players share authoritative opportunities; early, stale and unknown claims fail', async () => {
   const f = fixture()
   try {
@@ -142,6 +297,7 @@ test('ten confirmed catches enforce $10 cap independently per player', async () 
       f.setNow(f.match.state.startedAt + i * DROP_INTERVAL_MS)
       f.match.tick()
       const drop = f.match.state.drops.at(-1)!
+      f.setNow(drop.spawnedAt)
       f.match.handle('a', 'catch_stock', { dropId: drop.id })
       await f.drain()
     }
@@ -242,9 +398,10 @@ test('three shared tosses per batch retain shuffled fairness and readable separa
       expect(new Set(drops.map((d) => d.id)).size).toBe(drops.length)
       for (const drop of drops) {
         symbols.add(drop.symbol)
-        const ids = batches.get(drop.spawnedAt) ?? new Set<string>()
+        const batch = Math.round((drop.spawnedAt - f.match.state.startedAt) / DROP_INTERVAL_MS)
+        const ids = batches.get(batch) ?? new Set<string>()
         ids.add(drop.id)
-        batches.set(drop.spawnedAt, ids)
+        batches.set(batch, ids)
       }
       for (const [width, height] of [
         [320, 300],
@@ -294,10 +451,9 @@ test('in-flight quotes reserve dollars before awaiting and never exceed either p
     for (let i = 0; i < 6; i++) {
       f.setNow(f.match.state.startedAt + i * DROP_INTERVAL_MS)
       f.match.tick()
-      for (const drop of f.match.state.drops.filter(
-        (d) => d.spawnedAt === f.match.state.startedAt + i * DROP_INTERVAL_MS
-      ))
-        f.match.handle('a', 'catch_stock', { dropId: drop.id })
+      const batch = f.match.state.drops.slice(-3)
+      f.setNow(Math.max(...batch.map((d) => d.spawnedAt)))
+      for (const drop of batch) f.match.handle('a', 'catch_stock', { dropId: drop.id })
     }
     expect(f.requests).toHaveLength(10)
     expect(f.match.state.bags[0]).toMatchObject({ spent: 0, reservedSpend: 10, assets: [] })
@@ -319,8 +475,8 @@ test('slower authoritative window accepts the extended flight and rejects its ex
   try {
     f.start()
     const drop = f.match.state.drops[0]
-    expect(drop.expiresAt - drop.spawnedAt).toBeCloseTo(2800 / 0.75, 6)
-    f.setNow(drop.spawnedAt + 3000)
+    expect(drop.expiresAt - drop.spawnedAt).toBeCloseTo(4977.777777777778, 6)
+    f.setNow(drop.spawnedAt + 4200)
     f.match.handle('a', 'catch_stock', { dropId: drop.id })
     await f.drain()
     expect(f.match.state.bags[0].spent).toBe(1)

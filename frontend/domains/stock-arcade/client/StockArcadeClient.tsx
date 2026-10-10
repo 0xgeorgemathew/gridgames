@@ -8,7 +8,7 @@ import {
   StockInstructions,
   type LobbyPlayer,
 } from './StockGameUI'
-import { GameCanvasBackground } from '@/platform/ui/GameCanvasBackground'
+import { StockGrid } from './StockGrid'
 import './stock-game.css'
 import { StockArena, type ContactVisual } from './StockArena'
 import { PresentationClock } from './presentation-clock'
@@ -25,7 +25,15 @@ const GridScanBackground = clientLazy(() =>
 import { usePrivy } from '@privy-io/react-auth'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { RealtimeSocket } from '@/platform/multiplayer/client'
-import { type ArcadeState, type StockDrop } from '../shared/types'
+import {
+  CATCH_COST,
+  type ArcadeState,
+  type StockDrop,
+  type CatchCost,
+  type ArcadeBetEvent,
+  type SetCatchCostPayload,
+  type CatchStockPayload,
+} from '../shared/types'
 import { ClaimBudget } from './claim-budget'
 import { MatchPlayer } from './match-player'
 import { useStockMusic } from './use-stock-music'
@@ -67,6 +75,12 @@ export function StockArcadeClient() {
   const [rejectedAt, setRejectedAt] = useState(-Infinity)
   const [notice, setNotice] = useState('')
   const [reducedMotion, setReducedMotion] = useState(false)
+  const betRequest = useRef<SetCatchCostPayload | null>(null)
+  const [pendingBet, setPendingBet] = useState<SetCatchCostPayload | null>(null)
+  const clearBetRequest = useCallback(() => {
+    betRequest.current = null
+    setPendingBet(null)
+  }, [])
   const localId = game
     ? (matchPlayer.current.get(game.matchId) ?? socket.current?.id)
     : socket.current?.id
@@ -87,6 +101,31 @@ export function StockArcadeClient() {
     },
     [music.feedback]
   )
+  useEffect(() => {
+    if (!pendingBet) return
+    const timer = window.setTimeout(() => {
+      if (betRequest.current?.requestId !== pendingBet.requestId) return
+      clearBetRequest()
+      setNotice('Bet confirmation delayed. Your server-confirmed amount still applies.')
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [pendingBet, clearBetRequest])
+  const changeBet = useCallback((amount: CatchCost) => {
+    const state = stateRef.current
+    if (
+      !socket.current?.connected ||
+      !state ||
+      betRequest.current ||
+      (state.status !== 'ready' && state.status !== 'playing') ||
+      (state.status === 'playing' &&
+        presentationClock.current.authoritativeNow(performance.now()) >= state.cutoffAt)
+    )
+      return
+    const request: SetCatchCostPayload = { amount, requestId: crypto.randomUUID() }
+    betRequest.current = request
+    setPendingBet(request)
+    socket.current.emit('set_catch_cost', request)
+  }, [])
   useEffect(() => {
     if (!game || !dock.current || !top.current) return
     const measure = () => {
@@ -139,6 +178,7 @@ export function StockArcadeClient() {
     socket.current = client
     client.on('connect', () => setConnected(true))
     client.on('disconnect', () => {
+      clearBetRequest()
       setConnected(false)
       setWaiting(false)
       claimBudget.current.reset()
@@ -218,9 +258,26 @@ export function StockArcadeClient() {
         setCaught([])
         setQuotePulse(null)
       }
+      if (next.status !== 'ready' && next.status !== 'playing') clearBetRequest()
       if (next.status === 'completed' || next.status === 'cancelled') claimBudget.current.reset()
       if (next.status === 'cancelled')
         setNotice(`Match cancelled: ${next.reason?.replaceAll('_', ' ')}. No payout.`)
+    })
+    client.on('arcade_bet', (raw: unknown) => {
+      const update = raw as ArcadeBetEvent | null
+      if (
+        !update ||
+        update.playerId !== client.id ||
+        update.requestId !== betRequest.current?.requestId ||
+        typeof update.accepted !== 'boolean'
+      )
+        return
+      clearBetRequest()
+      setNotice(
+        update.accepted
+          ? `Bet confirmed: $${update.catchCost.toFixed(2)} per caught token.`
+          : update.reason || 'Bet change unavailable.'
+      )
     })
     client.on('arcade_claim', (raw: unknown) => {
       const claim = raw as { playerId: string; dropId: string; status: string; reason?: string }
@@ -241,12 +298,12 @@ export function StockArcadeClient() {
         setCreditPulse({ dropId: claim.dropId, at: performance.now() })
         setQuotePulse({ kind: 'credited', at: performance.now() })
         music.feedback('credited')
-        setNotice('Quote received. $1 simulated catch added to your bag.')
+        setNotice('Quote received. Simulated catch added to your bag.')
       } else {
         setQuotePulse({ kind: 'failed', at: performance.now() })
         music.feedback('failed')
         setNotice(
-          `${claim.reason || 'Quote unavailable'} · $1 reservation released. No spend or credit.`
+          `${claim.reason || 'Quote unavailable'} · Reservation released. No spend or credit.`
         )
       }
     })
@@ -254,7 +311,7 @@ export function StockArcadeClient() {
       client.disconnect()
       socket.current = null
     }
-  }, [allowed, onTime, music.feedback])
+  }, [allowed, onTime, music.feedback, clearBetRequest])
   const catchDrop = useCallback(
     (drop: StockDrop, anchor: ContactAnchor) => {
       const state = stateRef.current
@@ -264,6 +321,7 @@ export function StockArcadeClient() {
         !state ||
         state.status !== 'playing' ||
         claimed.current.has(drop.id) ||
+        betRequest.current ||
         presentationClock.current.authoritativeNow(performance.now()) >= state.cutoffAt
       )
         return
@@ -279,13 +337,15 @@ export function StockArcadeClient() {
       claimed.current.add(drop.id)
       if (feedback.current.begin(state.matchId, anchor)) showContact(anchor, 'pending')
       setNotice('Quote pending. No credit until the quote arrives.')
-      socket.current?.emit('catch_stock', { dropId: drop.id })
+      const request: CatchStockPayload = { dropId: drop.id, catchCost: bag.catchCost ?? CATCH_COST }
+      socket.current?.emit('catch_stock', request)
     },
     [showContact, music.feedback]
   )
   const findMatch = () => {
     if (!connected || !walletAddress) return
     music.prepare()
+    clearBetRequest()
     setGame(null)
     matchPlayer.current.reset()
     stateRef.current = null
@@ -305,6 +365,7 @@ export function StockArcadeClient() {
     })
   }
   const reset = () => {
+    clearBetRequest()
     setGame(null)
     matchPlayer.current.reset()
     stateRef.current = null
@@ -331,6 +392,7 @@ export function StockArcadeClient() {
   }
   const onHelp = useCallback(() => setHelp(true), [])
   const onExit = useCallback(() => {
+    clearBetRequest()
     if (socket.current?.connected) socket.current.emit('end_game')
     const interrupted = interruptMatch(stateRef.current, 'player_left')
     stateRef.current = interrupted
@@ -341,7 +403,7 @@ export function StockArcadeClient() {
     setCreditPulse(null)
     setQuotePulse(null)
     setRejectedAt(-Infinity)
-  }, [])
+  }, [clearBetRequest])
   return (
     <main
       className={
@@ -365,10 +427,10 @@ export function StockArcadeClient() {
           scanGlow={0}
         />
       ) : (
-        <>
-          <GameCanvasBackground />
-          <div className="arcade-playfield-grid" />
-        </>
+        <StockGrid
+          active={connected && game.status === 'playing' && time.started && time.remaining > 0}
+          reducedMotion={reducedMotion}
+        />
       )}
       {!game && (
         <StockMatchmakingScreen
@@ -415,6 +477,7 @@ export function StockArcadeClient() {
             claimed={claimed.current}
             contacts={caught}
             reducedMotion={reducedMotion}
+            catchCost={self?.catchCost ?? CATCH_COST}
             onCatch={catchDrop}
             onTime={onTime}
           />
@@ -431,6 +494,8 @@ export function StockArcadeClient() {
             quotePulse={quotePulse ? { kind: quotePulse.kind, progress: 0 } : undefined}
             budgetPulse={Number(Number.isFinite(rejectedAt))}
             muted={music.muted}
+            pendingBet={pendingBet?.amount}
+            onChangeBet={changeBet}
             onToggleSound={music.toggle}
             onExit={onExit}
             onHelp={onHelp}

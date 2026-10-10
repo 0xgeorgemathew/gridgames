@@ -9,6 +9,7 @@ import { handoff, send, upgradeDenied, type RoomProvision } from './session'
 const actions = new Set([
   'scene_ready',
   'catch_stock',
+  'set_catch_cost',
   'end_game',
   'slice_coin',
   'open_position',
@@ -134,11 +135,12 @@ export class GameRoom extends DurableObject<Cloudflare.Env> {
       if (this.config.gameSlug === 'stock-arcade') {
         this.arcade = new StockMatch(this.config, {
           now: () => Date.now(),
-          quote: (symbol, requestId, swapper) =>
+          quote: (symbol, requestId, swapper, cost) =>
             this.env.QUOTE_GATE.get(this.env.QUOTE_GATE.idFromName('uniswap-key-v1')).quote(
               symbol,
               requestId,
-              swapper
+              swapper,
+              cost
             ),
           value: (bags, cutoffAt) => valueBags(bags, cutoffAt, this.env.ROBINHOOD_RPC_URL),
           emit: (event, payload) => {

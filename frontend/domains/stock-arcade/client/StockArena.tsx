@@ -1,5 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
-import type { ArcadeState, StockDrop } from '../shared/types'
+import { CATCH_COST, type ArcadeState, type StockDrop, type CatchCost } from '../shared/types'
 import { stockAsset } from '../shared/assets'
 import { StockDiscRim, StockBlade, StockContact } from './StockEffects'
 import { CONTACT_MS, type ContactAnchor } from './contact-feedback'
@@ -21,16 +21,19 @@ interface Props {
   claimed: Set<string>
   contacts: ContactVisual[]
   reducedMotion: boolean
+  catchCost?: CatchCost
   onCatch: (drop: StockDrop, anchor: ContactAnchor) => void
   onTime: (remaining: number, started: boolean) => void
 }
 
 const StockDisc = memo(function StockDisc({
   drop,
+  catchCost,
   register,
   onClick,
 }: {
   drop: StockDrop
+  catchCost: CatchCost
   register: (id: string, element: HTMLButtonElement | null) => void
   onClick: (drop: StockDrop) => void
 }) {
@@ -40,7 +43,7 @@ const StockDisc = memo(function StockDisc({
       data-drop-id={drop.id}
       data-symbol={drop.symbol}
       className="arcade-disc"
-      aria-label={`Catch ${drop.symbol} for $1 simulated`}
+      aria-label={`Catch ${drop.symbol} for $${catchCost.toFixed(2)} simulated`}
       style={{ visibility: 'hidden' }}
       onClick={() => onClick(drop)}
     >
@@ -254,7 +257,13 @@ export const StockArena = memo(function StockArena(props: Props) {
       )}
       {props.game.status === 'playing' &&
         props.game.drops.map((drop) => (
-          <StockDisc key={drop.id} drop={drop} register={register} onClick={catchPresented} />
+          <StockDisc
+            key={drop.id}
+            drop={drop}
+            catchCost={props.catchCost ?? CATCH_COST}
+            register={register}
+            onClick={catchPresented}
+          />
         ))}
       {effects.live &&
         !terminal &&

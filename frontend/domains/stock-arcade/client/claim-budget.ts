@@ -2,13 +2,14 @@ import { CATCH_COST, MATCH_BUDGET, type Bag } from '../shared/types'
 
 /** Covers the interval between a local swipe and the ordered server ledger/claim ack. */
 export class ClaimBudget {
-  private unacknowledged = new Set<string>()
+  private unacknowledged = new Map<string, number>()
 
   reserve(dropId: string, bag: Bag) {
     if (this.unacknowledged.has(dropId)) return false
-    const localCost = this.unacknowledged.size * CATCH_COST
-    if (bag.spent + bag.reservedSpend + localCost + CATCH_COST > MATCH_BUDGET) return false
-    this.unacknowledged.add(dropId)
+    const cost = bag.catchCost ?? CATCH_COST
+    const localCost = [...this.unacknowledged.values()].reduce((sum, amount) => sum + amount, 0)
+    if (bag.spent + bag.reservedSpend + localCost + cost > MATCH_BUDGET) return false
+    this.unacknowledged.set(dropId, cost)
     return true
   }
 

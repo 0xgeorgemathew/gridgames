@@ -5,7 +5,7 @@ export const games: GameConfig[] = [
   {
     slug: 'stock-arcade',
     name: 'Stock Ninja',
-    description: 'Swipe stock discs to collect $1 simulated catches. No real funds.',
+    description: 'Choose your bet and swipe stock discs to collect. Simulated funds only.',
     icon: '/stocks/SPCX.svg',
     status: 'available',
     players: { min: 2, max: 2 },

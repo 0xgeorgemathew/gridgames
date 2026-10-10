@@ -38,10 +38,10 @@ test('swipe collision uses the enlarged responsive disc diameter between samples
   expect(discDiameter(900)).toBe(112)
 })
 
-test('75% toss speed preserves the whole arc and spin on the longer server window', () => {
-  expect(DROP_WINDOW_MS / 2800).toBeCloseTo(4 / 3, 10)
-  for (let oldTime = 0; oldTime <= 2800; oldTime += 100) {
-    const p = oldTime / 2800
+test('a further 25% slowdown preserves the existing full arc and spin', () => {
+  const previousWindow = 3733.3333333333335
+  for (let oldTime = 0; oldTime <= previousWindow; oldTime += 100) {
+    const p = oldTime / previousWindow
     const point = dropPoint(drop, oldTime / 0.75)
     expect(point.x).toBeCloseTo(drop.lane + drop.drift * p, 10)
     expect(point.y).toBeCloseTo(1.14 - 3.7 * p + 4.6 * p * p, 10)

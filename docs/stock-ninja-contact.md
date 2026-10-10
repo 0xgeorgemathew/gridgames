@@ -12,13 +12,13 @@ Quote outcomes remain subtly in the HUD, never a floating checkmark at the hit.
 
 ## Actual event meanings
 
-| Event                                                           | Visual                                                                                               | Sound                                                                  | Accounting                                   |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------- |
-| Unique locally reserved contact                                 | Progressive original-logo/rim de-rez; cyan pending HUD                                                    | 310 ms body/blade/digital decay; three material variations | Pending only, no asset credit                |
-| Authoritative credited acknowledgement for that initiated claim | Newly acquired bag entry pulses mint for 600 ms; subtle mint status/pending HUD, no arena mark       | 230 ms warm resolved interval                                          | Server credited simulated units and $1 spend |
-| Authoritative failed acknowledgement                            | Amber reservation-release status/pending HUD and available-balance outline for 650 ms; no arena mark | 180 ms low descending release                                          | Reservation released, no spend/credit        |
-| Local budget refusal                                            | Amber available-balance outline for 250 ms; disc remains visible/catchable                           | 130 ms damped double tap, 350 ms cooldown                              | No reservation/spend/credit                  |
-| Empty swipe, miss, duplicate intersection or acknowledgement    | None                                                                                                 | Silent                                                                 | Existing rules                               |
+| Event                                                           | Visual                                                                                               | Sound                                                      | Accounting                                   |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------- |
+| Unique locally reserved contact                                 | Progressive original-logo/rim de-rez; cyan pending HUD                                               | 310 ms body/blade/digital decay; three material variations | Pending only, no asset credit                |
+| Authoritative credited acknowledgement for that initiated claim | Newly acquired bag entry pulses mint for 600 ms; subtle mint status/pending HUD, no arena mark       | 230 ms warm resolved interval                              | Server credited simulated units and $1 spend |
+| Authoritative failed acknowledgement                            | Amber reservation-release status/pending HUD and available-balance outline for 650 ms; no arena mark | 180 ms low descending release                              | Reservation released, no spend/credit        |
+| Local budget refusal                                            | Amber available-balance outline for 250 ms; disc remains visible/catchable                           | 130 ms damped double tap, 350 ms cooldown                  | No reservation/spend/credit                  |
+| Empty swipe, miss, duplicate intersection or acknowledgement    | None                                                                                                 | Silent                                                     | Existing rules                               |
 
 The shared clock removes contact art. Terminal/ready/rematch/disconnect clears
 local feedback; leaving a live state also clears pointer/blade history. Credits
@@ -100,7 +100,6 @@ verified**. Desktop mobile-size layout is **not iOS Safari or physical mobile au
 Visibility-event fixture checks are simulated browser lifecycle coverage, not a
 phone backgrounding test. The app dev server was never started.
 
-
 ## Corrected proper de-rez preview: 2026-10-07
 
 This supersedes the split-only preview above.
@@ -155,3 +154,7 @@ Remaining validation limits: subjective audible monitoring is unavailable throug
 these tools; improved sound design is verified by its PCM and actual playback,
 not by listening. Desktop mobile-width inspection is not iOS Safari, hardware
 speaker/headphone listening or a physical-device background/resume test.
+
+## October 10 UI and motion follow-up
+
+The adjustable per-token bet, floating funds controls, animated brighter grid and further 25% toss slowdown are documented in [stock-ninja-ui-motion-2026-10-10.md](stock-ninja-ui-motion-2026-10-10.md). Earlier $1/75%-speed verification entries above describe their recorded versions; contact effects and quote-outcome rules remain in force.

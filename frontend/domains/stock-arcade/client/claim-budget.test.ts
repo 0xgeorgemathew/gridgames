@@ -17,6 +17,15 @@ test('one multi-disc swipe cannot optimistically consume more than the last doll
   expect(guard.reserve('two', bag(9, 1))).toBe(false)
   expect(guard.reserve('two', bag(10))).toBe(false)
 })
+test('local reservations retain each selected cost when the bet changes before an acknowledgement', () => {
+  const guard = new ClaimBudget()
+  expect(guard.reserve('two', { ...bag(7), catchCost: 2 })).toBe(true)
+  expect(guard.reserve('half', { ...bag(7), catchCost: 0.5 })).toBe(true)
+  expect(guard.reserve('another', { ...bag(7), catchCost: 1 })).toBe(false)
+  guard.acknowledge('two')
+  expect(guard.reserve('last-half', { ...bag(7, 2), catchCost: 0.5 })).toBe(true)
+  expect(guard.reserve('over', { ...bag(7, 2), catchCost: 0.25 })).toBe(false)
+})
 test('ordered pending ack, failures, timeout failures and a new connection release only local reservations', () => {
   const guard = new ClaimBudget()
   expect(guard.reserve('one', bag(8))).toBe(true)

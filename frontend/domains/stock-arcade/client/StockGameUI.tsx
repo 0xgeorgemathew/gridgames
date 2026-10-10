@@ -10,6 +10,7 @@ import {
   Coins,
   ShoppingBag,
   Clock,
+  ChevronDown,
   X,
 } from 'lucide-react'
 import { ActionButton } from '@/platform/ui/ActionButton'
@@ -18,7 +19,14 @@ import { MatchResultOverlay } from '@/platform/ui/MatchResultOverlay'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { PlayerName } from '@/platform/ui/PlayerName'
 import { cn } from '@/platform/utils/classNames.utils'
-import { CATCH_COST, MATCH_BUDGET, type ArcadeState, type Bag } from '../shared/types'
+import {
+  CATCH_COST,
+  CATCH_AMOUNTS,
+  MATCH_BUDGET,
+  type ArcadeState,
+  type Bag,
+  type CatchCost,
+} from '../shared/types'
 import { stockAsset } from '../shared/assets'
 
 export interface LobbyPlayer {
@@ -178,6 +186,8 @@ export const StockHUD = memo(function StockHUD({
   creditPulse,
   quotePulse,
   budgetPulse = 0,
+  pendingBet,
+  onChangeBet,
   onToggleSound,
   onExit,
   onHelp,
@@ -193,15 +203,18 @@ export const StockHUD = memo(function StockHUD({
   creditPulse?: { dropId: string; progress: number }
   quotePulse?: { kind: 'pending' | 'credited' | 'failed'; progress: number }
   budgetPulse?: number
+  pendingBet?: CatchCost
+  onChangeBet: (amount: CatchCost) => void
   onToggleSound: () => void
   onExit: () => void
   onHelp: () => void
 }) {
-  const [panel, setPanel] = useState<'bag' | 'settings' | null>(null)
+  const [panel, setPanel] = useState<'bag' | 'settings' | 'bet' | null>(null)
   const panelId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const bagButton = useRef<HTMLButtonElement>(null)
   const settingsButton = useRef<HTMLButtonElement>(null)
+  const betButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!panel) return
     // Let the newly mounted panel paint before focusing it. Containment keeps
@@ -212,16 +225,33 @@ export const StockHUD = memo(function StockHUD({
     return () => cancelAnimationFrame(frame)
   }, [panel])
   const closePanel = useCallback(() => {
-    const trigger = panel === 'bag' ? bagButton : settingsButton
+    const trigger = panel === 'bag' ? bagButton : panel === 'bet' ? betButton : settingsButton
     setPanel(null)
     trigger.current?.focus({ preventScroll: true })
   }, [panel])
+  useEffect(() => {
+    if (!panel) return
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closePanel()
+      }
+    }
+    // A pending option becomes disabled and can drop focus to the document.
+    // Escape must still close the panel and restore its floating trigger.
+    window.addEventListener('keydown', escape)
+    return () => window.removeEventListener('keydown', escape)
+  }, [panel, closePanel])
   const seconds = Math.ceil(Math.max(0, remaining) / 1000)
   const timer =
     game.status === 'valuing'
       ? 'CUTOFF'
       : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
   const budgetLeft = Math.max(0, MATCH_BUDGET - (self?.spent ?? 0) - (self?.reservedSpend ?? 0))
+  const catchCost = self?.catchCost ?? CATCH_COST
+  const betOpen =
+    (game.status === 'ready' || game.status === 'playing') &&
+    (game.status === 'ready' || remaining > 0)
   const quoteColor =
     quotePulse?.kind === 'failed'
       ? '#ff9c45'
@@ -236,25 +266,29 @@ export const StockHUD = memo(function StockHUD({
           <span>SIMULATED MATCH</span>
         </div>
       </div>
-      <div
-        ref={dockRef}
-        className="ninja-bottom-hud"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && panel) {
-            event.preventDefault()
-            closePanel()
-          }
-        }}
-      >
-        <div
-          className="ninja-match-bar"
-          role="group"
-          aria-label="Match controls and simulated funds"
-        >
+      <div ref={dockRef} className="ninja-bottom-hud">
+        <div className="ninja-floating-funds" role="group" aria-label="Bet and simulated wallet">
+          <button
+            ref={betButton}
+            className="ninja-funds-pill ninja-bet-pill"
+            onClick={() => setPanel(panel === 'bet' ? null : 'bet')}
+            disabled={!betOpen}
+            aria-label={`Change bet: $${catchCost.toFixed(2)} per caught token`}
+            aria-expanded={panel === 'bet'}
+            aria-controls={panel === 'bet' ? panelId : undefined}
+            aria-busy={pendingBet !== undefined}
+          >
+            <Coins size={18} aria-hidden="true" />
+            <span>
+              <small>BET / TOKEN</small>
+              <strong>${catchCost.toFixed(2)}</strong>
+            </span>
+            <ChevronDown size={12} aria-hidden="true" />
+          </button>
           <div
-            className="ninja-bar-value"
+            className="ninja-funds-pill ninja-wallet-pill"
             role="group"
-            aria-label={`$${budgetLeft} available simulated balance out of $${MATCH_BUDGET}`}
+            aria-label={`$${budgetLeft.toFixed(2)} available simulated USDG balance out of $${MATCH_BUDGET}`}
             title={`Available simulated balance: $${budgetLeft} of $${MATCH_BUDGET}`}
             data-feedback={budgetPulse > 0 ? 'rejected' : quotePulse?.kind}
             style={
@@ -262,25 +296,13 @@ export const StockHUD = memo(function StockHUD({
             }
           >
             <Wallet size={17} aria-hidden="true" />
-            <strong>${budgetLeft}</strong>
+            <span>
+              <small>USDG · SIM</small>
+              <strong>${budgetLeft.toFixed(2)}</strong>
+            </span>
           </div>
-          <div
-            className="ninja-bar-value"
-            role="group"
-            aria-label={`$${CATCH_COST} per successful simulated catch`}
-            title="$1 per successful simulated catch. A swipe may catch multiple discs."
-          >
-            <Coins size={17} aria-hidden="true" />
-            <strong>${CATCH_COST}</strong>
-          </div>
-          <div
-            className={cn('ninja-bar-timer', remaining <= 30000 && 'ninja-timer-low')}
-            role="timer"
-            aria-label="Match time remaining"
-          >
-            <Clock size={12} aria-hidden="true" />
-            <strong>{timer}</strong>
-          </div>
+        </div>
+        <div className="ninja-match-bar" role="group" aria-label="Match controls">
           <button
             ref={bagButton}
             className="ninja-bar-bag"
@@ -298,6 +320,14 @@ export const StockHUD = memo(function StockHUD({
             </span>
             {(self?.reservedSpend ?? 0) > 0 && <small>${self?.reservedSpend} pending</small>}
           </button>
+          <div
+            className={cn('ninja-bar-timer', remaining <= 30000 && 'ninja-timer-low')}
+            role="timer"
+            aria-label="Match time remaining"
+          >
+            <Clock size={12} aria-hidden="true" />
+            <strong>{timer}</strong>
+          </div>
           <button
             ref={settingsButton}
             onClick={() => setPanel(panel === 'settings' ? null : 'settings')}
@@ -324,7 +354,13 @@ export const StockHUD = memo(function StockHUD({
               id={panelId}
               className={cn('ninja-match-panel', panel === 'settings' && 'ninja-settings-menu')}
               role="region"
-              aria-label={panel === 'bag' ? 'Your bag and match details' : 'Game settings'}
+              aria-label={
+                panel === 'bag'
+                  ? 'Your bag and match details'
+                  : panel === 'bet'
+                    ? 'Bet per caught token'
+                    : 'Game settings'
+              }
               tabIndex={-1}
             >
               <StockPanelContent
@@ -335,6 +371,9 @@ export const StockHUD = memo(function StockHUD({
                 creditPulse={creditPulse}
                 quotePulse={quotePulse}
                 muted={muted}
+                pendingBet={pendingBet}
+                betOpen={betOpen}
+                onChangeBet={onChangeBet}
                 closePanel={closePanel}
                 onToggleSound={onToggleSound}
                 onHelp={onHelp}
@@ -356,18 +395,24 @@ const StockPanelContent = memo(function StockPanelContent({
   creditPulse,
   quotePulse,
   muted,
+  pendingBet,
+  betOpen,
+  onChangeBet,
   closePanel,
   onToggleSound,
   onHelp,
   onExit,
 }: {
-  panel: 'bag' | 'settings'
+  panel: 'bag' | 'settings' | 'bet'
   self?: Bag
   other?: Bag
   notice: string
   creditPulse?: { dropId: string; progress: number }
   quotePulse?: { kind: 'pending' | 'credited' | 'failed'; progress: number }
   muted: boolean
+  pendingBet?: CatchCost
+  betOpen: boolean
+  onChangeBet: (amount: CatchCost) => void
   closePanel: () => void
   onToggleSound: () => void
   onHelp: () => void
@@ -382,12 +427,43 @@ const StockPanelContent = memo(function StockPanelContent({
   return (
     <>
       <div className="ninja-panel-heading">
-        <strong>{panel === 'bag' ? 'YOUR BAG' : 'SETTINGS'}</strong>
+        <strong>
+          {panel === 'bag' ? 'YOUR BAG' : panel === 'bet' ? 'BET PER TOKEN' : 'SETTINGS'}
+        </strong>
         <button onClick={closePanel} aria-label="Close match panel">
           <X size={16} />
         </button>
       </div>
-      {panel === 'bag' ? (
+      {panel === 'bet' ? (
+        <>
+          <div className="ninja-bet-options" role="group" aria-label="Bet amount options">
+            {CATCH_AMOUNTS.map((amount) => (
+              <button
+                key={amount}
+                onClick={() => onChangeBet(amount)}
+                aria-pressed={amount === (self?.catchCost ?? CATCH_COST)}
+                disabled={
+                  !betOpen ||
+                  pendingBet !== undefined ||
+                  amount > MATCH_BUDGET - (self?.spent ?? 0) - (self?.reservedSpend ?? 0)
+                }
+                aria-label={`Bet $${amount.toFixed(2)} per caught token`}
+              >
+                ${amount.toFixed(2)}
+              </button>
+            ))}
+          </div>
+          <p className="ninja-bet-confirmation" role="status">
+            {pendingBet !== undefined
+              ? `Confirming $${pendingBet.toFixed(2)}…`
+              : `$${(self?.catchCost ?? CATCH_COST).toFixed(2)} per caught token`}
+          </p>
+          <p className="ninja-panel-disclosure">
+            Each token caught uses this amount. Pending catches keep their original bet. Simulated
+            USDG only.
+          </p>
+        </>
+      ) : panel === 'bag' ? (
         <>
           <div className="ninja-spend-summary">
             <span>
@@ -582,8 +658,9 @@ export function StockInstructions({ onClose }: { onClose: () => void }) {
             SWIPE TO COLLECT
           </h3>
           <p className="text-tron-cyan/70 text-sm leading-relaxed">
-            Swipe a stock disc for a live $1 quote. Each valid quote credits simulated tokens.
-            Failed quotes spend nothing. Both players get the same opportunities.
+            Choose your bet with the left floating control, then swipe a stock disc for a live quote
+            at that amount. Each caught token uses the selected bet. Each valid quote credits
+            simulated tokens. Failed quotes spend nothing. Both players get the same opportunities.
           </p>
           <p className="text-tron-cyan/70 text-sm leading-relaxed">
             You have a $10 budget for the round. Acquired assets decide the winner; unspent cash

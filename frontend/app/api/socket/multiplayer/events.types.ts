@@ -227,3 +227,4 @@ export interface LiquidationEvent {
 }
 
 export type { TapRecoveryPayload } from '@/domains/match/events'
+export type { SetCatchCostPayload, CatchStockPayload, ArcadeBetEvent } from '@/domains/match/events'

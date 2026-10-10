@@ -165,3 +165,9 @@ export type MatchEventName = (typeof MATCH_EVENTS)[keyof typeof MATCH_EVENTS]
 export interface TapRecoveryPayload {
   recoveryMs?: number
 }
+
+export type {
+  SetCatchCostPayload,
+  CatchStockPayload,
+  ArcadeBetEvent,
+} from '@/domains/stock-arcade/shared/types'
