@@ -1,4 +1,13 @@
-import { memo, useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type RefObject,
+  type ReactNode,
+} from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   Settings,
@@ -52,6 +61,8 @@ export function StockMatchmakingScreen(props: {
   onSelect: (id: string) => void
   onCancel: () => void
   onHelp: () => void
+  onInviteFriend: () => void
+  inviteControls?: ReactNode
 }) {
   return (
     <>
@@ -104,7 +115,9 @@ export function StockMatchmakingScreen(props: {
               />
             </div>
           </div>
-          {props.allowed ? (
+          {props.inviteControls ? (
+            props.inviteControls
+          ) : props.allowed ? (
             <MatchmakingAuthPanel
               matchState={props.waiting ? 'entering' : props.lobbyOpen ? 'lobby' : 'ready'}
               isInMiniApp={props.isInMiniApp}
@@ -118,6 +131,7 @@ export function StockMatchmakingScreen(props: {
               onBackFromLobby={props.onBackFromLobby}
               onRefreshLobby={props.onRefresh}
               onSelectOpponent={props.onSelect}
+              onInviteFriend={props.onInviteFriend}
               settings={
                 <span className="px-2 py-1 rounded-sm font-[family-name:var(--font-orbitron)] text-[10px] tracking-[0.15em] text-tron-cyan bg-tron-cyan/20 border border-tron-cyan/60 shadow-[0_0_8px_rgba(0,243,255,0.3)]">
                   1 MIN
@@ -131,7 +145,7 @@ export function StockMatchmakingScreen(props: {
               </ActionButton>
             </div>
           )}
-          {props.waiting && (
+          {props.waiting && !props.inviteControls && (
             <ActionButton color="cyan" size="sm" onClick={props.onCancel}>
               CANCEL SEARCH
             </ActionButton>

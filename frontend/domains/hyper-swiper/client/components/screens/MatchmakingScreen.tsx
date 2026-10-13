@@ -11,6 +11,8 @@ import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { GameSettingsSelector } from '@/domains/hyper-swiper/client/components/settings/GameSettingsSelector'
 import { OnboardingModal } from '@/domains/hyper-swiper/client/components/modals/OnboardingModal'
+import { useInviteMatch } from '@/domains/match/client/use-invite-match'
+import { InviteMatchPanel } from '@/platform/ui/InviteMatchPanel'
 
 type AuthMatchState = 'login' | 'ready'
 type UserMatchState = 'lobby' | 'entering'
@@ -18,7 +20,7 @@ type MatchState = AuthMatchState | UserMatchState
 
 export function MatchmakingScreen() {
   const navigate = useNavigate()
-  const { ready, authenticated, user } = usePrivy()
+  const { ready, authenticated, user, login } = usePrivy()
   const {
     isInMiniApp,
     user: miniAppUser,
@@ -27,6 +29,7 @@ export function MatchmakingScreen() {
     isAuthenticating: miniAppAuthenticating,
   } = useBaseMiniAppAuth()
   const {
+    socket,
     isConnected,
     isMatching,
     findMatch,
@@ -72,6 +75,14 @@ export function MatchmakingScreen() {
     return 'login'
   }, [isInMiniApp, miniAppConnected, miniAppUser, authenticated, user?.wallet])
 
+  const invite = useInviteMatch({
+    socket,
+    gameSlug: 'hyper-swiper',
+    gameDuration: selectedGameDuration,
+    playerName: displayName || 'Grid Runner',
+    walletAddress,
+  })
+
   const matchState: MatchState =
     authState === 'login'
       ? 'login'
@@ -86,7 +97,7 @@ export function MatchmakingScreen() {
       isInMiniApp && !miniAppAuthenticating && !miniAppConnected && !miniAppUser
     const shouldRedirectWeb = !isInMiniApp && ready && !authenticated
 
-    if (shouldRedirectMiniApp || shouldRedirectWeb) {
+    if (invite.incoming === undefined && (shouldRedirectMiniApp || shouldRedirectWeb)) {
       window.location.href = '/'
     }
   }, [
@@ -97,6 +108,7 @@ export function MatchmakingScreen() {
     ready,
     authenticated,
     navigate,
+    invite.incoming,
   ])
 
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -269,6 +281,21 @@ export function MatchmakingScreen() {
           }
           lobbyPlayers={lobbyPlayers}
           onEnter={handleEnter}
+          onInviteFriend={invite.create}
+          inviteControls={
+            invite.active ? (
+              <InviteMatchPanel
+                invite={invite}
+                authenticated={authState === 'ready'}
+                connected={isConnected && !!walletAddress}
+                onLogin={login}
+                onJoin={() => {
+                  window.phaserEvents?.emit('unlock_audio')
+                  invite.join()
+                }}
+              />
+            ) : undefined
+          }
           onOpenLobby={() => {
             getLobbyPlayers()
             setUserState('lobby')

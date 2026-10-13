@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { inviteSearch } from '@/domains/match/invites'
 import { lazy, Suspense } from 'react'
 const Client = lazy(() =>
   import('@/app/tap-dancer/TapDancerClient').then((m) => ({ default: m.TapDancerClient }))
 )
 export const Route = createFileRoute('/tap-dancer')({
   ssr: false,
+  validateSearch: inviteSearch,
   head: () => ({ meta: [{ title: 'Tap Dancer | Grid Games' }] }),
   component: () => (
     <Suspense fallback={<div className="p-8 text-tron-cyan">Loading…</div>}>

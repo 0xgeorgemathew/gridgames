@@ -25,6 +25,8 @@ const GridScanBackground = clientLazy(() =>
 import { usePrivy } from '@privy-io/react-auth'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { RealtimeSocket } from '@/platform/multiplayer/client'
+import { useInviteMatch } from '@/domains/match/client/use-invite-match'
+import { InviteMatchPanel } from '@/platform/ui/InviteMatchPanel'
 import {
   CATCH_COST,
   type ArcadeState,
@@ -90,6 +92,13 @@ export function StockArcadeClient() {
   const music = useStockMusic(
     connected && game?.status === 'playing' && time.started && time.remaining > 0
   )
+  const invite = useInviteMatch({
+    socket: socket.current,
+    gameSlug: 'stock-arcade',
+    gameDuration: 60000,
+    playerName,
+    walletAddress,
+  })
   const showContact = useCallback(
     (anchor: ContactAnchor, kind: 'pending') => {
       const at = performance.now()
@@ -445,6 +454,26 @@ export function StockArcadeClient() {
           isInMiniApp={mini.isInMiniApp}
           players={lobbyPlayers}
           notice={notice}
+          onInviteFriend={() => {
+            music.prepare()
+            setNotice('')
+            invite.create()
+          }}
+          inviteControls={
+            invite.active ? (
+              <InviteMatchPanel
+                invite={invite}
+                authenticated={allowed}
+                connected={connected && !!walletAddress}
+                onLogin={login}
+                onJoin={() => {
+                  music.prepare()
+                  setNotice('')
+                  invite.join()
+                }}
+              />
+            ) : undefined
+          }
           onLogin={login}
           onEnter={findMatch}
           onOpenLobby={() => {

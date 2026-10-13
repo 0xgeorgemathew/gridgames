@@ -20,6 +20,8 @@ interface MatchmakingAuthPanelProps {
   onBackFromLobby: () => void
   onRefreshLobby: () => void
   onSelectOpponent: (opponentSocketId: string) => void
+  onInviteFriend?: () => void
+  inviteControls?: React.ReactNode
 }
 
 export function MatchmakingAuthPanel({
@@ -36,13 +38,16 @@ export function MatchmakingAuthPanel({
   onBackFromLobby,
   onRefreshLobby,
   onSelectOpponent,
+  onInviteFriend,
+  inviteControls,
 }: MatchmakingAuthPanelProps) {
   const formatDuration = (ms: number) => `${ms / 60000}MIN`
 
   return (
     <div className="flex flex-col items-center">
       <div className="min-h-[200px] w-full max-w-md">
-        {matchState === 'login' && (
+        {inviteControls}
+        {!inviteControls && matchState === 'login' && (
           <div key="login" className="flex flex-col items-center gap-4">
             <m.p
               className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em]"
@@ -53,7 +58,7 @@ export function MatchmakingAuthPanel({
           </div>
         )}
 
-        {matchState === 'ready' && (
+        {!inviteControls && matchState === 'ready' && (
           <m.div
             key="ready"
             initial={{ opacity: 0, y: 10 }}
@@ -78,12 +83,21 @@ export function MatchmakingAuthPanel({
               >
                 SELECT OPPONENT
               </ActionButton>
+              {onInviteFriend && (
+                <ActionButton
+                  onClick={onInviteFriend}
+                  disabled={!isConnected || isMatching}
+                  color="cyan"
+                >
+                  INVITE A FRIEND
+                </ActionButton>
+              )}
             </div>
             {settings}
           </m.div>
         )}
 
-        {matchState === 'entering' && (
+        {!inviteControls && matchState === 'entering' && (
           <div key="entering" className="flex flex-col items-center gap-3">
             <m.p
               className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em]"
@@ -104,7 +118,7 @@ export function MatchmakingAuthPanel({
           </div>
         )}
 
-        {matchState === 'lobby' && (
+        {!inviteControls && matchState === 'lobby' && (
           <m.div
             key="lobby"
             initial={{ opacity: 0, y: 10 }}

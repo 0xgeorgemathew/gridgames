@@ -30,6 +30,25 @@ export interface FindMatchPayload {
   walletAddress?: string
 }
 
+export type CreateInvitePayload = FindMatchPayload & { requestId: string }
+
+export type JoinInvitePayload = Omit<FindMatchPayload, 'gameDuration'> & {
+  inviteId: string
+}
+
+/** Public invite metadata. Room tickets and return credentials are never shared. */
+export interface InviteCreatedPayload {
+  requestId: string
+  inviteId: string
+  gameSlug: string
+  gameDuration: number
+  expiresAt: number
+}
+
+export interface InviteExpiredPayload {
+  inviteId: string
+}
+
 /**
  * Player reports scene is ready
  */
