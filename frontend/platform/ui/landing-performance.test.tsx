@@ -35,5 +35,51 @@ test('confirmed authentication enables the existing game choices', () => {
   )
   expect(html).toMatch(/<button aria-label="Play Stock Ninja"/)
   expect(html).toMatch(/<button aria-label="Play TapDancer"/)
-  expect(html).not.toContain('LOGIN WITH GOOGLE')
+  expect(html).not.toContain('pivot-login-button')
+})
+
+test('signed-in web users are offered passkey enrollment', () => {
+  const html = renderToString(
+    <MotionProvider>
+      <GameSelectionScreen authState="ready" onLinkPasskey={() => {}} />
+    </MotionProvider>
+  )
+  expect(html).toMatch(/<button aria-label="Add passkey"/)
+})
+
+test('users with a linked passkey can enroll another device', () => {
+  const html = renderToString(
+    <MotionProvider>
+      <GameSelectionScreen authState="ready" hasPasskey onLinkPasskey={() => {}} />
+    </MotionProvider>
+  )
+  expect(html).toMatch(/<button aria-label="Add another passkey"/)
+})
+
+test('passkey enrollment requires ready web authentication', () => {
+  for (const props of [
+    { authState: 'login' as const },
+    { authState: 'ready' as const, isInMiniApp: true },
+  ]) {
+    const html = renderToString(
+      <MotionProvider>
+        <GameSelectionScreen {...props} onLinkPasskey={() => {}} />
+      </MotionProvider>
+    )
+    expect(html).not.toContain('aria-label="Add passkey"')
+  }
+
+  const unavailableHtml = renderToString(
+    <MotionProvider>
+      <GameSelectionScreen authState="ready" />
+    </MotionProvider>
+  )
+  expect(unavailableHtml).not.toContain('aria-label="Add passkey"')
+
+  const pendingHtml = renderToString(
+    <MotionProvider>
+      <GameSelectionScreen authState="ready" authPending onLinkPasskey={() => {}} />
+    </MotionProvider>
+  )
+  expect(pendingHtml).toMatch(/<button aria-label="Add passkey" disabled=""/)
 })

@@ -21,7 +21,9 @@ TanStack Start route → Game Client (Zustand + native WebSocket) → Phaser Sce
               Server: app/api/socket/multiplayer/ (room registry, game loop, settlement)
 ```
 
-The public landing menu paints from the root server/ClientOnly fallback before lazy auth providers load. `platform/ui/GameSelectionScreen.tsx` is its auth-independent presenter; `GameSelectionAuth.tsx` supplies the existing Privy/Farcaster state and navigation after readiness. `LandingGridBackground.tsx` ships portrait/landscape tunnel captures, loading the original WebGL scan only on game-entry intent. See `../docs/landing-performance-2026-10-10.md` for the loading audit.
+The public landing menu paints from the root server/ClientOnly fallback before lazy auth providers load. `platform/ui/GameSelectionScreen.tsx` is its auth-independent presenter; `GameSelectionAuth.tsx` supplies the existing Privy/Farcaster state and navigation after readiness. `LandingGridBackground.tsx` shares viewport-fixed portrait/landscape tunnel captures across home, Stock Ninja lobby and loading fallbacks. Its entry sweep illuminates the same raster without replacing or moving the grid. See `../docs/landing-performance-2026-10-10.md` for the loading audit.
+
+Web authentication uses Privy's modal for email, Google and passkeys, including passkey signup when enabled in the dashboard. `GameSelectionAuth.tsx` supplies authenticated passkey linking to the menu; the modal also owns Turnstile verification. Dashboard setup and account-continuity checks are in `../docs/privy-authentication.md`.
 
 ## Folder Structure
 

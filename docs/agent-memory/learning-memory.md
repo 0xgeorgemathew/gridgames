@@ -105,6 +105,10 @@ written upfront as policy.
   an idle raster at time zero to page uptime can jump animation state at launch.
   Keep GridScan geometry rigid, start its sweep locally, and inspect cold/cache/active
   transitions as well as zero idle draw counts.
+- A stretched tunnel capture and a viewport-projected shader can still have different
+  line positions even when both are rigid. Home, entry, route fallbacks and the Stock
+  Ninja lobby must share the same viewport-fixed raster; animate illumination without
+  replacing its geometry. Verify both portrait and landscape handoffs.
 
 - Keep local contact lifetimes independent of a corrected server clock: quote/state
   updates can rewind artwork even when they do not explicitly wait for a quote.

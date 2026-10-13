@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { clientLazy } from '@/platform/ui/client-lazy'
+import { LandingGridBackground } from '@/platform/ui/LandingGridBackground'
 import {
   StockMatchmakingScreen,
   StockHUD,
@@ -19,9 +19,6 @@ import {
   type ContactKind,
   type ContactAnchor,
 } from './contact-feedback'
-const GridScanBackground = clientLazy(() =>
-  import('@/platform/ui/GridScanBackground').then((m) => m.GridScanBackground)
-)
 import { usePrivy } from '@privy-io/react-auth'
 import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { RealtimeSocket } from '@/platform/multiplayer/client'
@@ -428,14 +425,7 @@ export function StockArcadeClient() {
       }
     >
       {!game ? (
-        <GridScanBackground
-          linesColor="#69deff"
-          scanDirection={0}
-          scanRange={[2, 2]}
-          scanOpacity={0}
-          scanDuration={4}
-          scanGlow={0}
-        />
+        <LandingGridBackground />
       ) : (
         <StockGrid
           active={connected && game.status === 'playing' && time.started && time.remaining > 0}

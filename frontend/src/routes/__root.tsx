@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { Suspense, lazy } from 'react'
 import { GameSelectionScreen } from '@/platform/ui/GameSelectionScreen'
+import { LandingGridLoading } from '@/platform/ui/LandingGridBackground'
 import { MotionProvider } from '@/platform/ui/MotionProvider'
 import css from '@/app/globals.css?url'
 import fonts from '@/platform/ui/fonts.css?url'
@@ -80,6 +81,8 @@ function RootComponent() {
       <MotionProvider>
         <GameSelectionScreen authPending />
       </MotionProvider>
+    ) : pathname === '/stock-arcade' ? (
+      <LandingGridLoading />
     ) : (
       <div className="p-8 text-tron-cyan">Loading Grid Games…</div>
     )

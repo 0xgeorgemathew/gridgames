@@ -3,6 +3,35 @@
   overflow: hidden;
   background: #020609;
 }
+/* The scan changes illumination only. Both rasters keep identical viewport bounds. */
+.landing-grid-scan {
+  position: absolute;
+  inset: 0;
+  filter: brightness(2.5);
+  mask-image: radial-gradient(ellipse at center, transparent 35%, #000 46%, transparent 57%);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  animation: landing-grid-entry 0.8s ease-out both;
+}
+@keyframes landing-grid-entry {
+  0% {
+    mask-size: 0% 0%;
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.8;
+  }
+  100% {
+    mask-size: 250% 250%;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-grid-scan {
+    display: none;
+    animation: none;
+  }
+}
 .grid-static-fallback {
   position: absolute;
   inset: 0;
