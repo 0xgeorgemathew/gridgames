@@ -11,5 +11,7 @@ export const privyConfig: PrivyClientConfig = {
     },
     showWalletUIs: false,
   },
-  loginMethods: ['email', 'google'],
+  // Privy's modal also offers passkey signup when enabled in the dashboard.
+  // The modal handles the configured CAPTCHA provider internally.
+  loginMethods: ['email', 'google', 'passkey'],
 }

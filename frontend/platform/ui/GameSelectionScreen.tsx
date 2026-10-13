@@ -2,7 +2,7 @@
 
 import { clientLazy } from '@/platform/ui/client-lazy'
 import { m, AnimatePresence, type Variants } from 'framer-motion'
-import { LandingGridBackground, preloadLandingScan } from '@/platform/ui/LandingGridBackground'
+import { LandingGridBackground } from '@/platform/ui/LandingGridBackground'
 
 const HyperSwiperOnboarding = clientLazy(() =>
   import('@/domains/hyper-swiper/client/components/modals/OnboardingModal').then(
@@ -19,7 +19,7 @@ const TapDancerOnboarding = clientLazy(() =>
 import { games } from '@/domains'
 import { UserProfileBadge } from '@/platform/ui/UserProfileBadge'
 import { useEffect, useRef, useState } from 'react'
-import { Zap, Sparkles, ChevronRight, Info } from 'lucide-react'
+import { Zap, Sparkles, ChevronRight, Fingerprint, Info } from 'lucide-react'
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -53,6 +53,8 @@ interface GameSelectionProps {
   pfpUrl?: string | null
   onLogin?: () => void
   onLogout?: () => void
+  hasPasskey?: boolean
+  onLinkPasskey?: () => void
   onNavigate?: (slug: string) => void
 }
 
@@ -66,6 +68,8 @@ export function GameSelectionScreen({
   pfpUrl,
   onLogin,
   onLogout,
+  hasPasskey = false,
+  onLinkPasskey,
   onNavigate,
 }: GameSelectionProps) {
   const [isEntering, setIsEntering] = useState(false)
@@ -163,7 +167,7 @@ export function GameSelectionScreen({
                   style={{ opacity: 0.8 }}
                 />
                 <span className="relative z-10 font-[family-name:var(--font-orbitron)] text-[10px] sm:text-[11px] tracking-[0.25em] font-medium text-tron-cyan">
-                  LOGIN WITH GOOGLE
+                  LOG IN / SIGN UP
                 </span>
               </m.button>
               <p className="text-[9px] sm:text-[10px] text-tron-white-dim/60 tracking-wider text-center max-w-[180px]">
@@ -258,9 +262,6 @@ export function GameSelectionScreen({
                       <button
                         disabled={!isAvailable || isEntering}
                         aria-label={`Play ${game.name}`}
-                        onPointerEnter={isAvailable ? preloadLandingScan : undefined}
-                        onPointerDown={isAvailable ? preloadLandingScan : undefined}
-                        onFocus={isAvailable ? preloadLandingScan : undefined}
                         onClick={(e) => {
                           if (!isAvailable) {
                             e.preventDefault()
@@ -287,13 +288,27 @@ export function GameSelectionScreen({
         </div>
 
         {authState === 'ready' && !isInMiniApp && (
-          <m.button
-            onClick={onLogout}
-            className="text-[10px] text-tron-cyan/40 hover:text-tron-cyan transition-colors font-[family-name:var(--font-orbitron)] tracking-[0.15em]"
-            whileTap={{ scale: 0.98 }}
-          >
-            LOGOUT
-          </m.button>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            {onLinkPasskey && (
+              <m.button
+                aria-label={hasPasskey ? 'Add another passkey' : 'Add passkey'}
+                disabled={authPending || isEntering}
+                onClick={onLinkPasskey}
+                className="flex items-center gap-2 text-[10px] text-tron-cyan/70 hover:text-tron-cyan disabled:opacity-50 transition-colors font-[family-name:var(--font-orbitron)] tracking-[0.15em]"
+                whileTap={{ scale: 0.98 }}
+              >
+                <Fingerprint className="h-3.5 w-3.5" aria-hidden="true" />
+                {hasPasskey ? 'ADD ANOTHER PASSKEY' : 'ADD PASSKEY'}
+              </m.button>
+            )}
+            <m.button
+              onClick={onLogout}
+              className="text-[10px] text-tron-cyan/40 hover:text-tron-cyan transition-colors font-[family-name:var(--font-orbitron)] tracking-[0.15em]"
+              whileTap={{ scale: 0.98 }}
+            >
+              LOGOUT
+            </m.button>
+          </div>
         )}
       </m.div>
 

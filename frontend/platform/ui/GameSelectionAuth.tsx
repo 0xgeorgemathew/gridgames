@@ -5,7 +5,7 @@ import { GameSelectionScreen } from './GameSelectionScreen'
 
 export function GameSelectionAuth() {
   const navigate = useNavigate()
-  const { ready, authenticated, login, logout, user } = usePrivy()
+  const { ready, authenticated, login, logout, linkPasskey, user } = usePrivy()
   const miniApp = useBaseMiniAppAuth()
   const googleName = (user as { google?: { name?: string } } | null)?.google?.name
   const displayName = miniApp.isInMiniApp
@@ -27,6 +27,8 @@ export function GameSelectionAuth() {
       pfpUrl={miniApp.isInMiniApp ? miniApp.user?.pfpUrl : null}
       onLogin={login}
       onLogout={logout}
+      hasPasskey={user?.linkedAccounts.some((account) => account.type === 'passkey') ?? false}
+      onLinkPasskey={ready && authenticated ? linkPasskey : undefined}
       onNavigate={(slug) => {
         navigate({
           to:
