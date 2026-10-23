@@ -249,12 +249,7 @@ export class StockMatch {
     this.priceInFlight = true
     this.priceRequestedAt = now
     const task = read()
-      .then((changes) => {
-        if (this.state.status !== 'ready' && this.state.status !== 'playing') return
-        if (Object.keys(changes).length === 0) return
-        this.state.priceChanges = { ...this.state.priceChanges, ...changes }
-        this.publish()
-      })
+      .then((changes) => this.setPriceChanges(changes))
       .catch((error: unknown) => {
         console.warn(
           JSON.stringify({
@@ -262,11 +257,20 @@ export class StockMatch {
             message: (error instanceof Error ? error.message : 'Unavailable').slice(0, 250),
           })
         )
+        this.setPriceChanges({})
       })
       .finally(() => {
         this.priceInFlight = false
       })
     this.services.waitUntil(task)
+  }
+  /** Each read replaces the last, so an unreadable pool hides its ring instead of going stale. */
+  private setPriceChanges(changes: Record<string, number>) {
+    if (this.state.status !== 'ready' && this.state.status !== 'playing') return
+    const next = Object.keys(changes).length > 0 ? changes : undefined
+    if (JSON.stringify(next) === JSON.stringify(this.state.priceChanges)) return
+    this.state.priceChanges = next
+    this.publish()
   }
 
   private cutoff() {

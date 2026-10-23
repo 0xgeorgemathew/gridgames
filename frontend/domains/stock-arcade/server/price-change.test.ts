@@ -77,7 +77,14 @@ test('match refreshes display-only price changes on a bounded cadence', async ()
   match.tick()
   await Promise.all(tasks.splice(0))
   expect(reads).toBe(2)
-  // A partial read keeps earlier symbols rather than blanking their rings.
-  expect(states.at(-1)?.priceChanges).toEqual({ NVDA: 0.42, META: -0.1 })
+  // Each read replaces the last: a pool missing from it hides its ring rather than going stale.
+  expect(states.at(-1)?.priceChanges).toEqual({ META: -0.1 })
+
+  changes = {}
+  now += PRICE_CHANGE_REFRESH_MS
+  match.tick()
+  await Promise.all(tasks.splice(0))
+  expect(reads).toBe(3)
+  expect(states.at(-1)?.priceChanges).toBeUndefined()
   match.cleanup()
 })
