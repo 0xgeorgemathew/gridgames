@@ -1,7 +1,13 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { CATCH_COST, type ArcadeState, type StockDrop, type CatchCost } from '../shared/types'
 import { stockAsset } from '../shared/assets'
-import { StockDiscRim, StockBlade, StockContact } from './StockEffects'
+import {
+  StockDiscRim,
+  StockBlade,
+  StockContact,
+  StockPriceRing,
+  formatPriceChange,
+} from './StockEffects'
 import { CONTACT_MS, type ContactAnchor } from './contact-feedback'
 import { discDiameter, dropPoint, segmentHitsDisc } from './motion'
 import type { PresentationClock } from './presentation-clock'
@@ -29,11 +35,14 @@ interface Props {
 const StockDisc = memo(function StockDisc({
   drop,
   catchCost,
+  priceChange,
   register,
   onClick,
 }: {
   drop: StockDrop
   catchCost: CatchCost
+  /** 1m spot move in percent; absent until the server has read it. */
+  priceChange?: number
   register: (id: string, element: HTMLButtonElement | null) => void
   onClick: (drop: StockDrop) => void
 }) {
@@ -43,18 +52,33 @@ const StockDisc = memo(function StockDisc({
       data-drop-id={drop.id}
       data-symbol={drop.symbol}
       className="arcade-disc"
-      aria-label={`Catch ${drop.symbol} for $${catchCost.toFixed(2)} simulated`}
+      aria-label={`Catch ${drop.symbol} for $${catchCost.toFixed(2)} simulated${
+        priceChange === undefined ? '' : `, ${formatPriceChange(priceChange)} over 1 minute`
+      }`}
       style={{ visibility: 'hidden' }}
       onClick={() => onClick(drop)}
     >
       <StockDiscRim />
-      <span className="arcade-disc-face">
-        <span className="ninja-disc-logo">
-          <img src={stockAsset(drop.symbol)?.logo} alt="" draggable={false} />
+      {/* Counter-rotated each frame so the logo, label and 1m ring stay upright. */}
+      <span className="arcade-disc-upright">
+        {priceChange !== undefined && <StockPriceRing change={priceChange} />}
+        <span className="arcade-disc-face">
+          <span className="ninja-disc-logo">
+            <img src={stockAsset(drop.symbol)?.logo} alt="" draggable={false} />
+          </span>
+          <span className="ninja-disc-label">
+            <span className="ninja-disc-symbol">{drop.symbol}</span>
+          </span>
         </span>
-        <span className="ninja-disc-label">
-          <span className="ninja-disc-symbol">{drop.symbol}</span>
-        </span>
+        {priceChange !== undefined && (
+          <span
+            className="ninja-disc-change"
+            data-direction={priceChange > 0 ? 'up' : priceChange < 0 ? 'down' : 'flat'}
+          >
+            {formatPriceChange(priceChange)}
+            <small>1M</small>
+          </span>
+        )}
       </span>
     </button>
   )
@@ -160,8 +184,8 @@ export const StockArena = memo(function StockArena(props: Props) {
         presented.current.set(drop.id, point)
         const rotation = reducedMotion ? 0 : point.rotation
         node.style.transform = `translate3d(${point.x * geometry.current.width}px,${point.y * geometry.current.height}px,0) translate(-50%,-50%) rotate(${rotation}rad)`
-        const face = node.lastElementChild as HTMLElement
-        face.style.transform = `rotate(${-rotation}rad)`
+        const upright = node.lastElementChild as HTMLElement
+        upright.style.transform = `rotate(${-rotation}rad)`
       }
       trail.current = live ? trail.current.filter((point) => local - point.time < 180) : []
       const hasEffects =
@@ -261,6 +285,7 @@ export const StockArena = memo(function StockArena(props: Props) {
             key={drop.id}
             drop={drop}
             catchCost={props.catchCost ?? CATCH_COST}
+            priceChange={props.game.priceChanges?.[drop.symbol]}
             register={register}
             onClick={catchPresented}
           />

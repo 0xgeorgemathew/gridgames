@@ -53,6 +53,8 @@ export interface ArcadeState {
   simulation: true
   reason?: string
   result?: ArcadeResult
+  /** Server-read spot move per symbol over PRICE_CHANGE_WINDOW_MS, in percent. */
+  priceChanges?: Record<string, number>
 }
 export interface ArcadeResult {
   block: string
@@ -90,6 +92,8 @@ export interface ArcadeBetEvent {
   reason?: string
 }
 export const MATCH_BUDGET = 10
+export const PRICE_CHANGE_WINDOW_MS = 60000
+export const PRICE_CHANGE_REFRESH_MS = 15000
 // Another 25% slower than the previous 75% speed; motion and server expiry agree.
 export const DROP_WINDOW_MS = 2800 / (0.75 * 0.75)
 export const DROP_INTERVAL_MS = 2700 / (0.75 * 0.75)

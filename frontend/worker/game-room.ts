@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import { StockMatch } from '@/domains/stock-arcade/server/match'
 import { valueBags } from '@/domains/stock-arcade/server/valuation'
+import { readPriceChanges } from '@/domains/stock-arcade/server/price-change'
 import { RealtimeServer } from '@/platform/multiplayer/server'
 import { parseFrame } from '@/platform/multiplayer/protocol'
 import { setupGameEvents } from '@/app/api/socket/multiplayer'
@@ -143,6 +144,7 @@ export class GameRoom extends DurableObject<Cloudflare.Env> {
               cost
             ),
           value: (bags, cutoffAt) => valueBags(bags, cutoffAt, this.env.ROBINHOOD_RPC_URL),
+          priceChanges: () => readPriceChanges(this.env.ROBINHOOD_RPC_URL),
           emit: (event, payload) => {
             // Persist ledger/lifecycle before broadcasting acknowledgements.
             if (event === 'arcade_state')
