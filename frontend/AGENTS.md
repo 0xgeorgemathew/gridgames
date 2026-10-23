@@ -78,11 +78,10 @@ bun run format
 - Stock's arena owns one live RAF and cached geometry. Use its monotonic, gradually reconciled presentation clock and displayed positions for motion/hit tests; keep authoritative deadlines/claims on the server. The page/HUD update at whole-second/event boundaries. Stop input/frames on cutoff, hide and interruption; keep completed-result identity through reconnect.
 - Phaser rendering follows native-refresh RAF; physics stays fixed at 60Hz. Express effect decay in elapsed milliseconds. Blade collision lifetime belongs to the newest movement endpoint so delayed pointer events remain usable; token motion derives from its monotonic spawn origin.
 - `worker/quote-gate.ts` owns one aggregate API-key admission gate across all match objects.
-- Source `wrangler.jsonc` targets `grid-games-pivot` at `pivot.gridgames.space`; its namespaces are separate from `grid-games`.
+- Source `wrangler.jsonc` targets the production `grid-games` Worker at `gridgames.space`. The former `grid-games-pivot` Worker (`pivot.gridgames.space`) has separate Durable Object namespaces.
 - No guest/auth bypass is enabled. Privy/Farcaster clients are retained.
 - Stock fills and USDG settlement are simulated. Never add signing, swaps, approvals, deposits or production writes under prototype authorization.
 - Quote key is a server-only Worker secret named `UNISWAP_API_KEY`; missing quotes fail without debit/credit.
-- Do not push/merge main or change its production route as part of Pivot.
 
 ## Idle visual workload
 

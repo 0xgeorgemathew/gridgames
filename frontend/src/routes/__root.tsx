@@ -16,14 +16,14 @@ import fonts from '@/platform/ui/fonts.css?url'
 const Providers = lazy(() => import('@/app/providers').then((m) => ({ default: m.Providers })))
 const miniapp = {
   version: 'next',
-  imageUrl: 'https://pivot.gridgames.space/og.png',
+  imageUrl: 'https://gridgames.space/og.png',
   button: {
     title: 'Play Now',
     action: {
       type: 'launch_miniapp',
       name: 'Grid Games',
-      url: 'https://pivot.gridgames.space',
-      splashImageUrl: 'https://pivot.gridgames.space/splash.png',
+      url: 'https://gridgames.space',
+      splashImageUrl: 'https://gridgames.space/splash.png',
       splashBackgroundColor: '#000000',
     },
   },

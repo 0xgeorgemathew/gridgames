@@ -1,12 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "grid-games-pivot",
+  "name": "grid-games",
   "account_id": "a22fe9411b81705409eb7cdf9be367e3",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-07",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
-  "routes": [{ "pattern": "pivot.gridgames.space", "custom_domain": true }],
+  "routes": [{ "pattern": "gridgames.space/*", "zone_name": "gridgames.space" }],
   "assets": { "binding": "ASSETS", "not_found_handling": "none" },
   "durable_objects": {
     "bindings": [
@@ -22,8 +22,8 @@
   ],
   "vars": {
     "ROBINHOOD_RPC_URL": "https://robinhood.drpc.org",
-    "ALLOWED_ORIGINS": "https://grid-games-pivot.mathew.workers.dev,https://pivot.gridgames.space",
-    "NEXT_PUBLIC_URL": "https://pivot.gridgames.space",
+    "ALLOWED_ORIGINS": "https://grid-games.mathew.workers.dev,https://gridgames.space",
+    "NEXT_PUBLIC_URL": "https://gridgames.space",
   },
   "observability": {
     "enabled": true,

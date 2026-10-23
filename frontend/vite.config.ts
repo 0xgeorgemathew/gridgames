@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       ...Object.fromEntries(
         Object.entries(publicEnv).map(([key, value]) => [
           `process.env.${key}`,
-          JSON.stringify(key === 'NEXT_PUBLIC_URL' ? 'https://pivot.gridgames.space' : value),
+          JSON.stringify(key === 'NEXT_PUBLIC_URL' ? 'https://gridgames.space' : value),
         ])
       ),
     },
