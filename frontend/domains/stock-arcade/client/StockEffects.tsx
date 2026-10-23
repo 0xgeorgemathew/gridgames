@@ -50,6 +50,43 @@ export const StockDiscRim = memo(function StockDiscRim() {
     </svg>
   )
 })
+/** Arc share of the full ring: square-root scaled so thin moves stay visible; 2% fills it. */
+export const priceRingFraction = (change: number) => Math.min(1, Math.sqrt(Math.abs(change) / 2))
+export const formatPriceChange = (change: number) =>
+  `${change > 0 ? '+' : change < 0 ? '-' : ''}${Math.abs(change).toFixed(2)}%`
+/** 1m spot move as a LONG-cyan (up) or SHORT-orange (down) arc from 12 o'clock. */
+export const StockPriceRing = memo(function StockPriceRing({ change }: { change: number }) {
+  const direction = change > 0 ? 'long' : change < 0 ? 'short' : null
+  const color = direction ? hex(COIN_CONFIG[direction].color) : '#ffffff'
+  const fraction = priceRingFraction(change)
+  const r = 33
+  const length = 2 * Math.PI * r
+  return (
+    <svg className="ninja-price-ring" viewBox="-36 -36 72 72" aria-hidden="true">
+      <circle r={r} fill="none" stroke="#9cfaff" strokeWidth="0.6" opacity="0.18" />
+      {direction &&
+        fraction > 0 &&
+        [
+          [4.2, 0.12],
+          [2.4, 0.3],
+          [1.1, 1],
+        ].map(([width, opacity], i) => (
+          <circle
+            key={i}
+            r={r}
+            fill="none"
+            stroke={color}
+            strokeWidth={width}
+            strokeLinecap="round"
+            opacity={opacity}
+            strokeDasharray={`${fraction * length} ${length}`}
+            // Up sweeps clockwise from 12 o'clock; down sweeps counter-clockwise.
+            transform={direction === 'long' ? 'rotate(-90)' : 'scale(-1,1) rotate(-90)'}
+          />
+        ))}
+    </svg>
+  )
+})
 /** Same tapered glass ribbon polygons and crisp white edge cores as Hyper Swiper. */
 export function StockBlade({
   points,

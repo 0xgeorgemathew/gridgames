@@ -282,6 +282,59 @@
   color: #ffffff;
   text-shadow: 0 0 7px #00f3ff66;
 }
+.arcade-disc-upright {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+/* 1m price ring sits just outside the energy rim. */
+.ninja-price-ring {
+  position: absolute;
+  inset: -14%;
+  width: 128%;
+  height: 128%;
+  pointer-events: none;
+  overflow: visible;
+}
+/* Chip seated on the ring at 6 o'clock, outside the logo chamber. */
+.ninja-disc-change {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, -20%);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  padding: 1px 4px;
+  border: 1px solid #9cfaff2e;
+  border-radius: 3px;
+  background: #020a12d9;
+  line-height: 1.2;
+  font-family: var(--font-orbitron);
+  font-size: 8px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: #ffffffb3;
+}
+.ninja-disc-change[data-direction='up'] {
+  border-color: #00f3ff59;
+  color: var(--color-tron-cyan);
+  text-shadow: 0 0 6px #00f3ff80;
+}
+.ninja-disc-change[data-direction='down'] {
+  border-color: #ff6b0059;
+  color: var(--color-tron-orange);
+  text-shadow: 0 0 6px #ff6b0080;
+}
+.ninja-disc-change small {
+  font-size: 5.5px;
+  opacity: 0.7;
+}
 .ninja-disc-label {
   display: flex;
   align-items: baseline;

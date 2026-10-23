@@ -8,6 +8,7 @@ import {
   DROP_INTERVAL_MS,
   DROP_BATCH_SIZE,
   DROP_WINDOW_MS,
+  PRICE_CHANGE_REFRESH_MS,
   type Acquisition,
   type ArcadeResult,
   type ArcadeState,
@@ -27,6 +28,8 @@ export interface ArcadeServices {
   ) => Promise<QuoteCredit>
   random?: () => number
   value: (bags: ArcadeState['bags'], cutoffAt: number) => Promise<ArcadeResult>
+  /** Optional read-only 1m spot moves per symbol, in percent. */
+  priceChanges?: () => Promise<Record<string, number>>
   emit: (event: string, payload: unknown) => void
   waitUntil: (promise: Promise<unknown>) => void
   terminal: (reason?: string) => void
@@ -41,6 +44,8 @@ export class StockMatch {
   private nextDrop = 0
   private timer: ReturnType<typeof setInterval> | null = null
   private readyTimer: ReturnType<typeof setTimeout> | null = null
+  private priceRequestedAt = -Infinity
+  private priceInFlight = false
   constructor(
     private config: RoomProvision,
     private services: ArcadeServices
@@ -65,6 +70,7 @@ export class StockMatch {
   }
   initialize() {
     this.publish()
+    this.refreshPrices()
     // Never silently start before both players are ready.
     this.readyTimer = setTimeout(() => this.cancel('ready_timeout'), 15000)
   }
@@ -204,6 +210,7 @@ export class StockMatch {
       return
     }
     this.state.drops = this.state.drops.filter((d) => d.expiresAt > now)
+    this.refreshPrices()
     const batch = Math.floor(this.nextDrop / DROP_BATCH_SIZE)
     if (now >= this.state.startedAt + batch * DROP_INTERVAL_MS) {
       // Three shared tosses per launch. Each deck stays independent of catches;
@@ -232,6 +239,34 @@ export class StockMatch {
       }
       this.publish()
     }
+  }
+
+  /** Display-only price context. It never affects claims, quotes or valuation. */
+  private refreshPrices() {
+    const read = this.services.priceChanges
+    const now = this.services.now()
+    if (!read || this.priceInFlight || now - this.priceRequestedAt < PRICE_CHANGE_REFRESH_MS) return
+    this.priceInFlight = true
+    this.priceRequestedAt = now
+    const task = read()
+      .then((changes) => {
+        if (this.state.status !== 'ready' && this.state.status !== 'playing') return
+        if (Object.keys(changes).length === 0) return
+        this.state.priceChanges = { ...this.state.priceChanges, ...changes }
+        this.publish()
+      })
+      .catch((error: unknown) => {
+        console.warn(
+          JSON.stringify({
+            event: 'price_change_unavailable',
+            message: (error instanceof Error ? error.message : 'Unavailable').slice(0, 250),
+          })
+        )
+      })
+      .finally(() => {
+        this.priceInFlight = false
+      })
+    this.services.waitUntil(task)
   }
 
   private cutoff() {

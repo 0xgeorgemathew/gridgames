@@ -18,14 +18,9 @@ const stateAbi = parseAbi([
   'function getSlot0(bytes32 poolId) view returns (uint160 sqrtPriceX96,int24 tick,uint24 protocolFee,uint24 lpFee)',
 ])
 const Q192 = 1n << 192n
-/** Read-only, fixed-block pool valuation. No signer, swap, order, approval or funds. */
-export async function valueBags(
-  bags: Bag[],
-  cutoffAt: number,
-  rpcUrl: string
-): Promise<ArcadeResult> {
-  console.info(JSON.stringify({ event: 'valuation_started', source: new URL(rpcUrl).hostname }))
-  const deadline = Date.now() + 20000
+export type RobinhoodClient = ReturnType<typeof robinhoodClient>
+/** Read-only Robinhood Chain client with one finite read budget ending at `deadline`. */
+export function robinhoodClient(rpcUrl: string, deadline: number) {
   // One finite read budget. Honor Retry-After; never retry sooner than requested.
   // A long provider backoff fails conservatively instead of stranding the results UI.
   const boundedFetch = async (
@@ -53,7 +48,7 @@ export async function valueBags(
     }
     throw new Error('Valuation read unavailable')
   }
-  const client = createPublicClient({
+  return createPublicClient({
     chain: defineChain({
       id: 4663,
       name: 'Robinhood Chain',
@@ -71,6 +66,15 @@ export async function valueBags(
       fetchFn: boundedFetch,
     }),
   })
+}
+/** Read-only, fixed-block pool valuation. No signer, swap, order, approval or funds. */
+export async function valueBags(
+  bags: Bag[],
+  cutoffAt: number,
+  rpcUrl: string
+): Promise<ArcadeResult> {
+  console.info(JSON.stringify({ event: 'valuation_started', source: new URL(rpcUrl).hostname }))
+  const client = robinhoodClient(rpcUrl, Date.now() + 20000)
   let cutoff = await client.getBlock()
   // Select one block at or before the common cutoff for every asset and both players.
   for (let i = 0; Number(cutoff.timestamp) * 1000 > cutoffAt && i < 12; i++) {
@@ -100,74 +104,7 @@ export async function valueBags(
         throw new Error('Ambiguous designated pool')
       pools.set(asset.symbol, asset.pool)
     }
-  const prices = new Map<string, { square: bigint; assetIsToken0: boolean }>()
-  await Promise.all(
-    [...pools].map(async ([symbol, address]) => {
-      const asset = stockAsset(symbol)
-      if (!asset) throw new Error('Unknown stock')
-      if (address.toLowerCase() !== asset.pool.toLowerCase()) throw new Error('Undesignated pool')
-      if (asset.protocol === 4) {
-        const [currency0, currency1] = [asset.address, USDG].sort() as [
-          `0x${string}`,
-          `0x${string}`,
-        ]
-        const id = keccak256(
-          encodeAbiParameters(
-            [
-              { type: 'address' },
-              { type: 'address' },
-              { type: 'uint24' },
-              { type: 'int24' },
-              { type: 'address' },
-            ],
-            [currency0, currency1, asset.fee, asset.tickSpacing!, asset.hooks!]
-          )
-        )
-        if (id !== asset.pool) throw new Error('V4 pool key mismatch')
-        const slot = await client.readContract({
-          address: V4_STATE_VIEW,
-          abi: stateAbi,
-          functionName: 'getSlot0',
-          args: [id],
-          blockNumber: cutoff.number!,
-        })
-        if (slot[0] <= 0n || slot[3] !== asset.fee)
-          throw new Error('V4 state unavailable or changed fee')
-        prices.set(symbol, {
-          square: slot[0] * slot[0],
-          assetIsToken0: currency0 === asset.address,
-        })
-        return
-      }
-      const [token0, token1, slot] = await Promise.all([
-        client.readContract({
-          address,
-          abi: poolAbi,
-          functionName: 'token0',
-          blockNumber: cutoff.number!,
-        }),
-        client.readContract({
-          address,
-          abi: poolAbi,
-          functionName: 'token1',
-          blockNumber: cutoff.number!,
-        }),
-        client.readContract({
-          address,
-          abi: poolAbi,
-          functionName: 'slot0',
-          blockNumber: cutoff.number!,
-        }),
-      ])
-      const zero = token0.toLowerCase(),
-        one = token1.toLowerCase()
-      const assetIsToken0 = zero === asset.address.toLowerCase() && one === USDG.toLowerCase()
-      if (!assetIsToken0 && !(one === asset.address.toLowerCase() && zero === USDG.toLowerCase()))
-        throw new Error('Pool identity mismatch')
-      if (slot[0] <= 0n) throw new Error('Pool price unavailable')
-      prices.set(symbol, { square: slot[0] * slot[0], assetIsToken0 })
-    })
-  )
+  const prices = await readPoolPrices(client, pools, cutoff.number)
   const values: Record<string, string> = {}
   let winnerId = '',
     best = -1n,
@@ -199,4 +136,86 @@ export async function valueBags(
     settlement: 'simulated',
     winnerFixed: true,
   }
+}
+
+export interface PoolPrice {
+  /** sqrtPriceX96 squared. */
+  square: bigint
+  assetIsToken0: boolean
+}
+/** Spot prices of designated stock/USDG pools at one block. */
+export async function readPoolPrices(
+  client: RobinhoodClient,
+  pools: Map<string, `0x${string}`>,
+  blockNumber: bigint
+): Promise<Map<string, PoolPrice>> {
+  const prices = new Map<string, PoolPrice>()
+  await Promise.all(
+    [...pools].map(async ([symbol, address]) => {
+      const asset = stockAsset(symbol)
+      if (!asset) throw new Error('Unknown stock')
+      if (address.toLowerCase() !== asset.pool.toLowerCase()) throw new Error('Undesignated pool')
+      if (asset.protocol === 4) {
+        const [currency0, currency1] = [asset.address, USDG].sort() as [
+          `0x${string}`,
+          `0x${string}`,
+        ]
+        const id = keccak256(
+          encodeAbiParameters(
+            [
+              { type: 'address' },
+              { type: 'address' },
+              { type: 'uint24' },
+              { type: 'int24' },
+              { type: 'address' },
+            ],
+            [currency0, currency1, asset.fee, asset.tickSpacing!, asset.hooks!]
+          )
+        )
+        if (id !== asset.pool) throw new Error('V4 pool key mismatch')
+        const slot = await client.readContract({
+          address: V4_STATE_VIEW,
+          abi: stateAbi,
+          functionName: 'getSlot0',
+          args: [id],
+          blockNumber,
+        })
+        if (slot[0] <= 0n || slot[3] !== asset.fee)
+          throw new Error('V4 state unavailable or changed fee')
+        prices.set(symbol, {
+          square: slot[0] * slot[0],
+          assetIsToken0: currency0 === asset.address,
+        })
+        return
+      }
+      const [token0, token1, slot] = await Promise.all([
+        client.readContract({
+          address,
+          abi: poolAbi,
+          functionName: 'token0',
+          blockNumber,
+        }),
+        client.readContract({
+          address,
+          abi: poolAbi,
+          functionName: 'token1',
+          blockNumber,
+        }),
+        client.readContract({
+          address,
+          abi: poolAbi,
+          functionName: 'slot0',
+          blockNumber,
+        }),
+      ])
+      const zero = token0.toLowerCase(),
+        one = token1.toLowerCase()
+      const assetIsToken0 = zero === asset.address.toLowerCase() && one === USDG.toLowerCase()
+      if (!assetIsToken0 && !(one === asset.address.toLowerCase() && zero === USDG.toLowerCase()))
+        throw new Error('Pool identity mismatch')
+      if (slot[0] <= 0n) throw new Error('Pool price unavailable')
+      prices.set(symbol, { square: slot[0] * slot[0], assetIsToken0 })
+    })
+  )
+  return prices
 }
