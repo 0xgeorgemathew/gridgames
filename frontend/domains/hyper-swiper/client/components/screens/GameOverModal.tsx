@@ -82,15 +82,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
       {/* Animated border glow line */}
       <m.div
         className="absolute top-0 left-0 right-0 h-[2px] bg-tron-cyan"
-        animate={{
-          opacity: [0.5, 1, 0.5],
-          boxShadow: [
-            '0 0 20px rgba(0, 243, 255, 0.3)',
-            '0 0 40px rgba(0, 243, 255, 0.6)',
-            '0 0 20px rgba(0, 243, 255, 0.3)',
-          ],
-        }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ opacity: 1, boxShadow: '0 0 40px rgba(0, 243, 255, 0.6)' }}
       />
 
       <m.div
@@ -126,26 +118,13 @@ export const GameOverModal = React.memo(function GameOverModal() {
                 resultStyle.colorClass,
                 resultStyle.glowClass
               )}
-              animate={{
+              style={{
                 textShadow: isWinner
-                  ? [
-                      '0 0 20px rgba(0, 243, 255, 0.6)',
-                      '0 0 40px rgba(0, 243, 255, 0.8)',
-                      '0 0 20px rgba(0, 243, 255, 0.6)',
-                    ]
+                  ? '0 0 40px rgba(0, 243, 255, 0.8)'
                   : isTie
-                    ? [
-                        '0 0 20px rgba(255, 255, 255, 0.4)',
-                        '0 0 30px rgba(255, 255, 255, 0.6)',
-                        '0 0 20px rgba(255, 255, 255, 0.4)',
-                      ]
-                    : [
-                        '0 0 20px rgba(255, 107, 0, 0.6)',
-                        '0 0 40px rgba(255, 107, 0, 0.8)',
-                        '0 0 20px rgba(255, 107, 0, 0.6)',
-                      ],
+                    ? '0 0 30px rgba(255, 255, 255, 0.6)'
+                    : '0 0 40px rgba(255, 107, 0, 0.8)',
               }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
               {resultStyle.text}
             </m.h2>
@@ -159,6 +138,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                     gameOverData.winnerName.startsWith('0x') ? gameOverData.winnerName : undefined
                   }
                   className="text-white/70"
+                  enableGlow={false}
                 />
                 <span>WINS</span>
               </div>
@@ -192,6 +172,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
                       'text-[10px]',
                       !isWinner ? 'text-cyan-400/80' : 'text-orange-400/80'
                     )}
+                    enableGlow={false}
                   />
                 ) : (
                   'OPP'
@@ -216,14 +197,7 @@ export const GameOverModal = React.memo(function GameOverModal() {
           >
             <m.div
               className="absolute inset-0 rounded-lg"
-              animate={{
-                boxShadow: [
-                  '0 0 15px rgba(0, 243, 255, 0.2)',
-                  '0 0 40px rgba(0, 243, 255, 0.5)',
-                  '0 0 15px rgba(0, 243, 255, 0.2)',
-                ],
-              }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ boxShadow: '0 0 40px rgba(0, 243, 255, 0.5)' }}
             />
             <div className="relative py-3 bg-tron-black/80 backdrop-blur-md border border-tron-cyan/40 rounded-lg overflow-hidden group-hover:border-tron-cyan/70 transition-colors">
               {/* Hover glow effect */}
@@ -283,21 +257,12 @@ function PlayerRow({
       {isHighlight && (
         <m.div
           className="absolute inset-0 pointer-events-none"
-          animate={{
+          style={{
             boxShadow:
               accent === 'cyan'
-                ? [
-                    'inset 0 0 15px rgba(0, 243, 255, 0.05)',
-                    'inset 0 0 25px rgba(0, 243, 255, 0.1)',
-                    'inset 0 0 15px rgba(0, 243, 255, 0.05)',
-                  ]
-                : [
-                    'inset 0 0 15px rgba(255, 107, 0, 0.05)',
-                    'inset 0 0 25px rgba(255, 107, 0, 0.1)',
-                    'inset 0 0 15px rgba(255, 107, 0, 0.05)',
-                  ],
+                ? 'inset 0 0 25px rgba(0, 243, 255, 0.1)'
+                : 'inset 0 0 25px rgba(255, 107, 0, 0.1)',
           }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
 

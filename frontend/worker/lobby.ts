@@ -2,12 +2,15 @@ import { DurableObject } from 'cloudflare:workers'
 import { parseFrame } from '@/platform/multiplayer/protocol'
 import { validatePlayerName } from '@/app/api/socket/multiplayer/validation.utils'
 import { SERVER_GAME_CONFIG as CFG } from '@/app/api/socket/multiplayer/game.config'
+import type { InviteCreatedPayload } from '@/app/api/socket/multiplayer/events.types'
+import { isInviteId } from '@/domains/match/invites'
 import { send, handoff, upgradeDenied, type RoomPlayer, type RoomProvision } from './session'
 
 interface QueueEntry extends RoomPlayer {
   gameSlug: string
   gameDuration: number
   joinedAt: number
+  invite?: { inviteId: string; expiresAt: number }
 }
 interface Attachment {
   id: string
@@ -59,7 +62,9 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
   }
   private broadcast(): void {
     const players = this.entries().flatMap(({ data }) =>
-      data.waiting && !data.reserved ? [this.publicPlayer(data.waiting)] : []
+      data.waiting && !data.waiting.invite && !data.reserved
+        ? [this.publicPlayer(data.waiting)]
+        : []
     )
     for (const { ws, data } of this.entries())
       if (!data.reserved) send(ws, 'lobby_updated', { players })
@@ -72,6 +77,37 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
       gameDuration: p.gameDuration,
       joinedAt: p.joinedAt,
       leverage: CFG.FIXED_LEVERAGE,
+    }
+  }
+  private queueEntry(id: string, p: Record<string, unknown>): QueueEntry {
+    const gameSlug = p.gameSlug ?? 'hyper-swiper'
+    const duration = p.gameDuration ?? 60000
+    if (
+      !['hyper-swiper', 'tap-dancer', 'stock-arcade'].includes(String(gameSlug)) ||
+      typeof duration !== 'number' ||
+      !Number.isFinite(duration) ||
+      duration < 1000 ||
+      duration > 3600000
+    )
+      throw new Error('Invalid game settings')
+    const name = validatePlayerName(p.playerName)
+    if (!name || name.length > 64) throw new Error('Invalid player name')
+    const size = (value: unknown, fallback: number) =>
+      typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 8192
+        ? value
+        : fallback
+    return {
+      id,
+      name,
+      gameSlug: String(gameSlug),
+      gameDuration: duration,
+      sceneWidth: size(p.sceneWidth, CFG.DEFAULT_SCENE_WIDTH),
+      sceneHeight: size(p.sceneHeight, CFG.DEFAULT_SCENE_HEIGHT),
+      walletAddress:
+        typeof p.walletAddress === 'string' ? p.walletAddress.slice(0, 128) : undefined,
+      ticket: '',
+      returnToken: '',
+      joinedAt: Date.now(),
     }
   }
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer): Promise<void> {
@@ -101,6 +137,7 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
       const players = this.entries().flatMap(({ data: other }) =>
         other.id !== data.id &&
         other.waiting &&
+        !other.waiting.invite &&
         !other.reserved &&
         (!p.gameSlug || other.waiting.gameSlug === p.gameSlug)
           ? [this.publicPlayer(other.waiting)]
@@ -113,39 +150,72 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
       delete data.waiting
       ws.serializeAttachment(data)
       this.broadcast()
+      await this.scheduleAlarm()
+      return
+    }
+    if (frame.event === 'create_invite') {
+      try {
+        if (!isInviteId(p.requestId)) throw new Error('Invalid invite request')
+        const player = this.queueEntry(data.id, p)
+        const invite = { inviteId: crypto.randomUUID(), expiresAt: Date.now() + 10 * 60000 }
+        player.invite = invite
+        data.waiting = player
+        ws.serializeAttachment(data)
+        this.broadcast()
+        await this.scheduleAlarm()
+        // A cancel or replacement can arrive while scheduling the alarm.
+        if (ws.deserializeAttachment().waiting?.invite?.inviteId !== invite.inviteId) return
+        send(ws, 'invite_created', {
+          requestId: p.requestId,
+          ...invite,
+          gameSlug: player.gameSlug,
+          gameDuration: player.gameDuration,
+        } satisfies InviteCreatedPayload)
+      } catch {
+        send(ws, 'error', {
+          code: 'INVITE_CREATE_FAILED',
+          requestId: typeof p.requestId === 'string' ? p.requestId : undefined,
+          message: 'Could not create an invite. Try again.',
+        })
+      }
+      return
+    }
+    if (frame.event === 'join_invite') {
+      const host = this.entries().find(
+        ({ data: other }) =>
+          other.id !== data.id &&
+          !other.reserved &&
+          typeof p.inviteId === 'string' &&
+          other.waiting?.invite?.inviteId === p.inviteId &&
+          other.waiting.invite.expiresAt > Date.now() &&
+          other.waiting.gameSlug === p.gameSlug
+      )
+      if (!host?.data.waiting) {
+        send(ws, 'error', {
+          code: 'INVITE_UNAVAILABLE',
+          message: 'Invite expired or host unavailable. Ask for a new link.',
+        })
+        return
+      }
+      try {
+        data.waiting = {
+          ...this.queueEntry(data.id, { ...p, gameDuration: host.data.waiting.gameDuration }),
+          invite: host.data.waiting.invite,
+        }
+      } catch {
+        send(ws, 'error', {
+          code: 'INVITE_UNAVAILABLE',
+          message: 'Could not join this invite. Check your player details.',
+        })
+        return
+      }
+      await this.pair(ws, data, host.ws, host.data)
       return
     }
     if (frame.event === 'join_waiting_pool' || frame.event === 'find_match') {
       try {
-        const gameSlug = p.gameSlug ?? 'hyper-swiper'
-        const duration = p.gameDuration ?? 60000
-        if (
-          !['hyper-swiper', 'tap-dancer'].includes(String(gameSlug)) ||
-          typeof duration !== 'number' ||
-          !Number.isFinite(duration) ||
-          duration < 1000 ||
-          duration > 3600000
-        )
-          throw new Error('Invalid game settings')
-        const name = validatePlayerName(p.playerName)
-        if (!name || name.length > 64) throw new Error('Invalid player name')
-        const size = (value: unknown, fallback: number) =>
-          typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 8192
-            ? value
-            : fallback
-        data.waiting = {
-          id: data.id,
-          name,
-          gameSlug: String(gameSlug),
-          gameDuration: duration,
-          sceneWidth: size(p.sceneWidth, CFG.DEFAULT_SCENE_WIDTH),
-          sceneHeight: size(p.sceneHeight, CFG.DEFAULT_SCENE_HEIGHT),
-          walletAddress:
-            typeof p.walletAddress === 'string' ? p.walletAddress.slice(0, 128) : undefined,
-          ticket: '',
-          returnToken: '',
-          joinedAt: Date.now(),
-        }
+        data.waiting = this.queueEntry(data.id, p)
+        const { gameSlug, gameDuration: duration } = data.waiting
         ws.serializeAttachment(data)
         this.broadcast()
         if (frame.event === 'find_match') {
@@ -153,6 +223,7 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
             ({ data: other }) =>
               other.id !== data.id &&
               !other.reserved &&
+              !other.waiting?.invite &&
               other.waiting?.gameSlug === gameSlug &&
               other.waiting.gameDuration === duration
           )
@@ -162,6 +233,7 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
           }
           send(ws, 'waiting_for_match')
         } else send(ws, 'joined_waiting_pool')
+        await this.scheduleAlarm()
       } catch {
         send(ws, 'error', {
           code: frame.event === 'find_match' ? 'FIND_MATCH_FAILED' : 'JOIN_POOL_FAILED',
@@ -176,7 +248,9 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
       )
       if (
         !data.waiting ||
+        data.waiting.invite ||
         !opponent?.data.waiting ||
+        opponent.data.waiting.invite ||
         opponent.data.id === data.id ||
         data.waiting.gameSlug !== opponent.data.waiting.gameSlug ||
         data.waiting.gameDuration !== opponent.data.waiting.gameDuration
@@ -247,6 +321,7 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
         const current = ws.deserializeAttachment() as Attachment
         if (current.reserved !== roomId) continue
         delete current.reserved
+        if (current.waiting?.invite) delete current.waiting
         if (ws.readyState === 1) {
           ws.serializeAttachment(current)
           send(ws, 'error', {
@@ -261,12 +336,14 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
     await this.scheduleAlarm()
     this.broadcast()
   }
-  webSocketClose(_ws: WebSocket): void {
+  async webSocketClose(_ws: WebSocket): Promise<void> {
     this.broadcast()
+    await this.scheduleAlarm()
   }
-  webSocketError(ws: WebSocket): void {
+  async webSocketError(ws: WebSocket): Promise<void> {
     ws.close(1011, 'Socket error')
     this.broadcast()
+    await this.scheduleAlarm()
   }
   private async scheduleAlarm(): Promise<void> {
     const row = this.ctx.storage.sql
@@ -276,10 +353,25 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
         'SELECT MIN(expires) AS expires FROM (SELECT expires FROM returns UNION ALL SELECT expires FROM reservations)'
       )
       .toArray()[0]
-    if (row?.expires) await this.ctx.storage.setAlarm(row.expires)
+    const expires = this.entries().reduce(
+      (next, { data }) =>
+        !data.reserved && data.waiting?.invite
+          ? Math.min(next, data.waiting.invite.expiresAt)
+          : next,
+      row?.expires || Infinity
+    )
+    if (Number.isFinite(expires)) await this.ctx.storage.setAlarm(expires)
     else await this.ctx.storage.deleteAlarm()
   }
   async alarm(): Promise<void> {
+    for (const { ws, data } of this.entries()) {
+      const invite = data.waiting?.invite
+      if (invite && !data.reserved && invite.expiresAt <= Date.now()) {
+        delete data.waiting
+        ws.serializeAttachment(data)
+        send(ws, 'invite_expired', { inviteId: invite.inviteId })
+      }
+    }
     const expired = this.ctx.storage.sql
       .exec<{ id: string }>('DELETE FROM reservations WHERE expires <= ? RETURNING id', Date.now())
       .toArray()
@@ -287,6 +379,7 @@ export class Lobby extends DurableObject<Cloudflare.Env> {
       for (const { ws, data } of this.entries())
         if (data.reserved === id) {
           delete data.reserved
+          if (data.waiting?.invite) delete data.waiting
           ws.serializeAttachment(data)
           send(ws, 'error', {
             code: 'MATCH_START_FAILED',

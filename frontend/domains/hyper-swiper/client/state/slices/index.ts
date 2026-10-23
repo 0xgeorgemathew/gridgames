@@ -129,7 +129,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       'btc_price',
       (data: { price: number; change: number; changePercent: number; timestamp: number }) => {
         // Always update timestamp for connection health monitoring
-        set({ lastPriceUpdate: data.timestamp, isPriceConnected: true, priceError: null })
+        const health = { lastPriceUpdate: data.timestamp, isPriceConnected: true, priceError: null }
 
         // Smart throttling: throttle small changes, bypass for meaningful moves
         const now = Date.now()
@@ -139,6 +139,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         const throttleExpired = now - lastPriceUpdateTime >= PRICE_THROTTLE_MS
 
         if (!isMeaningfulChange && !throttleExpired) {
+          set(health)
           return // Skip this update - not meaningful and throttle not expired
         }
 
@@ -149,6 +150,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
         lastPrice = data.price
 
         set({
+          ...health,
           firstPrice: expectedFirstPrice,
           priceData: {
             symbol: 'BTC',

@@ -14,7 +14,8 @@ import { MatchmakingScreen } from '@/domains/tap-dancer/client/components/screen
 import { GameOverModal } from '@/domains/tap-dancer/client/components/screens/GameOverModal'
 
 function GameUI(): ReactNode {
-  const { toasts, removeToast } = useTradingStore()
+  const toasts = useTradingStore((state) => state.toasts)
+  const removeToast = useTradingStore((state) => state.removeToast)
 
   return (
     <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
@@ -28,7 +29,8 @@ function GameUI(): ReactNode {
 }
 
 function MatchmakingUI(): ReactNode {
-  const { toasts, removeToast } = useTradingStore()
+  const toasts = useTradingStore((state) => state.toasts)
+  const removeToast = useTradingStore((state) => state.removeToast)
 
   return (
     <div className="fixed inset-0 bg-tron-black overflow-hidden overscroll-none touch-none">
@@ -40,7 +42,9 @@ function MatchmakingUI(): ReactNode {
 }
 
 export function TapDancerClient(): ReactNode {
-  const { isPlaying, connect, disconnect } = useTradingStore()
+  const isPlaying = useTradingStore((state) => state.isPlaying)
+  const connect = useTradingStore((state) => state.connect)
+  const disconnect = useTradingStore((state) => state.disconnect)
 
   useEffect(() => {
     sdk.actions.ready().catch(console.error)

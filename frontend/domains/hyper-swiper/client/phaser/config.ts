@@ -20,23 +20,6 @@ const TRADING_DIMENSIONS = {
   height: 800,
 } as const
 
-function getTargetFrameRate(): number {
-  if (typeof window === 'undefined') return 90
-
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (prefersReducedMotion) return 60
-
-  const cores = navigator.hardwareConcurrency ?? 4
-  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4
-  const isMobile =
-    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
-    window.matchMedia('(pointer: coarse)').matches
-
-  if (isMobile && cores >= 8 && memory >= 6) return 120
-  if (isMobile && cores >= 6 && memory >= 4) return 90
-  return 60
-}
-
 // Visual theme colors (consolidated magic numbers)
 export const COLORS = {
   background: 0x0a0a0f, // Match MatchmakingScreen dark theme
@@ -59,18 +42,6 @@ export const RENDER = {
   bounceDuration: 80,
 } as const
 
-// Common physics config (zero gravity for top-down games)
-// FIXED 60fps physics timestep ensures consistent gameplay regardless of render FPS
-const PHYSICS_CONFIG_BASE = {
-  default: 'arcade',
-  arcade: {
-    gravity: { x: 0, y: 0 },
-    fps: 60,
-    fixedStep: true,
-    timeScale: 1,
-  },
-} as const
-
 // Input config moved to factory function (evaluated when DOM exists)
 
 interface PhaserConfigOptions {
@@ -82,7 +53,6 @@ interface PhaserConfigOptions {
 
 function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.GameConfig {
   const { scene, width, height, fitToScreen = false } = options
-  const targetFrameRate = getTargetFrameRate()
 
   // Create input config fresh each time (DOM element exists now)
   // Moving from module-level to factory fixes null target issue
@@ -100,9 +70,10 @@ function createPhaserConfig(options: PhaserConfigOptions): Phaser.Types.Core.Gam
     pixelArt: false, // Smooth scaling (not pixelated)
     antialias: true, // Anti-aliased rendering
     fps: {
-      target: 60, // Fixed 60 FPS for consistent gameplay
-      forceSetTimeOut: true, // Use setTimeout for more consistent timing
-      smoothStep: false, // Disable smooth step to prevent time accumulation
+      target: 60,
+      limit: 0, // Follow native refresh; effects use elapsed time and physics stays fixed at 60.
+      forceSetTimeOut: false, // Align rendering with the display via RAF.
+      smoothStep: false, // Preserve actual elapsed time, including stalled frames.
     },
     physics: {
       default: 'arcade',

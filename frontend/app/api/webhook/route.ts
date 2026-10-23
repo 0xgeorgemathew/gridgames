@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server'
 import {
   parseWebhookEvent,
   createVerifyAppKeyWithHub,
@@ -38,7 +37,7 @@ function createVerifier() {
  *
  * All requests are verified using JSON Farcaster Signatures (JFS)
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     // Get raw body for signature verification
     const rawBody = await request.text()
@@ -103,13 +102,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Return 200 OK to prevent retries
-    return NextResponse.json({ success: true })
+    return Response.json({ success: true })
   } catch (error) {
     console.error('Webhook verification error:', error)
 
     // Return 200 even on error to prevent Farcaster retries
     // Log the error for debugging but don't expose to client
-    return NextResponse.json({ success: false }, { status: 200 })
+    return Response.json({ success: false }, { status: 200 })
   }
 }
 

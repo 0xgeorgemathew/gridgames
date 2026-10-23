@@ -4,33 +4,39 @@ Minimal context for working in `frontend/`. Read this before making changes.
 
 ## What This App Is
 
-Two multiplayer mini-games with shared match infrastructure:
+Multiplayer arcade games with shared match infrastructure:
 
 - **hyper-swiper**: Slice falling long/short coins
 - **tap-dancer**: Tap directional buttons in rhythm sequences
 
-Both are head-to-head matches where players start with fixed balances, and the server is authoritative for prices, room state, and settlement.
+**stock-arcade** is Stock Ninja, a simulated stock-collection prototype with adjustable bets per caught token at `/stock-arcade`; it uses local React disc motion and the same native transport, lobby, and per-match DO wrapper.
+
+The original games are head-to-head matches where players start with fixed balances, and the server is authoritative for prices, room state, and settlement.
 
 ## Runtime Flow
 
 ```
-Next.js route → Game Client (Zustand + native WebSocket) → Phaser Scene → Game Systems
+TanStack Start route → Game Client (Zustand + native WebSocket) → Phaser Scene → Game Systems
                                     ↓
               Server: app/api/socket/multiplayer/ (room registry, game loop, settlement)
 ```
 
+The public landing menu paints from the root server/ClientOnly fallback before lazy auth providers load. `platform/ui/GameSelectionScreen.tsx` is its auth-independent presenter; `GameSelectionAuth.tsx` supplies the existing Privy/Farcaster state and navigation after readiness. `LandingGridBackground.tsx` shares viewport-fixed portrait/landscape tunnel captures across home, Stock Ninja lobby and loading fallbacks. Its entry sweep illuminates the same raster without replacing or moving the grid. See `../docs/landing-performance-2026-10-10.md` for the loading audit.
+
+Web authentication uses Privy's modal for email, Google and passkeys, including passkey signup when enabled in the dashboard. `GameSelectionAuth.tsx` supplies authenticated passkey linking to the menu; the modal also owns Turnstile verification. Dashboard setup and account-continuity checks are in `../docs/privy-authentication.md`.
+
 ## Folder Structure
 
-| Folder                        | Purpose                                                      |
-| ----------------------------- | ------------------------------------------------------------ |
-| `domains/hyper-swiper/`       | Hyper Swiper game logic, state, Phaser systems               |
-| `domains/tap-dancer/`         | Tap Dancer game logic, state, Phaser systems                 |
-| `domains/match/`              | Shared match rules, position UX, events (used by both games) |
-| `platform/ui/`                | Shared UI: canvas bootstrapping, toasts, backgrounds         |
-| `platform/game-engine/`       | Game registration, runtime bootstrap                         |
-| `platform/auth/`              | Privy/Mini App auth                                          |
-| `platform/utils/`             | Helpers (`cn()`, formatting)                                 |
-| `app/api/socket/multiplayer/` | Authoritative server: matchmaking, rooms, settlement         |
+| Folder                        | Purpose                                                            |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `domains/hyper-swiper/`       | Hyper Swiper game logic, state, Phaser systems                     |
+| `domains/tap-dancer/`         | Tap Dancer game logic, state, Phaser systems                       |
+| `domains/match/`              | Shared match rules, position UX, events (used by both games)       |
+| `platform/ui/`                | Shared legacy matchmaking/HUD/results, canvas, toasts, backgrounds |
+| `platform/game-engine/`       | Game registration, runtime bootstrap                               |
+| `platform/auth/`              | Privy/Mini App auth                                                |
+| `platform/utils/`             | Helpers (`cn()`, formatting)                                       |
+| `app/api/socket/multiplayer/` | Authoritative server: matchmaking, rooms, settlement               |
 
 **Placement rule**: Game/match logic → `domains/`. Reusable infrastructure → `platform/`.
 
@@ -76,10 +82,22 @@ Change carefully - check both sides:
 - Don't run dev server (assume it's running)
 - Commands: `bun run types`, `bun run format`
 - Use `@/` imports
-- TypeScript strict is off → add explicit null checks
+- TypeScript strict is on → maintain typed payloads and null checks
 
 ## Deployment Runtime
 
-Vinext/Vite builds the Workers frontend. `worker/index.ts` delegates `/api/socket`
+TanStack Start/Router and Vite build the Workers frontend. `worker/index.ts` delegates `/api/socket`
 to the hibernating `Lobby` Durable Object and room paths to per-match `GameRoom` objects; `platform/multiplayer/` owns the event transport.
 See `../docs/cloudflare-migration.md` for deployment and restart limitations.
+
+## Stock Ninja
+
+The stock mode contains twenty verified canonical stocks and direct USDG scoring pools. `shared/sequence.ts` creates the per-room shared shuffle; `server/match.ts` owns three-disc scheduling, unique claims, adjustable bets and dollars spent/reserved against the $10 budget. There is no stock position-slot inventory. The stable route/game slug is `stock-arcade`.
+
+The left wallet pill shows available simulated USDG; the right bet pill cycles $0.25/$0.50/$1/$2 per caught token through `set_catch_cost`, wrapping after $2. Both show only their icon and amount. `arcade_bet` acknowledges the request after publishing the authoritative bag. The bet remains disabled and displays its confirmed amount while pending. Each catch captures its cost before awaiting its quote; request input, validation, reservation, debit and failure release use that captured amount. Older bag snapshots default to $1. Client catches carry the expected confirmed cost and pause during bet confirmation. Local `client/claim-budget.ts` reserves individual costs until the ordered server ledger/ack takes over.
+
+Stock keeps untinted SVG company logos and original segmented TRON rims, 88–112px responsive diameters and diagonal ballistic tosses. The server randomizes heights, spin, common direction/drift and bounded release offsets; horizontally separated lanes remain readable at 320px. Flight speed is another 25% slower than the prior version (4977.78ms full flight, 4800ms batches). Late-round cutoff clips the arc without accelerating it. `client/StockGrid.tsx` owns the brighter navy/cyan field: compositor-only vertical travel, junction dots, scan illumination and sparse sparks pause hidden, reduced-motion and outside live play. Landing screens use the same `--pivot-grid-field` over the cached tunnel raster, keeping the existing entry scan and idle lifecycle. Both measured HUD boundaries reserve arena space; expanded bag/settings panels overlay without resizing it.
+
+`client/music.ts` and `use-stock-music.ts` retain the original looping track with gesture, mute, visibility and cleanup handling. A local 520ms progressive de-rez fragments the original disc logo/rim, while quote outcomes remain HUD-only (`client/contact-feedback.ts`, `contact-sound.ts`, `howler-audio.ts`). The playfield has no financial graph. See `../docs/stock-ninja-ui-motion-2026-10-10.md` for the current UI/motion change and multiplier discussion, `../docs/stock-ninja-contact.md` for contact design and `../docs/stock-ninja-assets.md` for canonical-pool evidence.
+
+Stock gameplay rendering lives in `client/StockArena.tsx`: one RAF writes disc transforms using cached geometry and a monotonic presentation clock (`client/presentation-clock.ts`), while the page/HUD receive whole-second and authoritative-event updates. Contacts retain their bounded monotonic de-rez clock. `client/interrupted-match.ts` cancels interrupted active matches locally; completed results keep the original `MatchPlayer` identity across reconnect. Phaser rendering follows native refresh with fixed 60Hz physics and elapsed-time effects. See `../docs/gameplay-performance-audit-2026-10-10.md` for evidence and validation limits.

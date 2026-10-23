@@ -22,10 +22,13 @@ export type SocketErrorCode =
   | 'OPPONENT_DISCONNECTED'
   | 'MATCH_START_FAILED'
   | 'ACTION_REJECTED'
+  | 'INVITE_CREATE_FAILED'
+  | 'INVITE_UNAVAILABLE'
 
 export interface SocketErrorEvent {
   code: SocketErrorCode
   message: string
+  requestId?: string
   details?: Record<string, unknown>
 }
 
@@ -227,3 +230,10 @@ export interface LiquidationEvent {
 }
 
 export type { TapRecoveryPayload } from '@/domains/match/events'
+export type { SetCatchCostPayload, CatchStockPayload, ArcadeBetEvent } from '@/domains/match/events'
+export type {
+  CreateInvitePayload,
+  JoinInvitePayload,
+  InviteCreatedPayload,
+  InviteExpiredPayload,
+} from '@/domains/match/events'

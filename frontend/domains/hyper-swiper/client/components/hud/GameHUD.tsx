@@ -15,23 +15,21 @@ import { PriceLoadingState } from './PriceLoadingState'
 import { containerVariants, CRYPTO_SYMBOLS, getPriceColor } from './types'
 
 export const GameHUD = React.memo(function GameHUD() {
-  const {
-    players,
-    openPositions,
-    localPlayerId,
-    priceData,
-    isPriceConnected,
-    selectedCrypto,
-    connectPriceFeed,
-    isPlaying,
-    isGameOver,
-    playAgain,
-    endGame,
-    priceError,
-    gameTimeRemaining,
-    isSoundMuted,
-    toggleSound,
-  } = useTradingStore()
+  const players = useTradingStore((state) => state.players)
+  const openPositions = useTradingStore((state) => state.openPositions)
+  const localPlayerId = useTradingStore((state) => state.localPlayerId)
+  const priceData = useTradingStore((state) => state.priceData)
+  const isPriceConnected = useTradingStore((state) => state.isPriceConnected)
+  const selectedCrypto = useTradingStore((state) => state.selectedCrypto)
+  const connectPriceFeed = useTradingStore((state) => state.connectPriceFeed)
+  const isPlaying = useTradingStore((state) => state.isPlaying)
+  const isGameOver = useTradingStore((state) => state.isGameOver)
+  const playAgain = useTradingStore((state) => state.playAgain)
+  const endGame = useTradingStore((state) => state.endGame)
+  const priceError = useTradingStore((state) => state.priceError)
+  const gameTimeRemaining = useTradingStore((state) => state.gameTimeRemaining)
+  const isSoundMuted = useTradingStore((state) => state.isSoundMuted)
+  const toggleSound = useTradingStore((state) => state.toggleSound)
 
   const [showHowToPlay, setShowHowToPlay] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
@@ -65,9 +63,9 @@ export const GameHUD = React.memo(function GameHUD() {
             exit={{ opacity: 0, y: -20 }}
             className="fixed top-0 left-0 right-0 z-30 pt-safe"
           >
-            <div className="flex justify-center pt-3 relative">
+            <div className="flex justify-start px-3 pt-3 relative">
               <div
-                className="flex items-center gap-2 px-4 py-2 bg-tron-black/90 backdrop-blur-md border border-tron-cyan/30 rounded-full pr-12"
+                className="flex items-center gap-2 px-3 py-1.5 bg-tron-black/90 backdrop-blur-md border border-tron-cyan/30 rounded-full"
                 style={{
                   boxShadow: '0 4px 20px rgba(0,0,0,0.5), 0 0 20px rgba(0,243,255,0.1)',
                 }}
@@ -80,12 +78,12 @@ export const GameHUD = React.memo(function GameHUD() {
                 </span>
                 <CountUp
                   value={priceData.price}
-                  className={cn('text-lg font-black font-numeric', priceColor)}
+                  className={cn('text-sm font-bold font-numeric', priceColor)}
                   style={{ textShadow: priceGlow }}
                 />
                 <m.span
                   className={cn(
-                    'text-sm font-bold font-numeric px-2 py-0.5 rounded-full',
+                    'text-[11px] font-bold font-numeric px-1.5 py-0.5 rounded-full',
                     priceData.changePercent >= 0
                       ? 'text-green-400 bg-green-500/10'
                       : 'text-red-400 bg-red-500/10'
@@ -215,24 +213,7 @@ export const GameHUD = React.memo(function GameHUD() {
         animate="visible"
       >
         <div className="pb-safe">
-          <m.div
-            className="relative bg-tron-black/95 backdrop-blur-xl"
-            animate={{
-              boxShadow: [
-                '0 -5px 20px rgba(0,243,255,0.1)',
-                '0 -5px 30px rgba(0,243,255,0.15)',
-                '0 -5px 20px rgba(0,243,255,0.1)',
-              ],
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
-            {/* Top accent line - TRON style */}
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-tron-cyan/80" />
-
-            {/* Corner accents */}
-            <div className="absolute top-[2px] left-0 w-4 h-[1px] bg-tron-cyan/50" />
-            <div className="absolute top-[2px] right-0 w-4 h-[1px] bg-tron-cyan/50" />
-
+          <m.div className="game-hud-dock">
             <div className="relative z-10">
               {isGameReady && localPlayer && opponent && (
                 <MatchStatusStrip

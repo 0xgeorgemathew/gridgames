@@ -176,17 +176,17 @@ export class ParticleSystem {
       // Physics based on phase
       if (p.phase === 0) {
         p.vy += 50 * dt
-        p.vx *= 0.98
-        p.vy *= 0.98
+        p.vx *= Math.pow(0.98, delta / (1000 / 60))
+        p.vy *= Math.pow(0.98, delta / (1000 / 60))
       } else if (p.phase === 1) {
-        p.vx *= 0.92
-        p.vy *= 0.92
+        p.vx *= Math.pow(0.92, delta / (1000 / 60))
+        p.vy *= Math.pow(0.92, delta / (1000 / 60))
         p.vy -= 20 * dt
       } else {
-        p.vx *= 0.85
-        p.vy *= 0.85
+        p.vx *= Math.pow(0.85, delta / (1000 / 60))
+        p.vy *= Math.pow(0.85, delta / (1000 / 60))
         p.vy -= 40 * dt
-        p.size *= 0.97
+        p.size *= Math.pow(0.97, delta / (1000 / 60))
       }
 
       p.x += p.vx * dt

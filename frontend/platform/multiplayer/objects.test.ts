@@ -54,7 +54,265 @@ function fixture(provision: (config: any) => Promise<void>) {
   }
   return { db, sockets, state, env, lobby: new Lobby(state as any, env as any) }
 }
-const message = (event: string, payload: any = {}) => JSON.stringify({ event, args: [payload] })
+const message = (event: string, payload: any = {}) =>
+  JSON.stringify({
+    event,
+    args: [event === 'create_invite' ? { requestId: crypto.randomUUID(), ...payload } : payload],
+  })
+
+test('invite hosts are private and cannot be selected or auto-matched by other players', async () => {
+  let provisions = 0
+  const f = fixture(async () => {
+    provisions++
+  })
+  try {
+    await f.lobby.webSocketMessage(
+      f.sockets[0] as any,
+      message('create_invite', {
+        playerName: 'Host',
+        gameSlug: 'stock-arcade',
+        gameDuration: 60000,
+      })
+    )
+    const created = f.sockets[0].frames.find((frame) => frame.event === 'invite_created')
+    expect(created?.args[0]).toMatchObject({ gameSlug: 'stock-arcade', gameDuration: 60000 })
+    expect(created?.args[0].inviteId).toMatch(/^[a-f0-9-]{36}$/)
+    expect(created?.args[0].expiresAt).toBeGreaterThan(Date.now())
+    await f.lobby.webSocketMessage(f.sockets[1] as any, message('get_lobby_players'))
+    expect(f.sockets[1].frames.at(-1).args[0]).toEqual([])
+    await f.lobby.webSocketMessage(
+      f.sockets[1] as any,
+      message('find_match', {
+        playerName: 'Public',
+        gameSlug: 'stock-arcade',
+        gameDuration: 60000,
+      })
+    )
+    expect(f.sockets[1].frames.at(-1).event).toBe('waiting_for_match')
+    await f.lobby.webSocketMessage(
+      f.sockets[1] as any,
+      message('select_opponent', { opponentSocketId: 'a' })
+    )
+    expect(f.sockets[1].frames.at(-1).event).toBe('error')
+    await f.lobby.webSocketMessage(
+      f.sockets[0] as any,
+      message('select_opponent', { opponentSocketId: 'b' })
+    )
+    expect(f.sockets[0].frames.at(-1).event).toBe('error')
+    expect(provisions).toBe(0)
+    for (const frame of f.sockets
+      .flatMap((ws) => ws.frames)
+      .filter((frame) => frame.event === 'lobby_updated'))
+      expect(frame.args[0].players.some((player: any) => player.socketId === 'a')).toBe(false)
+  } finally {
+    f.db.close()
+  }
+})
+
+test('a cold lobby joins an invite with host settings and keeps both seat credentials private', async () => {
+  let config: any
+  const f = fixture(async (value) => {
+    config = value
+  })
+  try {
+    await f.lobby.webSocketMessage(
+      f.sockets[0] as any,
+      message('create_invite', {
+        playerName: 'Host',
+        gameSlug: 'tap-dancer',
+        gameDuration: 120000,
+        sceneWidth: 400,
+        sceneHeight: 700,
+        walletAddress: 'host-wallet',
+      })
+    )
+    const invite = f.sockets[0].frames.find((frame) => frame.event === 'invite_created')?.args[0]
+    expect(invite).toBeDefined()
+    const cold = new Lobby(f.state as any, f.env as any)
+    await cold.webSocketMessage(
+      f.sockets[1] as any,
+      message('join_invite', {
+        inviteId: invite.inviteId,
+        playerName: 'Guest',
+        gameSlug: 'tap-dancer',
+        gameDuration: 60000,
+        sceneWidth: 350,
+        sceneHeight: 600,
+        walletAddress: 'guest-wallet',
+      })
+    )
+    expect(config).toMatchObject({ gameSlug: 'tap-dancer', gameDuration: 120000 })
+    expect(config.players).toMatchObject([
+      { id: 'b', name: 'Guest', sceneWidth: 350, walletAddress: 'guest-wallet' },
+      { id: 'a', name: 'Host', sceneWidth: 400, walletAddress: 'host-wallet' },
+    ])
+    const paths = f.sockets.slice(0, 2).map((ws) => ws.frames.at(-1).args[0].path)
+    expect(paths[0]).toContain(`/api/socket/room/${config.roomId}?ticket=`)
+    expect(paths[1]).toContain(`/api/socket/room/${config.roomId}?ticket=`)
+    expect(paths[0]).not.toBe(paths[1])
+    expect(JSON.stringify(invite)).not.toContain('ticket')
+    expect(JSON.stringify(invite)).not.toContain('returnToken')
+    await cold.webSocketMessage(
+      f.sockets[2] as any,
+      message('join_invite', {
+        inviteId: invite.inviteId,
+        playerName: 'Late',
+        gameSlug: 'tap-dancer',
+      })
+    )
+    expect(f.sockets[2].frames.at(-1).args[0].code).toBe('INVITE_UNAVAILABLE')
+  } finally {
+    f.db.close()
+  }
+})
+
+test('an invite reserves both seats before provisioning so competing joins cannot pair twice', async () => {
+  let finish!: () => void
+  let provisions = 0
+  const f = fixture(async () => {
+    provisions++
+    await new Promise<void>((resolve) => {
+      finish = resolve
+    })
+  })
+  try {
+    await f.lobby.webSocketMessage(
+      f.sockets[0] as any,
+      message('create_invite', {
+        playerName: 'Host',
+        gameSlug: 'stock-arcade',
+        gameDuration: 60000,
+      })
+    )
+    const invite = f.sockets[0].frames.find((frame) => frame.event === 'invite_created')?.args[0]
+    expect(invite).toBeDefined()
+    const first = f.lobby.webSocketMessage(
+      f.sockets[1] as any,
+      message('join_invite', {
+        inviteId: invite.inviteId,
+        playerName: 'First',
+        gameSlug: 'stock-arcade',
+      })
+    )
+    for (let i = 0; i < 10 && !finish; i++) await Promise.resolve()
+    await f.lobby.webSocketMessage(
+      f.sockets[2] as any,
+      message('join_invite', {
+        inviteId: invite.inviteId,
+        playerName: 'Second',
+        gameSlug: 'stock-arcade',
+      })
+    )
+    expect(provisions).toBe(1)
+    expect(f.sockets[2].frames.at(-1).args[0].code).toBe('INVITE_UNAVAILABLE')
+    finish()
+    await first
+  } finally {
+    f.db.close()
+  }
+})
+
+test.each(['cancel', 'replace', 'disconnect', 'expire', 'wrong-game', 'self'] as const)(
+  '%s makes an invite unavailable without starting a match',
+  async (mode) => {
+    let provisions = 0
+    const f = fixture(async () => {
+      provisions++
+    })
+    const originalNow = Date.now
+    try {
+      await f.lobby.webSocketMessage(
+        f.sockets[0] as any,
+        message('create_invite', {
+          playerName: 'Host',
+          gameSlug: 'hyper-swiper',
+          gameDuration: 60000,
+        })
+      )
+      const invite = f.sockets[0].frames.find((frame) => frame.event === 'invite_created')?.args[0]
+      expect(invite).toBeDefined()
+      if (mode === 'cancel')
+        await f.lobby.webSocketMessage(f.sockets[0] as any, message('leave_waiting_pool'))
+      if (mode === 'replace')
+        await f.lobby.webSocketMessage(
+          f.sockets[0] as any,
+          message('create_invite', {
+            playerName: 'Host',
+            gameSlug: 'hyper-swiper',
+            gameDuration: 60000,
+          })
+        )
+      if (mode === 'disconnect') f.sockets[0].close()
+      if (mode === 'expire') {
+        Date.now = () => invite.expiresAt + 1
+        await f.lobby.alarm()
+        expect(f.sockets[0].frames.some((frame) => frame.event === 'invite_expired')).toBe(true)
+        expect(f.sockets[0].data.waiting).toBeUndefined()
+      }
+      const guest = f.sockets[mode === 'self' ? 0 : 1]
+      await f.lobby.webSocketMessage(
+        guest as any,
+        message('join_invite', {
+          inviteId: invite.inviteId,
+          playerName: 'Guest',
+          gameSlug: mode === 'wrong-game' ? 'tap-dancer' : 'hyper-swiper',
+        })
+      )
+      expect(guest.frames.at(-1).event).toBe('error')
+      expect(provisions).toBe(0)
+    } finally {
+      Date.now = originalNow
+      f.db.close()
+    }
+  }
+)
+
+test('failed invite provisioning consumes the link and never returns private players to public matchmaking', async () => {
+  const f = fixture(async () => {
+    throw new Error('Controlled invite failure')
+  })
+  try {
+    await f.lobby.webSocketMessage(
+      f.sockets[0] as any,
+      message('create_invite', {
+        playerName: 'Host',
+        gameSlug: 'stock-arcade',
+        gameDuration: 60000,
+      })
+    )
+    const invite = f.sockets[0].frames.find((frame) => frame.event === 'invite_created')?.args[0]
+    expect(invite).toBeDefined()
+    await f.lobby.webSocketMessage(
+      f.sockets[1] as any,
+      message('join_invite', {
+        inviteId: invite.inviteId,
+        playerName: 'Guest',
+        gameSlug: 'stock-arcade',
+      })
+    )
+    for (const ws of f.sockets.slice(0, 2)) {
+      expect(ws.data.waiting).toBeUndefined()
+      expect(ws.data.reserved).toBeUndefined()
+      expect(
+        ws.frames.some(
+          (frame) => frame.event === 'error' && frame.args[0].code === 'MATCH_START_FAILED'
+        )
+      ).toBe(true)
+    }
+    await f.lobby.webSocketMessage(
+      f.sockets[2] as any,
+      message('join_invite', {
+        inviteId: invite.inviteId,
+        playerName: 'Late',
+        gameSlug: 'stock-arcade',
+      })
+    )
+    expect(f.sockets[2].frames.at(-1).args[0].code).toBe('INVITE_UNAVAILABLE')
+  } finally {
+    f.db.close()
+  }
+})
+
 test('cold lobby reconstructs queue from socket attachments without app connect', async () => {
   const f = fixture(async () => {})
   try {

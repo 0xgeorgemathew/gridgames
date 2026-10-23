@@ -9,6 +9,7 @@ export class InputAudioSystem {
   private bladeRenderer!: BladeRenderer
   private visibilityChangeHandler?: () => void
   private windowBlurHandler?: () => void
+  private pointerCancelHandler?: () => void
 
   constructor(scene: Scene) {
     this.scene = scene
@@ -51,6 +52,9 @@ export class InputAudioSystem {
 
     this.scene.input.on('pointerup', () => this.bladeRenderer.clearBladePath())
     this.scene.input.on('pointerout', () => this.bladeRenderer.clearBladePath())
+    this.scene.input.on('gameout', () => this.bladeRenderer.clearBladePath())
+    this.pointerCancelHandler = () => this.bladeRenderer.clearBladePath()
+    window.addEventListener('pointercancel', this.pointerCancelHandler)
 
     this.visibilityChangeHandler = () => {
       if (document.hidden) {
@@ -81,10 +85,15 @@ export class InputAudioSystem {
       window.removeEventListener('blur', this.windowBlurHandler)
       this.windowBlurHandler = undefined
     }
+    if (this.pointerCancelHandler) {
+      window.removeEventListener('pointercancel', this.pointerCancelHandler)
+      this.pointerCancelHandler = undefined
+    }
 
     this.scene.input.off('pointermove')
     this.scene.input.off('pointerup')
     this.scene.input.off('pointerout')
+    this.scene.input.off('gameout')
   }
 
   getBladeRenderer(): BladeRenderer {

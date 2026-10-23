@@ -1,0 +1,221 @@
+import { RealtimeSocket } from '../platform/multiplayer/client'
+import { STOCK_ASSETS } from '../domains/stock-arcade/shared/assets'
+import { MATCH_BUDGET, CATCH_COST, DROP_BATCH_SIZE } from '../domains/stock-arcade/shared/types'
+import { dropPoint } from '../domains/stock-arcade/client/motion'
+import type { ArcadeState } from '../domains/stock-arcade/shared/types'
+const base = process.argv[2] || 'http://127.0.0.1:4173'
+const requireCompleted = process.argv.includes('--require-completed')
+// Synthetic protocol identities. This is NOT authenticated UI coverage and never signs or sends funds.
+class Peer {
+  socket = new RealtimeSocket(base)
+  state: ArcadeState | null = null
+  claims: Array<{ dropId: string; status: string; reason?: string }> = []
+  terminal = false
+  serverOffset = 0
+  constructor() {
+    this.socket.on('arcade_state', (raw: unknown) => {
+      this.state = raw as ArcadeState
+      this.serverOffset = this.state.serverTime - Date.now()
+      if (this.state.status === 'ready') this.socket.emit('scene_ready')
+      if (['cancelled', 'completed'].includes(this.state.status)) this.terminal = true
+    })
+    this.socket.on('arcade_claim', (raw: unknown) => {
+      const claim = raw as { playerId: string; dropId: string; status: string; reason?: string }
+      if (claim.playerId === this.socket.id) this.claims.push(claim)
+    })
+  }
+  close() {
+    this.socket.disconnect()
+  }
+}
+async function until(test: () => boolean, label: string, timeout = 15000) {
+  const deadline = Date.now() + timeout
+  while (!test()) {
+    if (Date.now() > deadline) throw new Error(`Timeout: ${label}`)
+    await new Promise((r) => setTimeout(r, 30))
+  }
+}
+const a = new Peer(),
+  b = new Peer()
+try {
+  await until(() => a.socket.connected && b.socket.connected, 'connect')
+  if (a.socket.id === b.socket.id) throw new Error('Distinct identities required')
+  a.socket.emit('find_match', {
+    playerName: 'Quote QA A',
+    gameSlug: 'stock-arcade',
+    gameDuration: 60000,
+    walletAddress: '0x0000000000000000000000000000000000000001',
+  })
+  b.socket.emit('find_match', {
+    playerName: 'Quote QA B',
+    gameSlug: 'stock-arcade',
+    gameDuration: 60000,
+    walletAddress: '0x0000000000000000000000000000000000000002',
+  })
+  await until(() => a.state?.status === 'playing' && b.state?.status === 'playing', 'shared start')
+  if (a.state!.matchId !== b.state!.matchId || a.state!.cutoffAt !== b.state!.cutoffAt)
+    throw new Error('Room/clock mismatch')
+  const attempted = new Set<string>()
+  const attemptSymbols = new Map<string, string>()
+  const visibleCounts: number[] = []
+  const batches = new Map<number, Set<string>>()
+  const observed = new Map<string, string>()
+  const sharedDrops = new Map<string, string>()
+  const allAttempts = new Set<string>()
+  const deadline = Date.now() + 55000
+  while (Date.now() < deadline && !a.terminal) {
+    // Observe the uncaught opponent's actual authoritative stream and render geometry.
+    const time = Date.now() + b.serverOffset
+    if (
+      b.state?.status === 'playing' &&
+      time >= b.state.startedAt + 200 &&
+      time < b.state.cutoffAt - 200
+    ) {
+      const visible = b.state.drops.filter(
+        (d) => time >= d.spawnedAt && time < d.expiresAt && dropPoint(d, time).y <= 1
+      )
+      visibleCounts.push(visible.length)
+      for (const drop of b.state.drops) {
+        const ids = batches.get(drop.spawnedAt) ?? new Set<string>()
+        ids.add(drop.id)
+        batches.set(drop.spawnedAt, ids)
+      }
+    }
+    for (const peer of [a, b]) {
+      for (const drop of peer.state!.drops) {
+        const prior = sharedDrops.get(drop.id)
+        const serialized = JSON.stringify(drop)
+        if (prior && prior !== serialized)
+          throw new Error('Shared drop geometry differs between peers')
+        sharedDrops.set(drop.id, serialized)
+      }
+    }
+    for (const drop of b.state!.drops) observed.set(drop.id, drop.symbol)
+    for (const [peer, targets] of [
+      [a, STOCK_ASSETS.slice(0, 10)],
+      [b, STOCK_ASSETS.slice(10)],
+    ] as const) {
+      const creditedSymbols = new Set(
+        peer
+          .state!.bags.find((bag) => bag.playerId === peer.socket.id)!
+          .assets.map((asset) => asset.symbol)
+      )
+      const latestClaims = new Map(peer.claims.map((claim) => [claim.dropId, claim.status]))
+      const pendingSymbols = new Set(
+        [...latestClaims]
+          .filter(([, status]) => status === 'pending')
+          .map(([id]) => attemptSymbols.get(id))
+      )
+      for (const drop of peer.state!.drops) {
+        const key = `${peer.socket.id}:${drop.id}`
+        if (
+          !allAttempts.has(key) &&
+          targets.some((asset) => asset.symbol === drop.symbol) &&
+          !creditedSymbols.has(drop.symbol) &&
+          !pendingSymbols.has(drop.symbol) &&
+          Date.now() < drop.expiresAt
+        ) {
+          allAttempts.add(key)
+          attempted.add(drop.id)
+          attemptSymbols.set(drop.id, drop.symbol)
+          peer.socket.emit('catch_stock', { dropId: drop.id })
+          peer.socket.emit('catch_stock', { dropId: drop.id })
+        }
+      }
+    }
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  await until(() => a.terminal && b.terminal, 'cutoff', 35000)
+  const bags = a.state!.bags
+  if (
+    bags.some(
+      (bag) =>
+        bag.spent > MATCH_BUDGET ||
+        bag.reservedSpend !== 0 ||
+        bag.assets.length * CATCH_COST !== bag.spent ||
+        new Set(bag.assets.map((x) => x.dropId)).size !== bag.assets.length
+    )
+  )
+    throw new Error('Ledger/cap invariant')
+  if (
+    !visibleCounts.length ||
+    Math.max(...visibleCounts) > DROP_BATCH_SIZE ||
+    [...batches.values()].some((ids) => ids.size !== DROP_BATCH_SIZE)
+  )
+    throw new Error(
+      'Expected three server-owned tosses per batch and at most three visible choices'
+    )
+  console.log(
+    JSON.stringify(
+      {
+        base,
+        room: a.state!.matchId,
+        sameRoom: true,
+        commonCutoff: true,
+        attempts: attempted.size,
+        credits: bags.map((bag) => bag.assets.length),
+        spent: bags.map((bag) => bag.spent),
+        identicalSharedDropContracts: true,
+        shuffledSequence: [...observed.values()].slice(0, 20),
+        ledgerDedup: true,
+        concurrentVisibleChoices: {
+          min: Math.min(...visibleCounts),
+          max: Math.max(...visibleCounts),
+          samples: visibleCounts.length,
+        },
+        threeCoinBatches: [...batches.values()].every((ids) => ids.size === DROP_BATCH_SIZE),
+        status: a.state!.status,
+        reason: a.state!.reason,
+        result: a.state!.result,
+        quoteResults: a.claims
+          .filter((c) => c.status === 'failed')
+          .map((c) => ({ drop: c.dropId.split(':').at(-1), reason: c.reason })),
+        acquired: bags
+          .flatMap((bag) => bag.assets)
+          .map((x) => ({ symbol: x.symbol, amount: x.amount, pool: x.pool })),
+      },
+      null,
+      2
+    )
+  )
+  if (
+    requireCompleted &&
+    (a.state!.status !== 'completed' ||
+      bags.some((bag) => bag.spent !== MATCH_BUDGET) ||
+      new Set(bags.flatMap((bag) => bag.assets).map((asset) => asset.symbol)).size !==
+        STOCK_ASSETS.length ||
+      !a.state!.result?.winnerFixed)
+  )
+    throw new Error(
+      'Expected all twenty quoted assets across two $10 budgets and fixed common-cutoff settlement'
+    )
+} finally {
+  a.close()
+  b.close()
+}
+const c = new Peer(),
+  d = new Peer()
+try {
+  await until(() => c.socket.connected && d.socket.connected, 'disconnect peers')
+  c.socket.emit('find_match', {
+    playerName: 'Disconnect QA C',
+    gameSlug: 'stock-arcade',
+    gameDuration: 10000,
+  })
+  d.socket.emit('find_match', {
+    playerName: 'Disconnect QA D',
+    gameSlug: 'stock-arcade',
+    gameDuration: 10000,
+  })
+  await until(
+    () => c.state?.status === 'playing' && d.state?.status === 'playing',
+    'disconnect match'
+  )
+  c.close()
+  await until(() => d.terminal, 'disconnect cancellation')
+  if (d.state?.status !== 'cancelled' || d.state.result) throw new Error('Disconnect settled a bag')
+  console.log(JSON.stringify({ disconnectCancel: true, reason: d.state.reason }))
+} finally {
+  c.close()
+  d.close()
+}

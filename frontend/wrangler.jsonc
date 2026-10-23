@@ -3,7 +3,7 @@
   "name": "grid-games",
   "account_id": "a22fe9411b81705409eb7cdf9be367e3",
   "main": "worker/index.ts",
-  "compatibility_date": "2026-10-03",
+  "compatibility_date": "2026-10-07",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "routes": [{ "pattern": "gridgames.space/*", "zone_name": "gridgames.space" }],
@@ -12,13 +12,16 @@
     "bindings": [
       { "name": "LOBBY", "class_name": "Lobby" },
       { "name": "GAME_ROOMS", "class_name": "GameRoom" },
+      { "name": "QUOTE_GATE", "class_name": "QuoteGate" },
     ],
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Multiplayer"] },
     { "tag": "v2", "new_sqlite_classes": ["Lobby", "GameRoom"] },
+    { "tag": "pivot-v1", "new_sqlite_classes": ["QuoteGate"] },
   ],
   "vars": {
+    "ROBINHOOD_RPC_URL": "https://robinhood.drpc.org",
     "ALLOWED_ORIGINS": "https://grid-games.mathew.workers.dev,https://gridgames.space",
     "NEXT_PUBLIC_URL": "https://gridgames.space",
   },

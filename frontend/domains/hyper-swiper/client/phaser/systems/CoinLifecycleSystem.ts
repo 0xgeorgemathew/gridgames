@@ -2,14 +2,12 @@ import { GameObjects, Scene } from 'phaser'
 import type { CoinType, CoinSpawnEvent } from '@/domains/hyper-swiper/shared/trading.types'
 import { Token } from '@/domains/hyper-swiper/client/phaser/objects/Token'
 import { CoinRenderer, COIN_CONFIG } from './CoinRenderer'
-import { SpatialGrid } from './SpatialGrid'
 
 export class CoinLifecycleSystem {
   private scene: Scene
   private isMobile = false
   private tokenPool!: GameObjects.Group
   private coinRenderer!: CoinRenderer
-  private spatialGrid!: SpatialGrid
   private lastSequenceIndex = -1
 
   constructor(scene: Scene) {
@@ -19,7 +17,6 @@ export class CoinLifecycleSystem {
   create(isMobile: boolean): void {
     this.isMobile = isMobile
     this.coinRenderer = new CoinRenderer(this.scene)
-    this.spatialGrid = new SpatialGrid()
 
     this.coinRenderer.generateCachedTextures()
 
@@ -43,15 +40,10 @@ export class CoinLifecycleSystem {
   shutdown(): void {
     // Phaser may destroy registered groups before the scene DESTROY callback.
     if (this.tokenPool?.children) this.tokenPool.clear(true, true)
-    this.spatialGrid?.clear()
   }
 
   getTokenPool(): GameObjects.Group {
     return this.tokenPool
-  }
-
-  getSpatialGrid(): SpatialGrid {
-    return this.spatialGrid
   }
 
   handleCoinSpawn(data: CoinSpawnEvent): void {
@@ -91,10 +83,6 @@ export class CoinLifecycleSystem {
     )
 
     token.setData('lifetimeMs', data.lifetimeMs ?? 5000)
-    token.setData('gridX', token.x)
-    token.setData('gridY', token.y)
-
-    this.spatialGrid.addCoinToGrid(data.coinId, token.x, token.y)
   }
 
   cleanupCoins(): void {
@@ -115,18 +103,7 @@ export class CoinLifecycleSystem {
         if (token.body) {
           this.scene.physics.world.disableBody(token.body)
         }
-
-        const coinId = token.getData('id')
-        if (coinId && this.spatialGrid) {
-          const gridX = (token.getData('gridX') as number) ?? token.x
-          const gridY = (token.getData('gridY') as number) ?? token.y
-          this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
-        }
       })
-
-      if (this.spatialGrid) {
-        this.spatialGrid.clear()
-      }
     } catch (e) {
       // Group may have been destroyed during scene shutdown - silently ignore
       console.warn('cleanupCoins: tokenPool already destroyed', e)
@@ -140,11 +117,6 @@ export class CoinLifecycleSystem {
     }) as Token | undefined
 
     if (token) {
-      const gridX = (token.getData('gridX') as number) ?? token.x
-      const gridY = (token.getData('gridY') as number) ?? token.y
-
-      this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
-
       if (token.body) {
         this.scene.physics.world.disableBody(token.body)
       }
@@ -162,25 +134,13 @@ export class CoinLifecycleSystem {
       const t = token as Token
       if (!t.active) return
 
-      const coinId = t.getData('id')
-      const gridX = (t.getData('gridX') as number) ?? t.x
-      const gridY = (t.getData('gridY') as number) ?? t.y
-
       if (t.y > sceneHeight + 200) {
         // Only retire offscreen art. The server owns coin validity and expiry.
-        this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
         t.onSlice()
         if (t.body) {
           this.scene.physics.world.disableBody(t.body)
         }
         return
-      }
-
-      if (Math.abs(t.x - gridX) > 1 || Math.abs(t.y - gridY) > 1) {
-        this.spatialGrid.removeCoinFromGrid(coinId, gridX, gridY)
-        this.spatialGrid.addCoinToGrid(coinId, t.x, t.y)
-        t.setData('gridX', t.x)
-        t.setData('gridY', t.y)
       }
     })
   }

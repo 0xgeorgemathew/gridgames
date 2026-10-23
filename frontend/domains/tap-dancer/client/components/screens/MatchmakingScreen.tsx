@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useTradingStore } from '@/domains/tap-dancer/client/state/trading.store'
 import { AnimatePresence, m } from 'framer-motion'
 import { GridScanBackground } from '@/platform/ui/GridScanBackground'
@@ -13,6 +13,8 @@ import { useBaseMiniAppAuth } from '@/platform/auth/mini-app.hook'
 import { cn } from '@/platform/utils/classNames.utils'
 import { OnboardingModal } from '@/domains/tap-dancer/client/components/modals/OnboardingModal'
 import { GameSettingsSelector } from '@/domains/tap-dancer/client/components/settings/GameSettingsSelector'
+import { useInviteMatch } from '@/domains/match/client/use-invite-match'
+import { InviteMatchPanel } from '@/platform/ui/InviteMatchPanel'
 
 type AuthMatchState = 'login' | 'ready'
 type UserMatchState = 'lobby' | 'entering'
@@ -32,6 +34,8 @@ interface MatchmakingAuthPanelProps {
   onBackFromLobby: () => void
   onRefreshLobby: () => void
   onSelectOpponent: (opponentSocketId: string) => void
+  onInviteFriend: () => void
+  inviteControls?: ReactNode
 }
 
 function MatchmakingAuthPanel({
@@ -48,13 +52,16 @@ function MatchmakingAuthPanel({
   onBackFromLobby,
   onRefreshLobby,
   onSelectOpponent,
+  onInviteFriend,
+  inviteControls,
 }: MatchmakingAuthPanelProps) {
   const formatDuration = (ms: number) => `${ms / 60000}MIN`
 
   return (
     <div className="flex flex-col items-center">
       <div className="min-h-[200px] w-full max-w-md">
-        {matchState === 'login' && (
+        {inviteControls}
+        {!inviteControls && matchState === 'login' && (
           <div key="login" className="flex flex-col items-center gap-4">
             <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan/80 text-sm tracking-[0.2em] animate-pulse">
               {isInMiniApp ? 'CONNECTING TO GRID...' : 'VERIFYING CREDENTIALS...'}
@@ -62,7 +69,7 @@ function MatchmakingAuthPanel({
           </div>
         )}
 
-        {matchState === 'ready' && (
+        {!inviteControls && matchState === 'ready' && (
           <div key="ready" className="flex flex-col items-center gap-3">
             <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
               {isConnected ? 'GRID CONNECTED' : 'CONNECTING TO GRID…'}
@@ -79,6 +86,13 @@ function MatchmakingAuthPanel({
               >
                 SELECT OPPONENT
               </ActionButton>
+              <ActionButton
+                onClick={onInviteFriend}
+                disabled={!isConnected || isMatching}
+                color="cyan"
+              >
+                INVITE A FRIEND
+              </ActionButton>
             </div>
             <GameSettingsSelector
               selectedDuration={selectedGameDuration}
@@ -88,7 +102,7 @@ function MatchmakingAuthPanel({
           </div>
         )}
 
-        {matchState === 'entering' && (
+        {!inviteControls && matchState === 'entering' && (
           <div key="entering" className="flex flex-col items-center gap-3">
             <p className="font-[family-name:var(--font-orbitron)] text-tron-cyan text-xs tracking-[0.2em] animate-pulse drop-shadow-[0_0_8px_var(--color-tron-cyan)]">
               WAITING FOR PLAYER 2
@@ -103,7 +117,7 @@ function MatchmakingAuthPanel({
           </div>
         )}
 
-        {matchState === 'lobby' && (
+        {!inviteControls && matchState === 'lobby' && (
           <div key="lobby" className="flex flex-col items-center gap-4 w-full max-w-md">
             <button
               onClick={onBackFromLobby}
@@ -144,6 +158,7 @@ function MatchmakingAuthPanel({
                           <PlayerName
                             username={player.name}
                             className="font-[family-name:var(--font-orbitron)] text-sm tracking-[0.1em] text-tron-cyan group-hover:text-white transition-colors"
+                            enableGlow={false}
                           />
                           <div className="flex items-center gap-2 text-[10px] tracking-[0.2em] font-mono">
                             <span
@@ -178,8 +193,8 @@ function MatchmakingAuthPanel({
 }
 
 export function MatchmakingScreen() {
-  const router = useRouter()
-  const { ready, authenticated, user } = usePrivy()
+  const navigate = useNavigate()
+  const { ready, authenticated, user, login } = usePrivy()
   const {
     isInMiniApp,
     user: miniAppUser,
@@ -188,6 +203,7 @@ export function MatchmakingScreen() {
     isAuthenticating: miniAppAuthenticating,
   } = useBaseMiniAppAuth()
   const {
+    socket,
     isConnected,
     isMatching,
     findMatch,
@@ -238,6 +254,14 @@ export function MatchmakingScreen() {
     return 'login'
   }, [isInMiniApp, miniAppConnected, miniAppUser, authenticated, user?.wallet])
 
+  const invite = useInviteMatch({
+    socket,
+    gameSlug: 'tap-dancer',
+    gameDuration: selectedGameDuration,
+    playerName: displayName || 'Grid Runner',
+    walletAddress,
+  })
+
   const matchState: MatchState =
     authState === 'login'
       ? 'login'
@@ -252,7 +276,7 @@ export function MatchmakingScreen() {
       isInMiniApp && !miniAppAuthenticating && !miniAppConnected && !miniAppUser
     const shouldRedirectWeb = !isInMiniApp && ready && !authenticated
 
-    if (shouldRedirectMiniApp || shouldRedirectWeb) {
+    if (invite.incoming === undefined && (shouldRedirectMiniApp || shouldRedirectWeb)) {
       window.location.href = '/'
     }
   }, [
@@ -262,7 +286,8 @@ export function MatchmakingScreen() {
     miniAppUser,
     ready,
     authenticated,
-    router,
+    navigate,
+    invite.incoming,
   ])
 
   const handleCloseOnboarding = useCallback(() => {
@@ -305,8 +330,7 @@ export function MatchmakingScreen() {
         />
         <m.p
           className="relative z-20 font-[family-name:var(--font-orbitron)] text-tron-cyan tracking-[0.3em] font-medium drop-shadow-[0_0_10px_var(--color-tron-cyan)]"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
+          style={{ opacity: 1 }}
         >
           {miniAppAuthenticating ? 'AUTHENTICATING...' : 'INITIALIZING...'}
         </m.p>
@@ -329,14 +353,14 @@ export function MatchmakingScreen() {
       <GridScanBackground
         scanDirection={matchState === 'entering' ? 1 : 0}
         scanRange={matchState === 'entering' ? [0.0, 2.0] : [2.0, 2.0]}
-        scanOpacity={matchState === 'entering' ? 0.8 : 0.0}
+        scanOpacity={0}
         scanDuration={matchState === 'entering' ? 0.8 : 4.0}
         scanGlow={matchState === 'entering' ? 1.0 : 0.0}
       />
 
       <div className="fixed top-0 left-0 right-0 z-30 flex items-start justify-between px-4 pt-4 pointer-events-none">
         <button
-          onClick={() => router.push('/')}
+          onClick={() => navigate({ to: '/' })}
           className="pointer-events-auto px-4 py-2 font-[family-name:var(--font-orbitron)] text-xs tracking-[0.2em] text-tron-cyan/80 hover:text-tron-cyan hover:shadow-[0_0_15px_rgba(0,243,255,0.4)] transition-all border border-tron-cyan/40 hover:border-tron-cyan hover:bg-tron-cyan/10 rounded-sm bg-tron-black/80 backdrop-blur-md hologram"
         >
           ← BACK
@@ -349,6 +373,7 @@ export function MatchmakingScreen() {
                 displayName={displayName}
                 pfpUrl={isInMiniApp ? miniAppUser?.pfpUrl : null}
                 compact={true}
+                animateIdle={false}
               />
             </div>
           )}
@@ -377,6 +402,17 @@ export function MatchmakingScreen() {
           onDurationChange={setSelectedGameDuration}
           lobbyPlayers={lobbyPlayers}
           onEnter={handleEnter}
+          onInviteFriend={invite.create}
+          inviteControls={
+            invite.active ? (
+              <InviteMatchPanel
+                invite={invite}
+                authenticated={authState === 'ready'}
+                connected={isConnected && !!walletAddress}
+                onLogin={login}
+              />
+            ) : undefined
+          }
           onOpenLobby={() => {
             getLobbyPlayers()
             setUserState('lobby')

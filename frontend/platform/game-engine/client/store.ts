@@ -233,6 +233,7 @@ export function createMatchStore<GameAction, GameState extends object>(
 
     sceneReady: () => {
       const state = get()
+      if (!state.matchId) return
       const payload: SceneReadyPayload = {
         matchId: state.matchId,
       }

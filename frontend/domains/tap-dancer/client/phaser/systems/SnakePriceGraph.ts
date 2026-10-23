@@ -532,7 +532,7 @@ export class SnakePriceGraph {
     if (!this.particleGraphics || !this.flashOverlay) return
 
     this.updateShardParticles(delta)
-    this.updateFlashOverlay(width, height)
+    this.updateFlashOverlay(width, height, delta)
 
     // Reset animation state when all particles and flashes are gone
     if (this.isAnimating && this.shardParticles.length === 0 && this.flashAlpha < 0.01) {
@@ -571,17 +571,17 @@ export class SnakePriceGraph {
 
       if (p.phase === 0) {
         p.vy += 60 * dt
-        p.vx *= 0.98
-        p.vy *= 0.98
+        p.vx *= Math.pow(0.98, delta / (1000 / 60))
+        p.vy *= Math.pow(0.98, delta / (1000 / 60))
       } else if (p.phase === 1) {
-        p.vx *= 0.92
-        p.vy *= 0.92
+        p.vx *= Math.pow(0.92, delta / (1000 / 60))
+        p.vy *= Math.pow(0.92, delta / (1000 / 60))
         p.vy -= 30 * dt
       } else {
-        p.vx *= 0.85
-        p.vy *= 0.85
+        p.vx *= Math.pow(0.85, delta / (1000 / 60))
+        p.vy *= Math.pow(0.85, delta / (1000 / 60))
         p.vy -= 50 * dt
-        p.size *= 0.96
+        p.size *= Math.pow(0.96, delta / (1000 / 60))
       }
 
       p.x += p.vx * dt
@@ -615,7 +615,7 @@ export class SnakePriceGraph {
   /**
    * Update full-screen flash overlay
    */
-  private updateFlashOverlay(width: number, height: number): void {
+  private updateFlashOverlay(width: number, height: number, delta: number): void {
     if (!this.flashOverlay) return
 
     this.flashOverlay.clear()
@@ -624,7 +624,7 @@ export class SnakePriceGraph {
       this.flashOverlay.fillStyle(this.flashColor, this.flashAlpha)
       this.flashOverlay.fillRect(0, 0, width, height)
 
-      this.flashAlpha *= 0.92
+      this.flashAlpha *= Math.pow(0.92, delta / (1000 / 60))
       if (this.flashAlpha < 0.01) {
         this.flashAlpha = 0
       }

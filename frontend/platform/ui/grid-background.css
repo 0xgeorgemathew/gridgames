@@ -1,0 +1,69 @@
+/* Static portability fallback only; normal idle screens show a cached shader raster. */
+.grid-background {
+  overflow: hidden;
+  background: #020609;
+}
+/* The scan changes illumination only. Both rasters keep identical viewport bounds. */
+.landing-grid-scan {
+  position: absolute;
+  inset: 0;
+  filter: brightness(2.5);
+  mask-image: radial-gradient(ellipse at center, transparent 35%, #000 46%, transparent 57%);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  animation: landing-grid-entry 0.8s ease-out both;
+}
+@keyframes landing-grid-entry {
+  0% {
+    mask-size: 0% 0%;
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.8;
+  }
+  100% {
+    mask-size: 250% 250%;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-grid-scan {
+    display: none;
+    animation: none;
+  }
+}
+.grid-static-fallback {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #00171955, transparent 70%);
+  perspective: 480px;
+}
+.grid-static-fallback > div {
+  position: absolute;
+  background-image:
+    linear-gradient(#00d9ff55 1px, transparent 1px),
+    linear-gradient(90deg, #00d9ff55 1px, transparent 1px);
+  background-size: 60px 60px;
+  box-shadow: inset 0 0 80px #000;
+}
+.grid-fallback-floor {
+  inset: 50% -40% -50%;
+  transform-origin: top;
+  transform: rotateX(65deg);
+}
+.grid-fallback-ceiling {
+  inset: -50% -40% 50%;
+  transform-origin: bottom;
+  transform: rotateX(-65deg);
+}
+.grid-fallback-left {
+  inset: -40% 50% -40% -50%;
+  transform-origin: right;
+  transform: rotateY(65deg);
+}
+.grid-fallback-right {
+  inset: -40% -50% -40% 50%;
+  transform-origin: left;
+  transform: rotateY(-65deg);
+}

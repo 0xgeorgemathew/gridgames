@@ -1,0 +1,684 @@
+/* Only added stock gameplay geometry; existing TRON theme/layout lives in shared UI. */
+.arcade-arena {
+  position: absolute;
+  inset: var(--stock-top-height, 78px) 0 var(--stock-hud-height, 180px);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+.arcade-disc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: clamp(88px, 22vw, 112px);
+  height: clamp(88px, 22vw, 112px);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: crosshair;
+  touch-action: none;
+  will-change: transform;
+}
+.ninja-disc-logo {
+  display: grid;
+  place-items: center;
+  width: clamp(42px, 11vw, 54px);
+  height: clamp(42px, 11vw, 54px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 25%, #ffffff, #e7edf0);
+  box-shadow: inset 0 0 0 1px #00d3ff25;
+  padding: 6px;
+}
+.arcade-disc img,
+.ninja-contact-disc img {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  object-fit: contain;
+  pointer-events: none;
+}
+.arcade-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.arcade-bag-target {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  font-size: 9px;
+  color: var(--color-tron-cyan-dim);
+  letter-spacing: 0.14em;
+  pointer-events: none;
+}
+.arcade-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  text-align: center;
+  color: var(--color-tron-cyan);
+  font-family: var(--font-orbitron);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+/* Ice-blue light over deep navy keeps the TRON field legible. Only transforms
+   and opacity animate; the textured plane is painted once. */
+.ninja-grid-field {
+  --grid-cell: clamp(56px, 18vw, 88px);
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--pivot-grid-field);
+}
+.ninja-grid-plane {
+  position: absolute;
+  inset: calc(-1 * var(--grid-cell)) 0 0;
+  background-image:
+    radial-gradient(circle at center, #b0fcffb0 0 1px, #42e9ff33 1px 4px, transparent 5px),
+    linear-gradient(#69deff21 1px, transparent 1px),
+    linear-gradient(90deg, #69deff21 1px, transparent 1px);
+  background-size: var(--grid-cell) var(--grid-cell);
+  background-position:
+    calc(-0.5 * var(--grid-cell)) calc(-0.5 * var(--grid-cell)),
+    0 0,
+    0 0;
+  animation: ninja-grid-travel 14s linear infinite paused;
+}
+.ninja-grid-scan {
+  position: absolute;
+  top: -80px;
+  inset-inline: 0;
+  height: 80px;
+  background: linear-gradient(180deg, transparent, #58e8ff0c 90%, #a8f8ff40 99%, transparent);
+  animation: ninja-grid-scan 11s linear infinite paused;
+}
+.ninja-grid-sparks > span {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #c5fbff;
+  box-shadow: 0 0 7px 2px #44dfff55;
+  opacity: 0.3;
+  animation: ninja-grid-spark 7s ease-in-out infinite paused;
+}
+.ninja-grid-sparks > span:nth-child(1) {
+  left: 15%;
+  top: 22%;
+}
+.ninja-grid-sparks > span:nth-child(2) {
+  left: 72%;
+  top: 40%;
+  animation-delay: -2s;
+}
+.ninja-grid-sparks > span:nth-child(3) {
+  left: 38%;
+  top: 66%;
+  animation-delay: -4s;
+}
+.ninja-grid-sparks > span:nth-child(4) {
+  left: 88%;
+  top: 78%;
+  animation-delay: -6s;
+}
+.ninja-grid-field[data-moving='true'] .ninja-grid-plane,
+.ninja-grid-field[data-moving='true'] .ninja-grid-scan,
+.ninja-grid-field[data-moving='true'] .ninja-grid-sparks > span {
+  animation-play-state: running;
+}
+@keyframes ninja-grid-travel {
+  to {
+    transform: translateY(var(--grid-cell));
+  }
+}
+@keyframes ninja-grid-scan {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(calc(100dvh + 80px));
+    opacity: 0;
+  }
+}
+@keyframes ninja-grid-spark {
+  0%,
+  100% {
+    transform: translateY(-14px);
+    opacity: 0.15;
+  }
+  45% {
+    opacity: 0.65;
+  }
+  75% {
+    transform: translateY(18px);
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ninja-grid-field .ninja-grid-plane,
+  .ninja-grid-field .ninja-grid-scan,
+  .ninja-grid-field .ninja-grid-sparks > span {
+    animation: none;
+  }
+}
+.arcade-holdings {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 34px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+.arcade-holdings > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #00f3ff30;
+  padding: 3px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  color: var(--color-tron-cyan);
+  flex-shrink: 0;
+}
+.arcade-holdings img {
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: 3px;
+  background: #f4f6f8;
+  object-fit: contain;
+}
+.arcade-holdings p {
+  white-space: nowrap;
+  color: var(--color-tron-white-dim);
+  font-size: 9px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-trail {
+    display: none;
+  }
+}
+
+.arcade-disc-face {
+  position: relative;
+  z-index: 1;
+  width: 64%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ninja-disc-rim {
+  position: absolute;
+  inset: -4.5%;
+  width: 109%;
+  height: 109%;
+  pointer-events: none;
+}
+.ninja-catch {
+  position: absolute;
+  width: clamp(88px, 22vw, 112px);
+  height: clamp(88px, 22vw, 112px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.ninja-contact {
+  position: absolute;
+  inset: -10%;
+  pointer-events: none;
+}
+.ninja-slice-axis,
+.ninja-slice-half {
+  position: absolute;
+  inset: 0;
+}
+.ninja-contact-disc {
+  position: absolute;
+  inset: 8.333%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ninja-contact-mark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.ninja-contact-disc .ninja-disc-symbol {
+  font-family: var(--font-orbitron);
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.arcade-disc .ninja-disc-symbol {
+  font-family: var(--font-orbitron);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: #ffffff;
+  text-shadow: 0 0 7px #00f3ff66;
+}
+.ninja-disc-label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 3px;
+}
+.ninja-top-hud {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px 8px;
+  pointer-events: none;
+}
+.ninja-hud-caption {
+  font-family: var(--font-orbitron);
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: #82b7be;
+}
+.ninja-match-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--font-orbitron);
+  letter-spacing: 0.09em;
+}
+.ninja-match-label strong {
+  color: #bafaff;
+  font-size: 10px;
+}
+.ninja-match-label span {
+  color: #90c9d7;
+  font-size: 6px;
+}
+/* One measured rail; expanded panels overlay the arena without resizing it. */
+.ninja-match-bar {
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) 64px minmax(44px, 1fr);
+  align-items: center;
+  height: 58px;
+  padding: 0 6px;
+  border: 1px solid #00f3ff40;
+  border-radius: 30px;
+  background: #081d2aed;
+  box-shadow:
+    0 4px 18px #0009,
+    inset 0 1px 0 #00f3ff12;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+.ninja-match-bar > button {
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  color: #9ec9cf;
+}
+.ninja-match-bar > button {
+  border-radius: 22px;
+  transition:
+    color 150ms,
+    background-color 150ms;
+}
+.ninja-match-bar > button:hover,
+.ninja-match-bar > button[aria-expanded='true'] {
+  color: #bafaff;
+  background: #00f3ff12;
+}
+.ninja-bar-bag strong {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: inherit;
+}
+.ninja-bar-bag > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ninja-bar-bag small {
+  font-size: 8px;
+  line-height: 12px;
+  white-space: nowrap;
+}
+.ninja-bar-timer {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  align-self: start;
+  margin-top: -9px;
+  border: 1px solid #00f3ff66;
+  border-radius: 50%;
+  background: #09191d;
+  color: #00f3ff;
+  box-shadow: 0 0 18px #00f3ff18;
+}
+.ninja-bar-timer strong {
+  font-family: var(--font-geist-mono);
+  font-size: 16px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.ninja-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ninja-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+  z-index: 10;
+  pointer-events: auto;
+}
+.ninja-match-panel {
+  contain: layout style;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  inset-inline: 12px;
+  z-index: 30;
+  border: 1px solid #00f3ff40;
+  border-radius: 20px;
+  background: #091d2bfa;
+  box-shadow: 0 8px 28px #0009;
+  max-height: min(60dvh, 360px);
+  overflow-y: auto;
+  pointer-events: auto;
+}
+.ninja-settings-menu {
+  left: auto;
+  min-width: 180px;
+}
+.ninja-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 14px;
+  color: #bafaff;
+  font-family: var(--font-orbitron);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.ninja-panel-heading > button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  color: #9ec9cf;
+}
+.ninja-spend-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0 14px 12px;
+  color: #8fa9ad;
+  font-size: 11px;
+}
+.ninja-spend-summary > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ninja-spend-summary > span:last-child {
+  text-align: right;
+}
+.ninja-spend-summary span span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ninja-spend-summary strong {
+  color: #ddfaff;
+  font-size: 13px;
+}
+.ninja-panel-disclosure {
+  padding: 8px 12px 12px;
+  color: #8fa9ad;
+  font-size: 9px;
+}
+.ninja-settings-menu > button {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: #00f3ffbb;
+}
+.ninja-settings-menu > button:last-child {
+  color: #ff6b00bb;
+  border-top: 1px solid #00f3ff20;
+}
+.ninja-settings-menu button:hover {
+  background: #00f3ff15;
+}
+.ninja-bottom-hud {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 30;
+  padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  pointer-events: none;
+}
+.ninja-floating-funds {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 18px;
+}
+.ninja-funds-pill {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 7px 13px;
+  border: 1px solid #75efff66;
+  border-radius: 26px;
+  color: #bcf8ff;
+  background: linear-gradient(160deg, #163c50ed, #081b2af5);
+  box-shadow:
+    0 4px 16px #0005,
+    inset 0 1px 0 #c5fbff22,
+    0 0 12px #00dfff0c;
+  pointer-events: auto;
+}
+.ninja-funds-pill strong {
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  line-height: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.ninja-bet-pill:hover:not(:disabled) {
+  border-color: #b4faff;
+  background: #123a4d;
+}
+.ninja-bet-pill:disabled {
+  opacity: 0.6;
+}
+.ninja-bet-pill[aria-busy='true'] {
+  border-color: #ffc68b;
+}
+.ninja-score-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 66px;
+  padding: 6px 10px 0;
+}
+.ninja-spend {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+}
+.ninja-spend strong {
+  font-family: var(--font-geist-mono);
+  color: #ccfaff;
+  font-size: 18px;
+  line-height: 22px;
+}
+.ninja-spend small {
+  font-size: 8px;
+  color: #00f3ff66;
+  letter-spacing: 0.12em;
+}
+.ninja-player-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ninja-timer {
+  width: 60px;
+  height: 60px;
+  border: 1px solid #00f3ff66;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #09191d;
+  color: #00f3ff;
+  box-shadow:
+    0 0 18px #00f3ff18,
+    inset 0 0 12px #00f3ff0a;
+  transform: translateY(-3px);
+}
+.ninja-timer strong {
+  font-family: var(--font-geist-mono);
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.ninja-timer small {
+  font-size: 6px;
+  letter-spacing: 0.1em;
+  opacity: 0.55;
+}
+.ninja-timer-low {
+  color: #ff8a33;
+  border-color: #ff6b0066;
+  background: #20140c;
+  box-shadow: 0 0 18px #ff6b0018;
+}
+.ninja-bag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  border-top: 1px solid #00f3ff18;
+}
+.ninja-pending {
+  min-width: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding-left: 8px;
+  border-left: 1px solid #00f3ff24;
+  font-family: var(--font-geist-mono);
+  color: #00f3ffbb;
+  font-size: 12px;
+}
+.ninja-pending small {
+  color: #00f3ff66;
+  font-size: 6px;
+  letter-spacing: 0.1em;
+}
+.ninja-status {
+  min-height: 20px;
+  line-height: 16px;
+  padding: 4px 12px;
+  margin: 0;
+  color: #8fa9ad;
+  font-size: 10px;
+}
+.ninja-match-bar > button:focus-visible,
+.ninja-bet-pill:focus-visible,
+.ninja-match-panel:focus-visible,
+.ninja-match-panel button:focus-visible,
+.ninja-settings-menu button:focus-visible,
+.arcade-holdings:focus-visible {
+  outline: 2px solid #00f3ff;
+  outline-offset: -2px;
+}
+
+/* Feedback fades on the compositor without a React frame clock. */
+.ninja-bar-bag[data-feedback],
+.ninja-wallet-pill[data-feedback='rejected'] {
+  animation: ninja-hud-feedback 600ms ease-out both;
+}
+.arcade-holdings > span[data-feedback='credited'] {
+  animation: ninja-credit-feedback 600ms ease-out both;
+}
+@keyframes ninja-hud-feedback {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+@keyframes ninja-credit-feedback {
+  from {
+    border-color: #a3fff1;
+    box-shadow: inset 0 0 9px #a3fff144;
+  }
+  to {
+    border-color: #00f3ff30;
+    box-shadow: inset 0 0 0 transparent;
+  }
+}

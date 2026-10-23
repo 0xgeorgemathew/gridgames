@@ -1,7 +1,3 @@
-import { NextResponse } from 'next/server'
-
-export const runtime = 'nodejs'
-
 const defaultAccountAssociation = {
   header:
     'eyJmaWQiOjIwMjU3MzksInR5cGUiOiJhdXRoIiwia2V5IjoiMHg3OThmOTgxN2VmYzQzQ0Y2MzQzNDYwMDAyNzc2MWI5NDAyNDJBMTcwIn0',
@@ -21,6 +17,10 @@ function cleanToken(value: string | undefined): string {
 
 export async function GET() {
   const baseUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_URL)
+  const fallbackAssociation =
+    baseUrl === 'https://gridgames.space'
+      ? defaultAccountAssociation
+      : { header: '', payload: '', signature: '' }
   const appName = 'Grid Games'
   const appDescription = 'Real-time multiplayer games with blockchain settlement'
   const appTagline = 'Onchain multiplayer arcade'
@@ -52,21 +52,21 @@ export async function GET() {
     ogTitle,
     ogDescription,
     ogImageUrl: `${baseUrl}/og.png`,
-    noindex: false,
+    noindex: baseUrl !== 'https://gridgames.space',
   }
 
   const manifest = {
     accountAssociation: {
-      header: cleanToken(process.env.FC_HEADER) || defaultAccountAssociation.header,
-      payload: cleanToken(process.env.FC_PAYLOAD) || defaultAccountAssociation.payload,
-      signature: cleanToken(process.env.FC_SIGNATURE) || defaultAccountAssociation.signature,
+      header: cleanToken(process.env.FC_HEADER) || fallbackAssociation.header,
+      payload: cleanToken(process.env.FC_PAYLOAD) || fallbackAssociation.payload,
+      signature: cleanToken(process.env.FC_SIGNATURE) || fallbackAssociation.signature,
     },
     // Support both keys during transition. Keep them identical for strict validators.
     miniapp: miniAppConfig,
     frame: miniAppConfig,
   }
 
-  return NextResponse.json(manifest, {
+  return Response.json(manifest, {
     headers: {
       'Cache-Control': 'public, max-age=300, s-maxage=300',
     },

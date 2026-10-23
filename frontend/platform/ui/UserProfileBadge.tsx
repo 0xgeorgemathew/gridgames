@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import Image from 'next/image'
 import { m } from 'framer-motion'
 import { PlayerName } from '@/platform/ui/PlayerName'
 import { cn } from '@/platform/utils/classNames.utils'
@@ -11,6 +10,7 @@ interface UserProfileBadgeProps {
   pfpUrl?: string | null
   className?: string
   compact?: boolean
+  animateIdle?: boolean
 }
 
 /**
@@ -27,6 +27,7 @@ export const UserProfileBadge = React.memo(function UserProfileBadge({
   pfpUrl,
   className,
   compact = false,
+  animateIdle = true,
 }: UserProfileBadgeProps) {
   if (!displayName) return null
 
@@ -62,18 +63,22 @@ export const UserProfileBadge = React.memo(function UserProfileBadge({
             {/* Animated border */}
             <m.div
               className="absolute -inset-[2px] rounded-full border border-tron-cyan/60"
-              animate={{
-                opacity: [0.4, 0.7, 0.4],
-                scale: [1, 1.02, 1],
-              }}
+              style={animateIdle ? undefined : { opacity: 0.5 }}
+              animate={
+                animateIdle
+                  ? {
+                      opacity: [0.4, 0.7, 0.4],
+                      scale: [1, 1.02, 1],
+                    }
+                  : undefined
+              }
               transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
             />
-            <Image
+            <img
               src={pfpUrl}
               alt=""
               width={compact ? 28 : 36}
               height={compact ? 28 : 36}
-              unoptimized
               className={cn(
                 'relative rounded-full border-2 border-tron-cyan/80 object-cover',
                 sizeClasses.avatar
@@ -86,9 +91,14 @@ export const UserProfileBadge = React.memo(function UserProfileBadge({
             <div className="absolute -inset-0.5 rounded-full bg-tron-cyan/20 blur-[2px]" />
             <m.div
               className="absolute -inset-[2px] rounded-full border border-tron-cyan/50"
-              animate={{
-                opacity: [0.3, 0.5, 0.3],
-              }}
+              style={animateIdle ? undefined : { opacity: 0.4 }}
+              animate={
+                animateIdle
+                  ? {
+                      opacity: [0.3, 0.5, 0.3],
+                    }
+                  : undefined
+              }
               transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
             />
             <div
@@ -123,7 +133,7 @@ export const UserProfileBadge = React.memo(function UserProfileBadge({
             'font-[family-name:var(--font-orbitron)] text-tron-cyan drop-shadow-[0_0_8px_var(--color-tron-cyan)] block truncate',
             sizeClasses.name
           )}
-          enableGlow={true}
+          enableGlow={animateIdle}
         />
       </div>
     </m.div>

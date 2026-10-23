@@ -79,7 +79,7 @@ export class CollisionSystem {
 
     for (const token of tokenPool.getChildren()) {
       const tokenObj = token as Token
-      if (!tokenObj.active || tokenObj.getData('claimPending')) continue
+      if (!tokenObj.active || !tokenObj.visible || tokenObj.getData('claimPending')) continue
 
       const coinId = tokenObj.getData('id')
       if (slicedThisFrame.has(coinId)) continue

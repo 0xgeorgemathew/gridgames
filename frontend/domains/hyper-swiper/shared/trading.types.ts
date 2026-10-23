@@ -319,10 +319,13 @@ export type SocketErrorCode =
   | 'DURATION_MISMATCH'
   | 'OPPONENT_DISCONNECTED'
   | 'MATCH_START_FAILED'
+  | 'INVITE_CREATE_FAILED'
+  | 'INVITE_UNAVAILABLE'
 
 /** @deprecated Use SocketErrorEvent from events.types instead */
 export interface SocketErrorEvent {
   code: SocketErrorCode
   message: string
+  requestId?: string
   details?: Record<string, unknown>
 }
